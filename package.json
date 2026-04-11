@@ -1,0 +1,25 @@
+{
+  "name": "ecs-ts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "npm run typecheck && npm run lint",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "example:changes": "tsx examples/change-detection.ts",
+    "example:lifecycle": "tsx examples/lifecycle.ts",
+    "example:messages": "tsx examples/messages.ts",
+    "example:query": "tsx examples/query-filter.ts",
+    "example:state": "tsx examples/state.ts",
+    "example:ui": "tsx examples/ui-lifecycle.ts"
+  },
+  "devDependencies": {
+    "eslint": "^10.2.0",
+    "prettier": "^3.8.2",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.1"
+  }
+}
