@@ -21,7 +21,7 @@ English README: [README.md](README.md).
 - System 可以使用 `Commands` 做延迟结构修改。
 - Component 支持 lifecycle hooks：`onAdd`、`onInsert`、`onReplace`、`onRemove` 和 `onDespawn`。
 - System 是带生命周期方法的 object/class，例如 `onPreStartup`、`onStartup`、`onPostStartup`、`onFixedUpdate`、`onUpdate`、`onPostUpdate` 和 `onShutdown`。
-- System 支持 label、`before`/`after` 排序、`runIf` 条件以及 fixed update 阶段。
+- System 支持 label、system set、`before`/`after` 排序、`runIf` 条件以及 fixed update 阶段。
 - State transitions 支持通过 `addStateSystem` 和 `addTransitionSystem` 注册 object/class system。
 - Observer 支持通过 `defineEvent`、`observe` 和 `trigger` 触发立即事件。
 
@@ -90,7 +90,7 @@ npm run example:lifecycle
 npm run example:scheduler
 ```
 
-这个示例展示 system label、`before`/`after` 排序、`runIf` 以及配合 `setFixedTimeStep(...)` 使用的 `onFixedUpdate`。
+这个示例展示 system label、通过 `configureSet(...)` 配置的 system set、`before`/`after` 排序、`runIf` 以及配合 `setFixedTimeStep(...)` 使用的 `onFixedUpdate`。
 
 ## 变更检测演示
 
@@ -199,7 +199,7 @@ npm run benchmark
 
 ## 后续可做
 
-- Scheduler 增强：增加 system set 以及更丰富的 run condition 组合能力。
+- Scheduler 增强：增加更丰富的 run condition 组合能力，以及按 stage 配置 set 的能力。
 - App / Plugin：在 `World` 之上增加 `App` 和 `Plugin`，让系统、资源、消息、状态注册更模块化。
 - 测试和 benchmark：继续扩展边界场景覆盖，并增加更稳定的 benchmark 基线。
 - 存储策略扩展：当前是 SparseSet；后续可以探索 Archetype/Table 存储或混合存储，用于优化多组件 query。

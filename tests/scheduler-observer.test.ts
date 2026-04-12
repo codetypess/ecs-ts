@@ -60,6 +60,58 @@ test("scheduler rejects cyclic ordering inside a stage", () => {
     }, /System ordering cycle detected/);
 });
 
+test("scheduler supports set run conditions and ordering", () => {
+    const calls: string[] = [];
+
+    class NamedSystem {
+        constructor(private readonly name: string) {}
+
+        onUpdate(): void {
+            calls.push(this.name);
+        }
+    }
+
+    const world = new World();
+
+    world.configureSet("gameplay", {
+        after: ["input"],
+        before: ["render"],
+        runIf: () => true,
+    });
+    world.configureSet("paused", {
+        runIf: () => false,
+    });
+    world.addSystem(new NamedSystem("render"), { label: "render" });
+    world.addSystem(new NamedSystem("movement"), { label: "movement", set: "gameplay" });
+    world.addSystem(new NamedSystem("combat"), {
+        label: "combat",
+        set: "gameplay",
+        after: ["movement"],
+    });
+    world.addSystem(new NamedSystem("input"), { label: "input" });
+    world.addSystem(new NamedSystem("paused"), { set: "paused" });
+    world.addSystem(new NamedSystem("cleanup"), { after: ["gameplay", "render"] });
+
+    world.update(0);
+
+    assert.deepEqual(calls, ["input", "movement", "combat", "render", "cleanup"]);
+});
+
+test("scheduler rejects ambiguous system and set labels inside a stage", () => {
+    class NamedSystem {
+        onUpdate(): void {}
+    }
+
+    const world = new World();
+
+    world.addSystem(new NamedSystem(), { label: "gameplay" });
+    world.addSystem(new NamedSystem(), { set: "gameplay", after: ["gameplay"] });
+
+    assert.throws(() => {
+        world.update(0);
+    }, /Duplicate system\/set label/);
+});
+
 test("observers dispatch immediate events and can queue commands", () => {
     const Health = defineComponent<{ value: number }>("ObserverHealth");
     const Damage = defineEvent<{ target: Entity; amount: number }>("ObserverDamage");

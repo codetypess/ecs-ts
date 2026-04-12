@@ -21,7 +21,7 @@ A small TypeScript ECS prototype based on the design discussion:
 - Systems can use `Commands` for deferred structural edits.
 - Components support lifecycle hooks: `onAdd`, `onInsert`, `onReplace`, `onRemove`, and `onDespawn`.
 - Systems are lifecycle objects/classes with methods such as `onPreStartup`, `onStartup`, `onPostStartup`, `onFixedUpdate`, `onUpdate`, `onPostUpdate`, and `onShutdown`.
-- Systems can use labels, `before`/`after` ordering, `runIf` predicates, and a fixed update stage.
+- Systems can use labels, system sets, `before`/`after` ordering, `runIf` predicates, and a fixed update stage.
 - State transitions support object/class systems through `addStateSystem` and `addTransitionSystem`.
 - Observers support immediate events through `defineEvent`, `observe`, and `trigger`.
 
@@ -90,7 +90,7 @@ This demo prints component hook order (`onAdd`, `onInsert`, `onReplace`, `onRemo
 npm run example:scheduler
 ```
 
-This demo shows system labels, `before`/`after` ordering, `runIf`, and `onFixedUpdate` with `setFixedTimeStep(...)`.
+This demo shows system labels, system sets through `configureSet(...)`, `before`/`after` ordering, `runIf`, and `onFixedUpdate` with `setFixedTimeStep(...)`.
 
 ## Change Detection Demo
 
@@ -199,7 +199,7 @@ Tests use Node's built-in `node:test` runner through `tsx`. The benchmark is a l
 
 ## Future Work
 
-- Scheduler improvements: add system sets and richer run condition composition.
+- Scheduler improvements: add richer run condition composition and stage-specific set configuration.
 - App / Plugin: add an `App` and `Plugin` layer above `World` for modular system, resource, message, and state registration.
 - Tests and benchmarks: expand coverage for edge cases and add more stable benchmark baselines.
 - Storage strategy experiments: keep SparseSet as the current baseline, then explore Archetype/Table or hybrid storage for faster multi-component queries.

@@ -64,10 +64,18 @@ export const scheduleStages = [
 export type ScheduleStage = (typeof scheduleStages)[number];
 
 export type SystemLabel = string | symbol;
+export type SystemSetLabel = SystemLabel;
 export type SystemRunCondition = (world: World) => boolean;
+
+export interface SystemSetOptions {
+    readonly before?: readonly SystemLabel[];
+    readonly after?: readonly SystemLabel[];
+    readonly runIf?: SystemRunCondition;
+}
 
 export interface SystemOptions {
     readonly label?: SystemLabel;
+    readonly set?: SystemSetLabel | readonly SystemSetLabel[];
     readonly before?: readonly SystemLabel[];
     readonly after?: readonly SystemLabel[];
     readonly runIf?: SystemRunCondition;
@@ -78,6 +86,7 @@ type SystemCallback = (world: World, dt: number, commands: Commands) => void;
 interface SystemRunner {
     readonly run: SystemCallback;
     readonly label: SystemLabel | undefined;
+    readonly sets: readonly SystemSetLabel[];
     readonly before: readonly SystemLabel[];
     readonly after: readonly SystemLabel[];
     readonly runIf: SystemRunCondition | undefined;
@@ -93,6 +102,12 @@ interface ResourceEntry<T> {
     value: T;
     readonly addedTick: number;
     changedTick: number;
+}
+
+interface SystemSetConfig {
+    readonly before: readonly SystemLabel[];
+    readonly after: readonly SystemLabel[];
+    readonly runIf: SystemRunCondition | undefined;
 }
 
 export interface System {
@@ -395,6 +410,7 @@ export class World {
         OptionalQueryState<readonly AnyComponentType[], readonly AnyComponentType[]>,
         OptionalQueryStateCache
     >();
+    private readonly systemSets = new Map<SystemSetLabel, SystemSetConfig>();
     private readonly schedules = createSchedules();
     private activeChangeDetection: ChangeDetectionRange | undefined;
     private fixedTimeStep = 1 / 60;
@@ -866,6 +882,16 @@ export class World {
 
     addSystem(system: System, options: SystemOptions = {}): this {
         this.registerSystem(system, options);
+
+        return this;
+    }
+
+    configureSet(set: SystemSetLabel, options: SystemSetOptions): this {
+        this.systemSets.set(set, {
+            before: options.before ?? [],
+            after: options.after ?? [],
+            runIf: options.runIf,
+        });
 
         return this;
     }
@@ -1733,7 +1759,7 @@ export class World {
     }
 
     private runSchedule(stage: ScheduleStage, dt: number): void {
-        this.runSystems(sortSystemRunners(this.schedules[stage], stage), dt);
+        this.runSystems(sortSystemRunners(this.schedules[stage], stage, this.systemSets), dt);
     }
 
     private runFixedUpdate(dt: number): void {
@@ -1747,7 +1773,7 @@ export class World {
 
     private runSystems(systems: readonly SystemRunner[], dt: number): void {
         for (const system of systems) {
-            if (system.runIf?.(this) === false) {
+            if (!this.shouldRunSystem(system)) {
                 continue;
             }
 
@@ -1769,6 +1795,16 @@ export class World {
                 this.activeChangeDetection = previousChangeDetection;
             }
         }
+    }
+
+    private shouldRunSystem(system: SystemRunner): boolean {
+        for (const set of system.sets) {
+            if (this.systemSets.get(set)?.runIf?.(this) === false) {
+                return false;
+            }
+        }
+
+        return system.runIf?.(this) !== false;
     }
 
     private runInitialStateEnters(dt: number): void {
@@ -1931,6 +1967,7 @@ function createSystemRunner(run: SystemCallback, options: SystemOptions = {}): S
     return {
         run,
         label: options.label,
+        sets: normalizeSystemSets(options.set),
         before: options.before ?? [],
         after: options.after ?? [],
         runIf: options.runIf,
@@ -1938,26 +1975,58 @@ function createSystemRunner(run: SystemCallback, options: SystemOptions = {}): S
     };
 }
 
+function normalizeSystemSets(
+    set: SystemSetLabel | readonly SystemSetLabel[] | undefined
+): readonly SystemSetLabel[] {
+    if (set === undefined) {
+        return [];
+    }
+
+    if (Array.isArray(set)) {
+        return Object.freeze([...set]);
+    }
+
+    return [set as SystemSetLabel];
+}
+
 function sortSystemRunners(
     systems: readonly SystemRunner[],
-    stage: ScheduleStage
+    stage: ScheduleStage,
+    systemSets: ReadonlyMap<SystemSetLabel, SystemSetConfig>
 ): readonly SystemRunner[] {
-    if (!systemsNeedSorting(systems)) {
+    if (!systemsNeedSorting(systems, systemSets)) {
         return systems;
     }
 
     const labels = new Map<SystemLabel, SystemRunner>();
+    const setMembers = new Map<SystemSetLabel, SystemRunner[]>();
 
     for (const system of systems) {
         if (system.label === undefined) {
-            continue;
+            // Keep collecting set members below.
+        } else {
+            if (labels.has(system.label)) {
+                throw new Error(`Duplicate system label in ${stage}: ${String(system.label)}`);
+            }
+
+            labels.set(system.label, system);
         }
 
-        if (labels.has(system.label)) {
-            throw new Error(`Duplicate system label in ${stage}: ${String(system.label)}`);
-        }
+        for (const set of system.sets) {
+            const systemsInSet = setMembers.get(set);
 
-        labels.set(system.label, system);
+            if (systemsInSet === undefined) {
+                setMembers.set(set, [system]);
+            } else {
+                systemsInSet.push(system);
+            }
+        }
+    }
+
+    for (const set of setMembers.keys()) {
+        if (labels.has(set)) {
+            throw new Error(`Duplicate system/set label in ${stage}: ${String(set)}`);
+        }
     }
 
     const edges = new Map<SystemRunner, SystemRunner[]>();
@@ -1968,18 +2037,26 @@ function sortSystemRunners(
 
     for (const system of systems) {
         for (const label of system.before) {
-            const target = labels.get(label);
-
-            if (target !== undefined) {
-                edges.get(target)!.push(system);
-            }
+            addBeforeEdges(system, label, labels, setMembers, edges);
         }
 
         for (const label of system.after) {
-            const target = labels.get(label);
+            addAfterEdges(system, label, labels, setMembers, edges);
+        }
 
-            if (target !== undefined) {
-                edges.get(system)!.push(target);
+        for (const set of system.sets) {
+            const config = systemSets.get(set);
+
+            if (config === undefined) {
+                continue;
+            }
+
+            for (const label of config.before) {
+                addBeforeEdges(system, label, labels, setMembers, edges);
+            }
+
+            for (const label of config.after) {
+                addAfterEdges(system, label, labels, setMembers, edges);
             }
         }
     }
@@ -1987,14 +2064,75 @@ function sortSystemRunners(
     return topologicalSortSystems(systems, edges, stage);
 }
 
-function systemsNeedSorting(systems: readonly SystemRunner[]): boolean {
+function systemsNeedSorting(
+    systems: readonly SystemRunner[],
+    systemSets: ReadonlyMap<SystemSetLabel, SystemSetConfig>
+): boolean {
     for (const system of systems) {
         if (system.label !== undefined || system.before.length > 0 || system.after.length > 0) {
             return true;
         }
+
+        for (const set of system.sets) {
+            const config = systemSets.get(set);
+
+            if (config !== undefined && (config.before.length > 0 || config.after.length > 0)) {
+                return true;
+            }
+        }
     }
 
     return false;
+}
+
+function addBeforeEdges(
+    system: SystemRunner,
+    targetLabel: SystemLabel,
+    systemLabels: ReadonlyMap<SystemLabel, SystemRunner>,
+    setMembers: ReadonlyMap<SystemSetLabel, readonly SystemRunner[]>,
+    edges: ReadonlyMap<SystemRunner, SystemRunner[]>
+): void {
+    for (const target of systemsForOrderLabel(targetLabel, systemLabels, setMembers)) {
+        addDependency(target, system, edges);
+    }
+}
+
+function addAfterEdges(
+    system: SystemRunner,
+    targetLabel: SystemLabel,
+    systemLabels: ReadonlyMap<SystemLabel, SystemRunner>,
+    setMembers: ReadonlyMap<SystemSetLabel, readonly SystemRunner[]>,
+    edges: ReadonlyMap<SystemRunner, SystemRunner[]>
+): void {
+    for (const target of systemsForOrderLabel(targetLabel, systemLabels, setMembers)) {
+        addDependency(system, target, edges);
+    }
+}
+
+function addDependency(
+    dependent: SystemRunner,
+    dependency: SystemRunner,
+    edges: ReadonlyMap<SystemRunner, SystemRunner[]>
+): void {
+    if (dependent === dependency) {
+        return;
+    }
+
+    edges.get(dependent)?.push(dependency);
+}
+
+function systemsForOrderLabel(
+    label: SystemLabel,
+    systemLabels: ReadonlyMap<SystemLabel, SystemRunner>,
+    setMembers: ReadonlyMap<SystemSetLabel, readonly SystemRunner[]>
+): readonly SystemRunner[] {
+    const system = systemLabels.get(label);
+
+    if (system !== undefined) {
+        return [system];
+    }
+
+    return setMembers.get(label) ?? [];
 }
 
 function topologicalSortSystems(

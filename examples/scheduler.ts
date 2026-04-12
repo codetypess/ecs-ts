@@ -33,18 +33,31 @@ class PrintSystem {
 const world = new World();
 
 world.setFixedTimeStep(0.5);
-world.addSystem(new SetupSystem());
-world.addSystem(new FixedStepSystem());
-world.addSystem(new NamedUpdateSystem("A"), { label: "a" });
-world.addSystem(new NamedUpdateSystem("B"), { label: "b", after: ["a"] });
-world.addSystem(new NamedUpdateSystem("C"), { label: "c", before: ["b"] });
-world.addSystem(new NamedUpdateSystem("runIf"), {
-    after: ["b"],
+world.configureSet("gameplay", {
+    after: ["input"],
+    before: ["render"],
     runIf: (currentWorld) => currentWorld.resource(FeatureEnabled).value,
 });
-world.addSystem(new NamedUpdateSystem("skipped"), {
+world.configureSet("paused", {
     runIf: () => false,
 });
+world.addSystem(new SetupSystem());
+world.addSystem(new FixedStepSystem());
+world.addSystem(new NamedUpdateSystem("render"), { label: "render" });
+world.addSystem(new NamedUpdateSystem("movement"), {
+    label: "movement",
+    set: "gameplay",
+});
+world.addSystem(new NamedUpdateSystem("combat"), {
+    label: "combat",
+    set: "gameplay",
+    after: ["movement"],
+});
+world.addSystem(new NamedUpdateSystem("skipped"), {
+    set: "paused",
+});
+world.addSystem(new NamedUpdateSystem("input"), { label: "input" });
+world.addSystem(new NamedUpdateSystem("cleanup"), { after: ["gameplay", "render"] });
 world.addSystem(new PrintSystem());
 
 world.update(1.2);
