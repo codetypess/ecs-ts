@@ -1,5 +1,6 @@
 import type {
     AnyComponentType,
+    Bundle,
     ComponentData,
     ComponentEntry,
     ComponentHook,
@@ -118,11 +119,12 @@ export class Commands {
     }
 
     spawn(...entries: ComponentEntry<unknown>[]): Entity {
-        const entity = this.world.spawn();
+        return this.spawnBundle({ entries });
+    }
 
-        for (const entry of entries) {
-            this.add(entity, entry.type, entry.value);
-        }
+    spawnBundle(bundle: Bundle): Entity {
+        const entity = this.world.spawn();
+        this.insertBundle(entity, bundle);
 
         return entity;
     }
@@ -138,6 +140,22 @@ export class Commands {
     remove<T>(entity: Entity, type: ComponentType<T>): this {
         this.queue.push((world) => {
             world.remove(entity, type);
+        });
+
+        return this;
+    }
+
+    insertBundle(entity: Entity, bundle: Bundle): this {
+        this.queue.push((world) => {
+            world.insertBundle(entity, bundle);
+        });
+
+        return this;
+    }
+
+    removeBundle(entity: Entity, bundle: Bundle): this {
+        this.queue.push((world) => {
+            world.removeBundle(entity, bundle);
         });
 
         return this;
@@ -205,13 +223,34 @@ export class World {
     private didShutdown = false;
 
     spawn(...entries: ComponentEntry<unknown>[]): Entity {
-        const entity = this.entities.create();
+        return this.spawnBundle({ entries });
+    }
 
-        for (const entry of entries) {
+    spawnBundle(bundle: Bundle): Entity {
+        const entity = this.entities.create();
+        this.insertBundle(entity, bundle);
+
+        return entity;
+    }
+
+    insertBundle(entity: Entity, bundle: Bundle): this {
+        this.assertAlive(entity);
+
+        for (const entry of bundle.entries) {
             this.add(entity, entry.type, entry.value);
         }
 
-        return entity;
+        return this;
+    }
+
+    removeBundle(entity: Entity, bundle: Bundle): boolean {
+        let removedAny = false;
+
+        for (const entry of bundle.entries) {
+            removedAny = this.remove(entity, entry.type) || removedAny;
+        }
+
+        return removedAny;
     }
 
     isAlive(entity: Entity): boolean {

@@ -8,6 +8,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
+    "example:bundle": "tsx examples/bundle.ts",
     "example:changes": "tsx examples/change-detection.ts",
     "example:lifecycle": "tsx examples/lifecycle.ts",
     "example:messages": "tsx examples/messages.ts",

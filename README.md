@@ -4,6 +4,7 @@ A small TypeScript ECS prototype based on the design discussion:
 
 - Entities are numeric `index + generation` handles, so stale entity IDs do not accidentally hit recycled entities.
 - Components are registered with `defineComponent<T>()`.
+- Bundles group multiple component entries for spawn/insert/remove calls.
 - Component storage uses `SparseSet`: O(1)-ish `get/has/add/remove`, dense iteration, and swap-remove deletion.
 - Queries choose the smallest component store as the base loop, then check other component stores by entity.
 - Queries can filter with `with` and `without`.
@@ -49,6 +50,14 @@ world.eachWhere(
 const position = world.get(entity, Position);
 console.log(position);
 ```
+
+## Bundle Demo
+
+```sh
+npm run example:bundle
+```
+
+This demo shows `bundle(...)`, `spawnBundle(...)`, and `removeBundle(...)`. Bundles are not components; they are just reusable groups of component entries.
 
 ## UI Lifecycle Example
 

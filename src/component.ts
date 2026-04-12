@@ -43,6 +43,10 @@ export interface ComponentEntry<T> {
     readonly value: T;
 }
 
+export interface Bundle {
+    readonly entries: readonly ComponentEntry<unknown>[];
+}
+
 export function defineComponent<T>(
     name: string,
     options: ComponentOptions<T> = {}
@@ -59,6 +63,12 @@ export function defineComponent<T>(
 
 export function withComponent<T>(type: ComponentType<T>, value: T): ComponentEntry<T> {
     return { type, value };
+}
+
+export function bundle(...entries: ComponentEntry<unknown>[]): Bundle {
+    return Object.freeze({
+        entries: Object.freeze([...entries]),
+    });
 }
 
 export function requireComponent<T>(
