@@ -10,6 +10,7 @@ A small TypeScript ECS prototype based on the design discussion:
 - Queries can filter with `with` and `without`.
 - Change detection supports `eachAdded`, `eachChanged`, `markChanged`, and `drainRemoved`.
 - Messages provide short-lived, multi-reader event queues through `defineMessage`, `writeMessage`, and `MessageReader`.
+- Removed component records support both explicit `drainRemoved` and multi-reader `RemovedReader`.
 - Components can declare required components that are inserted automatically when missing.
 - Systems can use `Commands` for deferred structural edits.
 - Components support lifecycle hooks: `onAdd`, `onInsert`, `onReplace`, `onRemove`, and `onDespawn`.
@@ -90,6 +91,14 @@ npm run example:messages
 ```
 
 This demo shows a Bevy-style buffered message flow: one system writes `Damage` messages through `Commands`, while another system keeps a `MessageReader` cursor and reads only messages it has not seen yet.
+
+## Removed Reader Demo
+
+```sh
+npm run example:removed
+```
+
+This demo shows multiple systems reading the same removed component records through independent `RemovedReader` cursors.
 
 ## Required Components Demo
 

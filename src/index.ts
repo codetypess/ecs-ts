@@ -1,6 +1,7 @@
 export * from "./component";
 export * from "./entity";
 export * from "./message";
+export * from "./removed";
 export * from "./resource";
 export * from "./sparse-set";
 export * from "./state";

@@ -10,6 +10,8 @@ import type {
 import { Entity, EntityManager, formatEntity } from "./entity";
 import type { MessageId, MessageReader, MessageType } from "./message";
 import { Messages } from "./message";
+import type { RemovedComponent, RemovedReader } from "./removed";
+import { RemovedComponents } from "./removed";
 import type { ResourceType } from "./resource";
 import { SparseSet } from "./sparse-set";
 import type { StateType, StateValue } from "./state";
@@ -80,12 +82,6 @@ interface ResolvedQueryFilter {
     readonly without: readonly SparseSet<unknown>[];
     readonly added: readonly SparseSet<unknown>[];
     readonly changed: readonly SparseSet<unknown>[];
-}
-
-export interface RemovedComponent<T> {
-    readonly entity: Entity;
-    readonly component: T;
-    readonly tick: number;
 }
 
 export interface StateSystem<T extends StateValue> {
@@ -215,7 +211,7 @@ export class World {
     private readonly resources = new Map<number, unknown>();
     private readonly states = new Map<number, StateRecord<StateValue>>();
     private readonly componentHooks = new Map<number, ComponentHookRegistry>();
-    private readonly removedComponents = new Map<number, RemovedComponent<unknown>[]>();
+    private readonly removedComponents = new Map<number, RemovedComponents<unknown>>();
     private readonly messageStores = new Map<number, Messages<unknown>>();
     private readonly schedules = createSchedules();
     private changeTick = 1;
@@ -485,15 +481,11 @@ export class World {
     }
 
     drainRemoved<T>(type: ComponentType<T>): RemovedComponent<T>[] {
-        const removed = this.removedComponents.get(type.id);
+        return this.getRemovedComponents(type)?.drain() ?? [];
+    }
 
-        if (removed === undefined || removed.length === 0) {
-            return [];
-        }
-
-        this.removedComponents.set(type.id, []);
-
-        return removed as RemovedComponent<T>[];
+    readRemoved<T>(reader: RemovedReader<T>): readonly RemovedComponent<T>[] {
+        return this.getRemovedComponents(reader.type)?.read(reader) ?? [];
     }
 
     private eachWithFilter<const TComponents extends readonly AnyComponentType[]>(
@@ -945,6 +937,23 @@ export class World {
         return this.messageStores.get(type.id) as Messages<T> | undefined;
     }
 
+    private ensureRemovedComponents<T>(type: ComponentType<T>): RemovedComponents<T> {
+        const existing = this.removedComponents.get(type.id);
+
+        if (existing !== undefined) {
+            return existing as RemovedComponents<T>;
+        }
+
+        const removed = new RemovedComponents<T>();
+        this.removedComponents.set(type.id, removed as RemovedComponents<unknown>);
+
+        return removed;
+    }
+
+    private getRemovedComponents<T>(type: ComponentType<T>): RemovedComponents<T> | undefined {
+        return this.removedComponents.get(type.id) as RemovedComponents<T> | undefined;
+    }
+
     private updateMessages(): void {
         for (const messages of this.messageStores.values()) {
             messages.update();
@@ -952,13 +961,7 @@ export class World {
     }
 
     private recordRemoved<T>(type: ComponentType<T>, entity: Entity, component: T): void {
-        const removed = this.removedComponents.get(type.id) ?? [];
-        removed.push({
-            entity,
-            component,
-            tick: this.changeTick,
-        });
-        this.removedComponents.set(type.id, removed);
+        this.ensureRemovedComponents(type).push(entity, component, this.changeTick);
     }
 
     private registerSystem(system: System): void {
