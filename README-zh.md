@@ -186,7 +186,7 @@ npm run example:query-ergonomics
 npm run example:query-state
 ```
 
-这个示例展示把 `queryState(...)` 作为可复用的 system 字段。`QueryState` 和 `optionalQueryState(...)` 会缓存 component/filter store 解析结果，并在新 component store 创建时失效。
+这个示例展示把 `queryState(...)` 作为可复用的 system 字段。`QueryState` 和 `optionalQueryState(...)` 会缓存 component/filter store 解析结果，并在新 component store 创建时失效。热路径优先用 `state.each(world, ...)`，避免 iterator row 每行创建数组。
 
 ## 测试和 Benchmark
 

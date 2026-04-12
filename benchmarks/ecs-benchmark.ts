@@ -147,7 +147,7 @@ results.push(
 );
 
 results.push(
-    measure("queryState Position+Velocity", () => {
+    measure("queryState.iter Position+Velocity", () => {
         let operations = 0;
 
         for (let loop = 0; loop < QUERY_LOOPS; loop++) {
@@ -156,6 +156,22 @@ results.push(
                 checksum += position.y;
                 operations++;
             }
+        }
+
+        return operations;
+    })
+);
+
+results.push(
+    measure("queryState.each Position+Velocity", () => {
+        let operations = 0;
+
+        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+            movingQuery.each(movement.world, (entity, position, velocity) => {
+                position.x += velocity.x * 0.001;
+                checksum += position.y + (entity % 2);
+                operations++;
+            });
         }
 
         return operations;

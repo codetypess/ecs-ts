@@ -186,7 +186,7 @@ This demo shows `hasAll`, `hasAny`, `single`, and `trySingle`.
 npm run example:query-state
 ```
 
-This demo shows `queryState(...)` as a reusable system field. `QueryState` and `optionalQueryState(...)` cache component/filter store resolution and invalidate when new component stores are created.
+This demo shows `queryState(...)` as a reusable system field. `QueryState` and `optionalQueryState(...)` cache component/filter store resolution and invalidate when new component stores are created. Use `state.each(world, ...)` on hot paths to avoid the per-row arrays created by iterator rows.
 
 ## Tests And Benchmarks
 

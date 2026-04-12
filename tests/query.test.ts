@@ -113,12 +113,22 @@ test("query state caches resolved stores and invalidates when stores are created
         withComponent(Sleeping, null)
     );
 
-    assert.deepEqual(
-        Array.from(movingPlayers.iter(world)).map(([entity, position, velocity]) => ({
+    const matches: {
+        readonly entity: typeof active;
+        readonly position: { readonly x: number; readonly y: number };
+        readonly velocity: { readonly x: number; readonly y: number };
+    }[] = [];
+
+    movingPlayers.each(world, (entity, position, velocity) => {
+        matches.push({
             entity,
             position: { ...position },
             velocity: { ...velocity },
-        })),
+        });
+    });
+
+    assert.deepEqual(
+        matches,
         [
             {
                 entity: active,
@@ -145,9 +155,14 @@ test("optional query state sees optional stores created after the cache was reso
 
     world.add(entity, Name, { value: "capital" });
 
-    const afterName = Array.from(namedPositions.iter(world));
+    const afterName: {
+        readonly entity: typeof entity;
+        readonly name: { readonly value: string } | undefined;
+    }[] = [];
 
-    assert.equal(afterName.length, 1);
-    assert.equal(afterName[0]?.[0], entity);
-    assert.deepEqual(afterName[0]?.[2], { value: "capital" });
+    namedPositions.each(world, (currentEntity, _position, name) => {
+        afterName.push({ entity: currentEntity, name });
+    });
+
+    assert.deepEqual(afterName, [{ entity, name: { value: "capital" } }]);
 });
