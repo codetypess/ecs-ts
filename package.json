@@ -8,6 +8,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "build": "tsc",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "benchmark": "tsx benchmarks/ecs-benchmark.ts",
     "example:bundle": "tsx examples/bundle.ts",
     "example:changes": "tsx examples/change-detection.ts",
     "example:lifecycle": "tsx examples/lifecycle.ts",
@@ -25,6 +27,7 @@
     "example:ui": "tsx examples/ui-lifecycle.ts"
   },
   "devDependencies": {
+    "@types/node": "^25.6.0",
     "eslint": "^10.2.0",
     "prettier": "^3.8.2",
     "tsx": "^4.21.0",

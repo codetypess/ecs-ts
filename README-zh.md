@@ -179,9 +179,18 @@ npm run example:query-ergonomics
 
 这个示例展示 `hasAll`、`hasAny`、`single` 和 `trySingle`。
 
+## 测试和 Benchmark
+
+```sh
+npm test
+npm run benchmark
+```
+
+测试通过 `tsx` 使用 Node 内置的 `node:test` runner。Benchmark 是轻量微基准，覆盖 spawn、按 entity 直接取组件、query 迭代、filtered query、optional query、buffered messages 和 immediate observers。
+
 ## 后续可做
 
 - Scheduler 增强：增加 system set 以及更丰富的 run condition 组合能力。
 - App / Plugin：在 `World` 之上增加 `App` 和 `Plugin`，让系统、资源、消息、状态注册更模块化。
-- 测试和 benchmark：把现有 examples 中的语义沉淀成自动化测试，并加入 SparseSet/query/message 的性能基准。
+- 测试和 benchmark：继续扩展边界场景覆盖，并增加更稳定的 benchmark 基线。
 - 存储策略扩展：当前是 SparseSet；后续可以探索 Archetype/Table 存储或混合存储，用于优化多组件 query。

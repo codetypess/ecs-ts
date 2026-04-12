@@ -179,9 +179,18 @@ npm run example:query-ergonomics
 
 This demo shows `hasAll`, `hasAny`, `single`, and `trySingle`.
 
+## Tests And Benchmarks
+
+```sh
+npm test
+npm run benchmark
+```
+
+Tests use Node's built-in `node:test` runner through `tsx`. The benchmark is a lightweight micro-benchmark covering spawn, direct component get, query iteration, filtered queries, optional queries, buffered messages, and immediate observers.
+
 ## Future Work
 
 - Scheduler improvements: add system sets and richer run condition composition.
 - App / Plugin: add an `App` and `Plugin` layer above `World` for modular system, resource, message, and state registration.
-- Tests and benchmarks: turn example semantics into automated tests, and add SparseSet/query/message benchmarks.
+- Tests and benchmarks: expand coverage for edge cases and add more stable benchmark baselines.
 - Storage strategy experiments: keep SparseSet as the current baseline, then explore Archetype/Table or hybrid storage for faster multi-component queries.
