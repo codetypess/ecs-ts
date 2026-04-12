@@ -14,6 +14,7 @@ English README: [README.md](README.md).
 - Messages 通过 `defineMessage`、`writeMessage` 和 `MessageReader` 提供短生命周期、多 reader 的事件队列。
 - Removed component 记录同时支持显式 `drainRemoved` 和多 reader 的 `RemovedReader`。
 - Component 可以声明 required components，在组件缺失时自动插入依赖组件。
+- Resource 支持 per-system 的 added/changed 检测。
 - System 可以使用 `Commands` 做延迟结构修改。
 - Component 支持 lifecycle hooks：`onAdd`、`onInsert`、`onReplace`、`onRemove` 和 `onDespawn`。
 - System 是带生命周期方法的 object/class，例如 `onPreStartup`、`onStartup`、`onPostStartup`、`onUpdate`、`onPostUpdate` 和 `onShutdown`。
@@ -118,6 +119,14 @@ npm run example:required
 
 这个示例展示 required component 插入：添加 `RigidBody` 时会自动插入缺失的 `Mass`、`Velocity` 以及传递依赖 `Transform`，但不会覆盖已经存在的组件。
 
+## Resource 变更检测演示
+
+```sh
+npm run example:resources
+```
+
+这个示例展示 `isResourceAdded`、`isResourceChanged`、`markResourceChanged` 和 resource 替换。
+
 ## State 演示
 
 ```sh
@@ -136,7 +145,6 @@ npm run example:query
 
 ## 后续可做
 
-- Resource change detection：给 resource 增加 `isResourceChanged`、`markResourceChanged` 或 reader 风格 API。
 - Query API 增强：增加 `single`、`trySingle`、`hasAll`、`hasAny`、更复杂的 `or/none/optional` 查询能力。
 - Scheduler 增强：增加 system label、`before/after` 排序、`runIf`、system set、fixed update。
 - Observer / immediate event：在 `Messages` 之外增加立即触发型事件，用于 UI 冒泡、点击事件或 entity-local 事件。

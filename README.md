@@ -14,6 +14,7 @@ A small TypeScript ECS prototype based on the design discussion:
 - Messages provide short-lived, multi-reader event queues through `defineMessage`, `writeMessage`, and `MessageReader`.
 - Removed component records support both explicit `drainRemoved` and multi-reader `RemovedReader`.
 - Components can declare required components that are inserted automatically when missing.
+- Resources support per-system added/changed detection.
 - Systems can use `Commands` for deferred structural edits.
 - Components support lifecycle hooks: `onAdd`, `onInsert`, `onReplace`, `onRemove`, and `onDespawn`.
 - Systems are lifecycle objects/classes with methods such as `onPreStartup`, `onStartup`, `onPostStartup`, `onUpdate`, `onPostUpdate`, and `onShutdown`.
@@ -118,6 +119,14 @@ npm run example:required
 
 This demo shows required component insertion: adding `RigidBody` automatically inserts missing `Mass`, `Velocity`, and transitive `Transform` components without overwriting components that were already present.
 
+## Resource Change Detection Demo
+
+```sh
+npm run example:resources
+```
+
+This demo shows `isResourceAdded`, `isResourceChanged`, `markResourceChanged`, and resource replacement.
+
 ## State Demo
 
 ```sh
@@ -136,7 +145,6 @@ This demo shows `eachWhere([Position, Velocity], { with: [Player], without: [Sle
 
 ## Future Work
 
-- Resource change detection: add `isResourceChanged`, `markResourceChanged`, or reader-style APIs for resources.
 - Query ergonomics: add `single`, `trySingle`, `hasAll`, `hasAny`, and richer `or/none/optional` query filters.
 - Scheduler improvements: add system labels, `before/after` ordering, `runIf`, system sets, and fixed update.
 - Observer / immediate events: add immediate event dispatch on top of buffered `Messages`, useful for UI bubbling or entity-local events.

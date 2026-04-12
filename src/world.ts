@@ -58,6 +58,12 @@ interface ChangeDetectionRange {
     readonly thisRunTick: number;
 }
 
+interface ResourceEntry<T> {
+    value: T;
+    readonly addedTick: number;
+    changedTick: number;
+}
+
 export interface System {
     onPreStartup?(world: World, dt: number, commands: Commands): void;
     onStartup?(world: World, dt: number, commands: Commands): void;
@@ -183,6 +189,30 @@ export class Commands {
         return this;
     }
 
+    setResource<T>(type: ResourceType<T>, value: T): this {
+        this.queue.push((world) => {
+            world.setResource(type, value);
+        });
+
+        return this;
+    }
+
+    removeResource<T>(type: ResourceType<T>): this {
+        this.queue.push((world) => {
+            world.removeResource(type);
+        });
+
+        return this;
+    }
+
+    markResourceChanged<T>(type: ResourceType<T>): this {
+        this.queue.push((world) => {
+            world.markResourceChanged(type);
+        });
+
+        return this;
+    }
+
     markChanged<T>(entity: Entity, type: ComponentType<T>): this {
         this.queue.push((world) => {
             world.markChanged(entity, type);
@@ -218,7 +248,7 @@ export class World {
     private readonly entities = new EntityManager();
     private readonly stores = new Map<number, SparseSet<unknown>>();
     private readonly componentTypes = new Map<number, AnyComponentType>();
-    private readonly resources = new Map<number, unknown>();
+    private readonly resources = new Map<number, ResourceEntry<unknown>>();
     private readonly states = new Map<number, StateRecord<StateValue>>();
     private readonly componentHooks = new Map<number, ComponentHookRegistry>();
     private readonly removedComponents = new Map<number, RemovedComponents<unknown>>();
@@ -764,28 +794,66 @@ export class World {
     }
 
     setResource<T>(type: ResourceType<T>, value: T): this {
-        this.resources.set(type.id, value);
+        const existing = this.getResourceEntry(type);
+
+        if (existing !== undefined) {
+            existing.value = value;
+            existing.changedTick = this.changeTick;
+            return this;
+        }
+
+        this.resources.set(type.id, {
+            value,
+            addedTick: this.changeTick,
+            changedTick: this.changeTick,
+        } satisfies ResourceEntry<T> as ResourceEntry<unknown>);
 
         return this;
     }
 
     getResource<T>(type: ResourceType<T>): T | undefined {
-        return this.resources.get(type.id) as T | undefined;
+        return this.getResourceEntry(type)?.value;
     }
 
     resource<T>(type: ResourceType<T>): T {
-        if (!this.resources.has(type.id)) {
+        const entry = this.getResourceEntry(type);
+
+        if (entry === undefined) {
             throw new Error(`Resource not found: ${type.name}`);
         }
 
-        return this.resources.get(type.id) as T;
+        return entry.value;
     }
 
     removeResource<T>(type: ResourceType<T>): T | undefined {
-        const value = this.resources.get(type.id) as T | undefined;
+        const value = this.getResourceEntry(type)?.value;
         this.resources.delete(type.id);
 
         return value;
+    }
+
+    markResourceChanged<T>(type: ResourceType<T>): boolean {
+        const entry = this.getResourceEntry(type);
+
+        if (entry === undefined) {
+            return false;
+        }
+
+        entry.changedTick = this.changeTick;
+
+        return true;
+    }
+
+    isResourceAdded<T>(type: ResourceType<T>): boolean {
+        const entry = this.getResourceEntry(type);
+
+        return entry !== undefined && isTickInRange(entry.addedTick, this.changeDetectionRange());
+    }
+
+    isResourceChanged<T>(type: ResourceType<T>): boolean {
+        const entry = this.getResourceEntry(type);
+
+        return entry !== undefined && isTickInRange(entry.changedTick, this.changeDetectionRange());
     }
 
     private *iterateQuery<const TComponents extends readonly AnyComponentType[]>(
@@ -939,6 +1007,10 @@ export class World {
 
     private getStore<T>(type: ComponentType<T>): SparseSet<T> | undefined {
         return this.stores.get(type.id) as SparseSet<T> | undefined;
+    }
+
+    private getResourceEntry<T>(type: ResourceType<T>): ResourceEntry<T> | undefined {
+        return this.resources.get(type.id) as ResourceEntry<T> | undefined;
     }
 
     private changeDetectionRange(): ChangeDetectionRange {
