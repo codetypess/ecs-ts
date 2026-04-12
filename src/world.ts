@@ -46,7 +46,17 @@ export const scheduleStages = [
 
 export type ScheduleStage = (typeof scheduleStages)[number];
 
-type SystemRunner = (world: World, dt: number, commands: Commands) => void;
+type SystemCallback = (world: World, dt: number, commands: Commands) => void;
+
+interface SystemRunner {
+    readonly run: SystemCallback;
+    lastRunTick: number;
+}
+
+interface ChangeDetectionRange {
+    readonly lastRunTick: number;
+    readonly thisRunTick: number;
+}
 
 export interface System {
     onPreStartup?(world: World, dt: number, commands: Commands): void;
@@ -214,6 +224,7 @@ export class World {
     private readonly removedComponents = new Map<number, RemovedComponents<unknown>>();
     private readonly messageStores = new Map<number, Messages<unknown>>();
     private readonly schedules = createSchedules();
+    private activeChangeDetection: ChangeDetectionRange | undefined;
     private changeTick = 1;
     private didStartup = false;
     private didShutdown = false;
@@ -373,7 +384,9 @@ export class World {
             return false;
         }
 
-        return this.getStore(type)?.getAddedTick(entity) === this.changeTick;
+        const tick = this.getStore(type)?.getAddedTick(entity);
+
+        return tick !== undefined && isTickInRange(tick, this.changeDetectionRange());
     }
 
     isChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
@@ -381,7 +394,9 @@ export class World {
             return false;
         }
 
-        return this.getStore(type)?.getChangedTick(entity) === this.changeTick;
+        const tick = this.getStore(type)?.getChangedTick(entity);
+
+        return tick !== undefined && isTickInRange(tick, this.changeDetectionRange());
     }
 
     remove<T>(entity: Entity, type: ComponentType<T>): boolean {
@@ -429,26 +444,26 @@ export class World {
     query<const TComponents extends readonly AnyComponentType[]>(
         ...types: TComponents
     ): IterableIterator<QueryRow<TComponents>> {
-        return this.iterateQuery(types, {});
+        return this.iterateQuery(types, {}, this.changeDetectionRange());
     }
 
     queryWhere<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents,
         filter: QueryFilter
     ): IterableIterator<QueryRow<TComponents>> {
-        return this.iterateQuery(types, filter);
+        return this.iterateQuery(types, filter, this.changeDetectionRange());
     }
 
     queryAdded<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents
     ): IterableIterator<QueryRow<TComponents>> {
-        return this.iterateQuery(types, { added: types });
+        return this.iterateQuery(types, { added: types }, this.changeDetectionRange());
     }
 
     queryChanged<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents
     ): IterableIterator<QueryRow<TComponents>> {
-        return this.iterateQuery(types, { changed: types });
+        return this.iterateQuery(types, { changed: types }, this.changeDetectionRange());
     }
 
     each<const TComponents extends readonly AnyComponentType[]>(
@@ -505,6 +520,7 @@ export class World {
             return;
         }
 
+        const changeDetection = this.changeDetectionRange();
         const baseStore = chooseSmallestStore([
             ...stores,
             ...filterStores.with,
@@ -518,7 +534,7 @@ export class World {
                 continue;
             }
 
-            if (!matchesFilter(entity, filterStores, this.changeTick)) {
+            if (!matchesFilter(entity, filterStores, changeDetection)) {
                 continue;
             }
 
@@ -659,9 +675,9 @@ export class World {
     onEnter<T extends StateValue>(
         type: StateType<T>,
         value: T,
-        system: (world: World, dt: number, commands: Commands) => void
+        system: SystemCallback
     ): this {
-        getStateSystems(this.ensureState(type).onEnter, value).push(system);
+        getStateSystems(this.ensureState(type).onEnter, value).push(createSystemRunner(system));
 
         return this;
     }
@@ -669,9 +685,9 @@ export class World {
     onExit<T extends StateValue>(
         type: StateType<T>,
         value: T,
-        system: (world: World, dt: number, commands: Commands) => void
+        system: SystemCallback
     ): this {
-        getStateSystems(this.ensureState(type).onExit, value).push(system);
+        getStateSystems(this.ensureState(type).onExit, value).push(createSystemRunner(system));
 
         return this;
     }
@@ -680,7 +696,7 @@ export class World {
         type: StateType<T>,
         from: T,
         to: T,
-        system: (world: World, dt: number, commands: Commands) => void
+        system: SystemCallback
     ): this {
         this.addTransitionRunner(type, from, to, system);
 
@@ -691,7 +707,7 @@ export class World {
         type: StateType<T>,
         from: T,
         to: T,
-        system: SystemRunner
+        system: SystemCallback
     ): void {
         const state = this.ensureState(type);
         let transitionsFrom = state.onTransition.get(from);
@@ -701,7 +717,7 @@ export class World {
             state.onTransition.set(from, transitionsFrom);
         }
 
-        getStateSystems(transitionsFrom, to).push(system);
+        getStateSystems(transitionsFrom, to).push(createSystemRunner(system));
     }
 
     addStateSystem<T extends StateValue>(
@@ -712,15 +728,19 @@ export class World {
         const state = this.ensureState(type);
 
         if (system.onEnter !== undefined) {
-            getStateSystems(state.onEnter, value).push((world, dt, commands) => {
-                system.onEnter?.(world, dt, commands, value);
-            });
+            getStateSystems(state.onEnter, value).push(
+                createSystemRunner((world, dt, commands) => {
+                    system.onEnter?.(world, dt, commands, value);
+                })
+            );
         }
 
         if (system.onExit !== undefined) {
-            getStateSystems(state.onExit, value).push((world, dt, commands) => {
-                system.onExit?.(world, dt, commands, value);
-            });
+            getStateSystems(state.onExit, value).push(
+                createSystemRunner((world, dt, commands) => {
+                    system.onExit?.(world, dt, commands, value);
+                })
+            );
         }
 
         return this;
@@ -770,7 +790,8 @@ export class World {
 
     private *iterateQuery<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents,
-        filter: QueryFilter
+        filter: QueryFilter,
+        changeDetection: ChangeDetectionRange
     ): IterableIterator<QueryRow<TComponents>> {
         const stores = this.resolveQueryStores(types);
 
@@ -797,7 +818,7 @@ export class World {
                 continue;
             }
 
-            if (!matchesFilter(entity, filterStores, this.changeTick)) {
+            if (!matchesFilter(entity, filterStores, changeDetection)) {
                 continue;
             }
 
@@ -920,6 +941,15 @@ export class World {
         return this.stores.get(type.id) as SparseSet<T> | undefined;
     }
 
+    private changeDetectionRange(): ChangeDetectionRange {
+        return (
+            this.activeChangeDetection ?? {
+                lastRunTick: this.changeTick - 1,
+                thisRunTick: this.changeTick,
+            }
+        );
+    }
+
     private ensureMessages<T>(type: MessageType<T>): Messages<T> {
         const existing = this.messageStores.get(type.id);
 
@@ -970,7 +1000,7 @@ export class World {
             const method = system[methodName];
 
             if (method !== undefined) {
-                this.schedules[stage].push(method.bind(system));
+                this.schedules[stage].push(createSystemRunner(method.bind(system)));
             }
         }
     }
@@ -982,8 +1012,22 @@ export class World {
     private runSystems(systems: readonly SystemRunner[], dt: number): void {
         for (const system of systems) {
             const commands = new Commands(this);
-            system(this, dt, commands);
-            commands.flush();
+            const previousChangeDetection = this.activeChangeDetection;
+            const thisRunTick = this.changeTick;
+
+            this.activeChangeDetection = {
+                lastRunTick: system.lastRunTick,
+                thisRunTick,
+            };
+
+            try {
+                system.run(this, dt, commands);
+                commands.flush();
+                system.lastRunTick = thisRunTick;
+                this.changeTick++;
+            } finally {
+                this.activeChangeDetection = previousChangeDetection;
+            }
         }
     }
 
@@ -1096,10 +1140,17 @@ function getStateSystems<T extends StateValue>(
     return systems;
 }
 
+function createSystemRunner(run: SystemCallback): SystemRunner {
+    return {
+        run,
+        lastRunTick: 0,
+    };
+}
+
 function matchesFilter(
     entity: Entity,
     filter: ResolvedQueryFilter,
-    currentTick: number
+    changeDetection: ChangeDetectionRange
 ): boolean {
     for (const store of filter.with) {
         if (!store.has(entity)) {
@@ -1113,11 +1164,11 @@ function matchesFilter(
         }
     }
 
-    if (!matchesAddedStore(entity, filter.added, currentTick)) {
+    if (!matchesAddedStore(entity, filter.added, changeDetection)) {
         return false;
     }
 
-    if (!matchesChangedStore(entity, filter.changed, currentTick)) {
+    if (!matchesChangedStore(entity, filter.changed, changeDetection)) {
         return false;
     }
 
@@ -1127,14 +1178,16 @@ function matchesFilter(
 function matchesChangedStore(
     entity: Entity,
     stores: readonly SparseSet<unknown>[],
-    currentTick: number
+    changeDetection: ChangeDetectionRange
 ): boolean {
     if (stores.length === 0) {
         return true;
     }
 
     for (const store of stores) {
-        if (store.getChangedTick(entity) === currentTick) {
+        const tick = store.getChangedTick(entity);
+
+        if (tick !== undefined && isTickInRange(tick, changeDetection)) {
             return true;
         }
     }
@@ -1145,19 +1198,25 @@ function matchesChangedStore(
 function matchesAddedStore(
     entity: Entity,
     stores: readonly SparseSet<unknown>[],
-    currentTick: number
+    changeDetection: ChangeDetectionRange
 ): boolean {
     if (stores.length === 0) {
         return true;
     }
 
     for (const store of stores) {
-        if (store.getAddedTick(entity) === currentTick) {
+        const tick = store.getAddedTick(entity);
+
+        if (tick !== undefined && isTickInRange(tick, changeDetection)) {
             return true;
         }
     }
 
     return false;
+}
+
+function isTickInRange(tick: number, changeDetection: ChangeDetectionRange): boolean {
+    return tick > changeDetection.lastRunTick && tick <= changeDetection.thisRunTick;
 }
 
 function createSchedules(): Record<ScheduleStage, SystemRunner[]> {

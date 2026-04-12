@@ -2,13 +2,15 @@
 
 A small TypeScript ECS prototype based on the design discussion:
 
+中文说明见 [README-zh.md](README-zh.md).
+
 - Entities are numeric `index + generation` handles, so stale entity IDs do not accidentally hit recycled entities.
 - Components are registered with `defineComponent<T>()`.
 - Bundles group multiple component entries for spawn/insert/remove calls.
 - Component storage uses `SparseSet`: O(1)-ish `get/has/add/remove`, dense iteration, and swap-remove deletion.
 - Queries choose the smallest component store as the base loop, then check other component stores by entity.
 - Queries can filter with `with` and `without`.
-- Change detection supports `eachAdded`, `eachChanged`, `markChanged`, and `drainRemoved`.
+- Change detection is per-system and supports `eachAdded`, `eachChanged`, `markChanged`, and `drainRemoved`.
 - Messages provide short-lived, multi-reader event queues through `defineMessage`, `writeMessage`, and `MessageReader`.
 - Removed component records support both explicit `drainRemoved` and multi-reader `RemovedReader`.
 - Components can declare required components that are inserted automatically when missing.
@@ -35,17 +37,17 @@ world.add(entity, Velocity, { x: 1, y: 0 });
 world.add(entity, Player, null);
 
 world.each([Position, Velocity], (_entity, position, velocity) => {
-  position.x += velocity.x;
-  position.y += velocity.y;
+    position.x += velocity.x;
+    position.y += velocity.y;
 });
 
 world.eachWhere(
-  [Position, Velocity],
-  { with: [Player], without: [Sleeping] },
-  (_entity, position, velocity) => {
-    position.x += velocity.x;
-    position.y += velocity.y;
-  },
+    [Position, Velocity],
+    { with: [Player], without: [Sleeping] },
+    (_entity, position, velocity) => {
+        position.x += velocity.x;
+        position.y += velocity.y;
+    }
 );
 
 const position = world.get(entity, Position);
@@ -83,6 +85,14 @@ npm run example:changes
 ```
 
 This demo shows `eachAdded`, manual `markChanged`, and `drainRemoved`.
+
+## Per-System Change Detection Demo
+
+```sh
+npm run example:per-system-changes
+```
+
+This demo shows a state system seeing a component change that happened before that system ran, using its own last-run change tick.
 
 ## Message Demo
 
@@ -123,3 +133,13 @@ npm run example:query
 ```
 
 This demo shows `eachWhere([Position, Velocity], { with: [Player], without: [Sleeping] }, ...)`.
+
+## Future Work
+
+- Resource change detection: add `isResourceChanged`, `markResourceChanged`, or reader-style APIs for resources.
+- Query ergonomics: add `single`, `trySingle`, `hasAll`, `hasAny`, and richer `or/none/optional` query filters.
+- Scheduler improvements: add system labels, `before/after` ordering, `runIf`, system sets, and fixed update.
+- Observer / immediate events: add immediate event dispatch on top of buffered `Messages`, useful for UI bubbling or entity-local events.
+- App / Plugin: add an `App` and `Plugin` layer above `World` for modular system, resource, message, and state registration.
+- Tests and benchmarks: turn example semantics into automated tests, and add SparseSet/query/message benchmarks.
+- Storage strategy experiments: keep SparseSet as the current baseline, then explore Archetype/Table or hybrid storage for faster multi-component queries.
