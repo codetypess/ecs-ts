@@ -8,6 +8,7 @@ import type {
     ComponentType,
 } from "./component";
 import { Entity, EntityManager, formatEntity } from "./entity";
+import type { EventObserver, EventType } from "./event";
 import type { MessageId, MessageReader, MessageType } from "./message";
 import { Messages } from "./message";
 import type { RemovedComponent, RemovedReader } from "./removed";
@@ -20,14 +21,29 @@ export type ComponentTuple<TComponents extends readonly AnyComponentType[]> = {
     [TIndex in keyof TComponents]: ComponentData<TComponents[TIndex]>;
 };
 
+export type OptionalComponentTuple<TComponents extends readonly AnyComponentType[]> = {
+    [TIndex in keyof TComponents]: ComponentData<TComponents[TIndex]> | undefined;
+};
+
 export type QueryRow<TComponents extends readonly AnyComponentType[]> = [
     Entity,
     ...ComponentTuple<TComponents>,
 ];
 
+export type OptionalQueryRow<
+    TRequiredComponents extends readonly AnyComponentType[],
+    TOptionalComponents extends readonly AnyComponentType[],
+> = [
+    Entity,
+    ...ComponentTuple<TRequiredComponents>,
+    ...OptionalComponentTuple<TOptionalComponents>,
+];
+
 export interface QueryFilter {
     readonly with?: readonly AnyComponentType[];
     readonly without?: readonly AnyComponentType[];
+    readonly or?: readonly AnyComponentType[];
+    readonly none?: readonly AnyComponentType[];
     readonly added?: readonly AnyComponentType[];
     readonly changed?: readonly AnyComponentType[];
 }
@@ -38,6 +54,7 @@ export const scheduleStages = [
     "postStartup",
     "first",
     "preUpdate",
+    "fixedUpdate",
     "update",
     "postUpdate",
     "last",
@@ -46,10 +63,24 @@ export const scheduleStages = [
 
 export type ScheduleStage = (typeof scheduleStages)[number];
 
+export type SystemLabel = string | symbol;
+export type SystemRunCondition = (world: World) => boolean;
+
+export interface SystemOptions {
+    readonly label?: SystemLabel;
+    readonly before?: readonly SystemLabel[];
+    readonly after?: readonly SystemLabel[];
+    readonly runIf?: SystemRunCondition;
+}
+
 type SystemCallback = (world: World, dt: number, commands: Commands) => void;
 
 interface SystemRunner {
     readonly run: SystemCallback;
+    readonly label: SystemLabel | undefined;
+    readonly before: readonly SystemLabel[];
+    readonly after: readonly SystemLabel[];
+    readonly runIf: SystemRunCondition | undefined;
     lastRunTick: number;
 }
 
@@ -70,6 +101,7 @@ export interface System {
     onPostStartup?(world: World, dt: number, commands: Commands): void;
     onFirst?(world: World, dt: number, commands: Commands): void;
     onPreUpdate?(world: World, dt: number, commands: Commands): void;
+    onFixedUpdate?(world: World, dt: number, commands: Commands): void;
     onUpdate?(world: World, dt: number, commands: Commands): void;
     onPostUpdate?(world: World, dt: number, commands: Commands): void;
     onLast?(world: World, dt: number, commands: Commands): void;
@@ -96,6 +128,8 @@ interface StateRecord<T extends StateValue> {
 interface ResolvedQueryFilter {
     readonly with: readonly SparseSet<unknown>[];
     readonly without: readonly SparseSet<unknown>[];
+    readonly or: readonly SparseSet<unknown>[];
+    readonly none: readonly SparseSet<unknown>[];
     readonly added: readonly SparseSet<unknown>[];
     readonly changed: readonly SparseSet<unknown>[];
 }
@@ -115,6 +149,7 @@ const lifecycleSystemMethods = {
     postStartup: "onPostStartup",
     first: "onFirst",
     preUpdate: "onPreUpdate",
+    fixedUpdate: "onFixedUpdate",
     update: "onUpdate",
     postUpdate: "onPostUpdate",
     last: "onLast",
@@ -229,6 +264,14 @@ export class Commands {
         return this;
     }
 
+    trigger<T>(type: EventType<T>, value: T): this {
+        this.queue.push((world) => {
+            world.trigger(type, value);
+        });
+
+        return this;
+    }
+
     run(command: (world: World) => void): this {
         this.queue.push(command);
 
@@ -253,8 +296,11 @@ export class World {
     private readonly componentHooks = new Map<number, ComponentHookRegistry>();
     private readonly removedComponents = new Map<number, RemovedComponents<unknown>>();
     private readonly messageStores = new Map<number, Messages<unknown>>();
+    private readonly eventObservers = new Map<number, EventObserver<unknown>[]>();
     private readonly schedules = createSchedules();
     private activeChangeDetection: ChangeDetectionRange | undefined;
+    private fixedTimeStep = 1 / 60;
+    private fixedUpdateAccumulator = 0;
     private changeTick = 1;
     private didStartup = false;
     private didShutdown = false;
@@ -524,6 +570,17 @@ export class World {
         return this.iterateQuery(types, { changed: types }, this.changeDetectionRange());
     }
 
+    queryOptional<
+        const TRequiredComponents extends readonly AnyComponentType[],
+        const TOptionalComponents extends readonly AnyComponentType[],
+    >(
+        required: TRequiredComponents,
+        optional: TOptionalComponents,
+        filter: QueryFilter = {}
+    ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
+        return this.iterateOptionalQuery(required, optional, filter, this.changeDetectionRange());
+    }
+
     trySingle<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents,
         filter: QueryFilter = {}
@@ -586,6 +643,32 @@ export class World {
         this.eachWithFilter(types, { changed: types }, visitor);
     }
 
+    eachOptional<
+        const TRequiredComponents extends readonly AnyComponentType[],
+        const TOptionalComponents extends readonly AnyComponentType[],
+    >(
+        required: TRequiredComponents,
+        optional: TOptionalComponents,
+        filter: QueryFilter,
+        visitor: (
+            entity: Entity,
+            ...components: [
+                ...ComponentTuple<TRequiredComponents>,
+                ...OptionalComponentTuple<TOptionalComponents>,
+            ]
+        ) => void
+    ): void {
+        for (const [entity, ...components] of this.queryOptional(required, optional, filter)) {
+            visitor(
+                entity,
+                ...(components as [
+                    ...ComponentTuple<TRequiredComponents>,
+                    ...OptionalComponentTuple<TOptionalComponents>,
+                ])
+            );
+        }
+    }
+
     drainRemoved<T>(type: ComponentType<T>): RemovedComponent<T>[] {
         return this.getRemovedComponents(type)?.drain() ?? [];
     }
@@ -615,8 +698,6 @@ export class World {
         const baseStore = chooseSmallestStore([
             ...stores,
             ...filterStores.with,
-            ...filterStores.added,
-            ...filterStores.changed,
         ]);
         const components: unknown[] = new Array(stores.length);
 
@@ -637,8 +718,18 @@ export class World {
         }
     }
 
-    addSystem(system: System): this {
-        this.registerSystem(system);
+    addSystem(system: System, options: SystemOptions = {}): this {
+        this.registerSystem(system, options);
+
+        return this;
+    }
+
+    setFixedTimeStep(seconds: number): this {
+        if (!Number.isFinite(seconds) || seconds <= 0) {
+            throw new Error("Fixed time step must be a positive finite number");
+        }
+
+        this.fixedTimeStep = seconds;
 
         return this;
     }
@@ -656,6 +747,7 @@ export class World {
         this.runInitialStateEnters(dt);
         this.runSchedule("first", dt);
         this.runSchedule("preUpdate", dt);
+        this.runFixedUpdate(dt);
         this.applyStateTransitions(dt);
         this.runSchedule("update", dt);
         this.runSchedule("postUpdate", dt);
@@ -696,6 +788,38 @@ export class World {
 
     clearMessages<T>(type: MessageType<T>): this {
         this.getMessages(type)?.clear();
+
+        return this;
+    }
+
+    observe<T>(type: EventType<T>, observer: EventObserver<T>): () => void {
+        const observers = this.eventObservers.get(type.id) ?? [];
+
+        observers.push(observer as EventObserver<unknown>);
+        this.eventObservers.set(type.id, observers);
+
+        return () => {
+            const index = observers.indexOf(observer as EventObserver<unknown>);
+
+            if (index !== -1) {
+                observers.splice(index, 1);
+            }
+        };
+    }
+
+    trigger<T>(type: EventType<T>, value: T): this {
+        const observers = this.eventObservers.get(type.id);
+
+        if (observers === undefined || observers.length === 0) {
+            return this;
+        }
+
+        for (const observer of [...observers]) {
+            const commands = new Commands(this);
+
+            observer(value, this, commands);
+            commands.flush();
+        }
 
         return this;
     }
@@ -934,12 +1058,7 @@ export class World {
             return;
         }
 
-        const baseStore = chooseSmallestStore([
-            ...stores,
-            ...filterStores.with,
-            ...filterStores.added,
-            ...filterStores.changed,
-        ]);
+        const baseStore = chooseSmallestStore([...stores, ...filterStores.with]);
         const components: unknown[] = new Array(stores.length);
 
         for (const entity of baseStore.entities) {
@@ -959,6 +1078,55 @@ export class World {
         }
     }
 
+    private *iterateOptionalQuery<
+        const TRequiredComponents extends readonly AnyComponentType[],
+        const TOptionalComponents extends readonly AnyComponentType[],
+    >(
+        required: TRequiredComponents,
+        optional: TOptionalComponents,
+        filter: QueryFilter,
+        changeDetection: ChangeDetectionRange
+    ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
+        const requiredStores = this.resolveQueryStores(required);
+
+        if (requiredStores === undefined) {
+            return;
+        }
+
+        const filterStores = this.resolveFilterStores(filter);
+
+        if (filterStores === undefined) {
+            return;
+        }
+
+        const optionalStores = this.resolveOptionalStores(optional);
+        const baseStore = chooseSmallestStore([...requiredStores, ...filterStores.with]);
+        const requiredComponents: unknown[] = new Array(requiredStores.length);
+        const optionalComponents: unknown[] = new Array(optionalStores.length);
+
+        for (const entity of baseStore.entities) {
+            if (!this.isAlive(entity)) {
+                continue;
+            }
+
+            if (!matchesFilter(entity, filterStores, changeDetection)) {
+                continue;
+            }
+
+            if (!this.fillComponents(entity, requiredStores, requiredComponents)) {
+                continue;
+            }
+
+            this.fillOptionalComponents(entity, optionalStores, optionalComponents);
+
+            yield [
+                entity,
+                ...requiredComponents,
+                ...optionalComponents,
+            ] as unknown as OptionalQueryRow<TRequiredComponents, TOptionalComponents>;
+        }
+    }
+
     private fillComponents(
         entity: Entity,
         stores: readonly SparseSet<unknown>[],
@@ -975,6 +1143,16 @@ export class World {
         }
 
         return true;
+    }
+
+    private fillOptionalComponents(
+        entity: Entity,
+        stores: readonly (SparseSet<unknown> | undefined)[],
+        output: unknown[]
+    ): void {
+        for (let index = 0; index < stores.length; index++) {
+            output[index] = stores[index]?.get(entity);
+        }
     }
 
     private resolveQueryStores(
@@ -999,9 +1177,23 @@ export class World {
         return stores;
     }
 
+    private resolveOptionalStores(
+        types: readonly AnyComponentType[]
+    ): (SparseSet<unknown> | undefined)[] {
+        const stores: (SparseSet<unknown> | undefined)[] = new Array(types.length);
+
+        for (let index = 0; index < types.length; index++) {
+            stores[index] = this.stores.get(types[index]!.id);
+        }
+
+        return stores;
+    }
+
     private resolveFilterStores(filter: QueryFilter): ResolvedQueryFilter | undefined {
         const withStores: SparseSet<unknown>[] = [];
         const withoutStores: SparseSet<unknown>[] = [];
+        const orStores: SparseSet<unknown>[] = [];
+        const noneStores: SparseSet<unknown>[] = [];
         const addedStores: SparseSet<unknown>[] = [];
         const changedStores: SparseSet<unknown>[] = [];
 
@@ -1020,6 +1212,26 @@ export class World {
 
             if (store !== undefined) {
                 withoutStores.push(store);
+            }
+        }
+
+        for (const type of filter.or ?? []) {
+            const store = this.stores.get(type.id);
+
+            if (store !== undefined) {
+                orStores.push(store);
+            }
+        }
+
+        if (filter.or !== undefined && filter.or.length > 0 && orStores.length === 0) {
+            return undefined;
+        }
+
+        for (const type of filter.none ?? []) {
+            const store = this.stores.get(type.id);
+
+            if (store !== undefined) {
+                noneStores.push(store);
             }
         }
 
@@ -1046,6 +1258,8 @@ export class World {
         return {
             with: withStores,
             without: withoutStores,
+            or: orStores,
+            none: noneStores,
             added: addedStores,
             changed: changedStores,
         };
@@ -1127,23 +1341,36 @@ export class World {
         this.ensureRemovedComponents(type).push(entity, component, this.changeTick);
     }
 
-    private registerSystem(system: System): void {
+    private registerSystem(system: System, options: SystemOptions): void {
         for (const stage of scheduleStages) {
             const methodName = lifecycleSystemMethods[stage];
             const method = system[methodName];
 
             if (method !== undefined) {
-                this.schedules[stage].push(createSystemRunner(method.bind(system)));
+                this.schedules[stage].push(createSystemRunner(method.bind(system), options));
             }
         }
     }
 
     private runSchedule(stage: ScheduleStage, dt: number): void {
-        this.runSystems(this.schedules[stage], dt);
+        this.runSystems(sortSystemRunners(this.schedules[stage], stage), dt);
+    }
+
+    private runFixedUpdate(dt: number): void {
+        this.fixedUpdateAccumulator += dt;
+
+        while (this.fixedUpdateAccumulator >= this.fixedTimeStep) {
+            this.runSchedule("fixedUpdate", this.fixedTimeStep);
+            this.fixedUpdateAccumulator -= this.fixedTimeStep;
+        }
     }
 
     private runSystems(systems: readonly SystemRunner[], dt: number): void {
         for (const system of systems) {
+            if (system.runIf?.(this) === false) {
+                continue;
+            }
+
             const commands = new Commands(this);
             const previousChangeDetection = this.activeChangeDetection;
             const thisRunTick = this.changeTick;
@@ -1273,11 +1500,110 @@ function getStateSystems<T extends StateValue>(
     return systems;
 }
 
-function createSystemRunner(run: SystemCallback): SystemRunner {
+function createSystemRunner(run: SystemCallback, options: SystemOptions = {}): SystemRunner {
     return {
         run,
+        label: options.label,
+        before: options.before ?? [],
+        after: options.after ?? [],
+        runIf: options.runIf,
         lastRunTick: 0,
     };
+}
+
+function sortSystemRunners(
+    systems: readonly SystemRunner[],
+    stage: ScheduleStage
+): readonly SystemRunner[] {
+    if (!systemsNeedSorting(systems)) {
+        return systems;
+    }
+
+    const labels = new Map<SystemLabel, SystemRunner>();
+
+    for (const system of systems) {
+        if (system.label === undefined) {
+            continue;
+        }
+
+        if (labels.has(system.label)) {
+            throw new Error(`Duplicate system label in ${stage}: ${String(system.label)}`);
+        }
+
+        labels.set(system.label, system);
+    }
+
+    const edges = new Map<SystemRunner, SystemRunner[]>();
+
+    for (const system of systems) {
+        edges.set(system, []);
+    }
+
+    for (const system of systems) {
+        for (const label of system.before) {
+            const target = labels.get(label);
+
+            if (target !== undefined) {
+                edges.get(target)!.push(system);
+            }
+        }
+
+        for (const label of system.after) {
+            const target = labels.get(label);
+
+            if (target !== undefined) {
+                edges.get(system)!.push(target);
+            }
+        }
+    }
+
+    return topologicalSortSystems(systems, edges, stage);
+}
+
+function systemsNeedSorting(systems: readonly SystemRunner[]): boolean {
+    for (const system of systems) {
+        if (system.label !== undefined || system.before.length > 0 || system.after.length > 0) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function topologicalSortSystems(
+    systems: readonly SystemRunner[],
+    edges: ReadonlyMap<SystemRunner, readonly SystemRunner[]>,
+    stage: ScheduleStage
+): readonly SystemRunner[] {
+    const ordered: SystemRunner[] = [];
+    const permanent = new Set<SystemRunner>();
+    const temporary = new Set<SystemRunner>();
+
+    function visit(system: SystemRunner): void {
+        if (permanent.has(system)) {
+            return;
+        }
+
+        if (temporary.has(system)) {
+            throw new Error(`System ordering cycle detected in ${stage}`);
+        }
+
+        temporary.add(system);
+
+        for (const dependency of edges.get(system) ?? []) {
+            visit(dependency);
+        }
+
+        temporary.delete(system);
+        permanent.add(system);
+        ordered.push(system);
+    }
+
+    for (const system of systems) {
+        visit(system);
+    }
+
+    return ordered;
 }
 
 function matchesFilter(
@@ -1297,6 +1623,16 @@ function matchesFilter(
         }
     }
 
+    for (const store of filter.none) {
+        if (store.has(entity)) {
+            return false;
+        }
+    }
+
+    if (!matchesOrStore(entity, filter.or)) {
+        return false;
+    }
+
     if (!matchesAddedStore(entity, filter.added, changeDetection)) {
         return false;
     }
@@ -1306,6 +1642,20 @@ function matchesFilter(
     }
 
     return true;
+}
+
+function matchesOrStore(entity: Entity, stores: readonly SparseSet<unknown>[]): boolean {
+    if (stores.length === 0) {
+        return true;
+    }
+
+    for (const store of stores) {
+        if (store.has(entity)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function matchesChangedStore(
@@ -1359,6 +1709,7 @@ function createSchedules(): Record<ScheduleStage, SystemRunner[]> {
         postStartup: [],
         first: [],
         preUpdate: [],
+        fixedUpdate: [],
         update: [],
         postUpdate: [],
         last: [],

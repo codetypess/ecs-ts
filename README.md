@@ -9,7 +9,8 @@ A small TypeScript ECS prototype based on the design discussion:
 - Bundles group multiple component entries for spawn/insert/remove calls.
 - Component storage uses `SparseSet`: O(1)-ish `get/has/add/remove`, dense iteration, and swap-remove deletion.
 - Queries choose the smallest component store as the base loop, then check other component stores by entity.
-- Queries can filter with `with` and `without`.
+- Queries can filter with `with`, `without`, `or`, `none`, `added`, and `changed`.
+- Optional queries can return `undefined` for components that may or may not exist on a matched entity.
 - Query ergonomics include `hasAll`, `hasAny`, `single`, and `trySingle`.
 - Change detection is per-system and supports `eachAdded`, `eachChanged`, `markChanged`, and `drainRemoved`.
 - Messages provide short-lived, multi-reader event queues through `defineMessage`, `writeMessage`, and `MessageReader`.
@@ -18,8 +19,10 @@ A small TypeScript ECS prototype based on the design discussion:
 - Resources support per-system added/changed detection.
 - Systems can use `Commands` for deferred structural edits.
 - Components support lifecycle hooks: `onAdd`, `onInsert`, `onReplace`, `onRemove`, and `onDespawn`.
-- Systems are lifecycle objects/classes with methods such as `onPreStartup`, `onStartup`, `onPostStartup`, `onUpdate`, `onPostUpdate`, and `onShutdown`.
+- Systems are lifecycle objects/classes with methods such as `onPreStartup`, `onStartup`, `onPostStartup`, `onFixedUpdate`, `onUpdate`, `onPostUpdate`, and `onShutdown`.
+- Systems can use labels, `before`/`after` ordering, `runIf` predicates, and a fixed update stage.
 - State transitions support object/class systems through `addStateSystem` and `addTransitionSystem`.
+- Observers support immediate events through `defineEvent`, `observe`, and `trigger`.
 
 ## Basic Usage
 
@@ -80,6 +83,14 @@ npm run example:lifecycle
 
 This demo prints component hook order (`onAdd`, `onInsert`, `onReplace`, `onRemove`, `onDespawn`) and class-based system lifecycle methods (`onPreStartup`, `onStartup`, `onPostStartup`, `onUpdate`, `onPostUpdate`, `onShutdown`).
 
+## Scheduler Demo
+
+```sh
+npm run example:scheduler
+```
+
+This demo shows system labels, `before`/`after` ordering, `runIf`, and `onFixedUpdate` with `setFixedTimeStep(...)`.
+
 ## Change Detection Demo
 
 ```sh
@@ -103,6 +114,14 @@ npm run example:messages
 ```
 
 This demo shows a Bevy-style buffered message flow: one system writes `Damage` messages through `Commands`, while another system keeps a `MessageReader` cursor and reads only messages it has not seen yet.
+
+## Observer Demo
+
+```sh
+npm run example:observer
+```
+
+This demo shows immediate event dispatch through `defineEvent`, `world.observe(...)`, `world.trigger(...)`, and `commands.trigger(...)`.
 
 ## Removed Reader Demo
 
@@ -144,6 +163,14 @@ npm run example:query
 
 This demo shows `eachWhere([Position, Velocity], { with: [Player], without: [Sleeping] }, ...)`.
 
+## Advanced Query Filter Demo
+
+```sh
+npm run example:query-advanced
+```
+
+This demo shows `or`, `none`, and `queryOptional(...)` for optional components.
+
 ## Query Ergonomics Demo
 
 ```sh
@@ -154,9 +181,7 @@ This demo shows `hasAll`, `hasAny`, `single`, and `trySingle`.
 
 ## Future Work
 
-- Query filters: add richer `or/none/optional` query filters.
-- Scheduler improvements: add system labels, `before/after` ordering, `runIf`, system sets, and fixed update.
-- Observer / immediate events: add immediate event dispatch on top of buffered `Messages`, useful for UI bubbling or entity-local events.
+- Scheduler improvements: add system sets and richer run condition composition.
 - App / Plugin: add an `App` and `Plugin` layer above `World` for modular system, resource, message, and state registration.
 - Tests and benchmarks: turn example semantics into automated tests, and add SparseSet/query/message benchmarks.
 - Storage strategy experiments: keep SparseSet as the current baseline, then explore Archetype/Table or hybrid storage for faster multi-component queries.

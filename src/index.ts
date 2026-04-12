@@ -1,5 +1,6 @@
 export * from "./component";
 export * from "./entity";
+export * from "./event";
 export * from "./message";
 export * from "./removed";
 export * from "./resource";

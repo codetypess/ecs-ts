@@ -9,7 +9,8 @@ English README: [README.md](README.md).
 - Bundle 用来把多个 component entry 组合起来，供 spawn、insert、remove 调用复用。
 - Component 存储使用 `SparseSet`：`get/has/add/remove` 接近 O(1)，迭代走 dense 数组，删除使用 swap-remove。
 - Query 会选择最小的组件存储作为基础循环，再按 entity 检查其它组件存储。
-- Query 支持 `with` 和 `without` 过滤。
+- Query 支持 `with`、`without`、`or`、`none`、`added` 和 `changed` 过滤。
+- Optional query 可以为匹配到的 entity 返回可能不存在的组件，此时组件值是 `undefined`。
 - Query 易用 API 包括 `hasAll`、`hasAny`、`single` 和 `trySingle`。
 - Change detection 是 per-system 语义，并支持 `eachAdded`、`eachChanged`、`markChanged` 和 `drainRemoved`。
 - Messages 通过 `defineMessage`、`writeMessage` 和 `MessageReader` 提供短生命周期、多 reader 的事件队列。
@@ -18,8 +19,10 @@ English README: [README.md](README.md).
 - Resource 支持 per-system 的 added/changed 检测。
 - System 可以使用 `Commands` 做延迟结构修改。
 - Component 支持 lifecycle hooks：`onAdd`、`onInsert`、`onReplace`、`onRemove` 和 `onDespawn`。
-- System 是带生命周期方法的 object/class，例如 `onPreStartup`、`onStartup`、`onPostStartup`、`onUpdate`、`onPostUpdate` 和 `onShutdown`。
+- System 是带生命周期方法的 object/class，例如 `onPreStartup`、`onStartup`、`onPostStartup`、`onFixedUpdate`、`onUpdate`、`onPostUpdate` 和 `onShutdown`。
+- System 支持 label、`before`/`after` 排序、`runIf` 条件以及 fixed update 阶段。
 - State transitions 支持通过 `addStateSystem` 和 `addTransitionSystem` 注册 object/class system。
+- Observer 支持通过 `defineEvent`、`observe` 和 `trigger` 触发立即事件。
 
 ## 基本用法
 
@@ -80,6 +83,14 @@ npm run example:lifecycle
 
 这个示例会打印 component hook 顺序（`onAdd`、`onInsert`、`onReplace`、`onRemove`、`onDespawn`）以及 class-based system 生命周期方法（`onPreStartup`、`onStartup`、`onPostStartup`、`onUpdate`、`onPostUpdate`、`onShutdown`）。
 
+## Scheduler 演示
+
+```sh
+npm run example:scheduler
+```
+
+这个示例展示 system label、`before`/`after` 排序、`runIf` 以及配合 `setFixedTimeStep(...)` 使用的 `onFixedUpdate`。
+
 ## 变更检测演示
 
 ```sh
@@ -103,6 +114,14 @@ npm run example:messages
 ```
 
 这个示例展示类似 Bevy 的 buffered message 流程：一个系统通过 `Commands` 写入 `Damage` messages，另一个系统持有 `MessageReader` cursor 并只读取自己还没见过的消息。
+
+## Observer 演示
+
+```sh
+npm run example:observer
+```
+
+这个示例展示通过 `defineEvent`、`world.observe(...)`、`world.trigger(...)` 和 `commands.trigger(...)` 触发立即事件。
 
 ## Removed Reader 演示
 
@@ -144,6 +163,14 @@ npm run example:query
 
 这个示例展示 `eachWhere([Position, Velocity], { with: [Player], without: [Sleeping] }, ...)`。
 
+## 高级 Query Filter 演示
+
+```sh
+npm run example:query-advanced
+```
+
+这个示例展示 `or`、`none` 以及用于可选组件的 `queryOptional(...)`。
+
 ## Query 易用 API 演示
 
 ```sh
@@ -154,9 +181,7 @@ npm run example:query-ergonomics
 
 ## 后续可做
 
-- Query filters 增强：增加更复杂的 `or/none/optional` 查询能力。
-- Scheduler 增强：增加 system label、`before/after` 排序、`runIf`、system set、fixed update。
-- Observer / immediate event：在 `Messages` 之外增加立即触发型事件，用于 UI 冒泡、点击事件或 entity-local 事件。
+- Scheduler 增强：增加 system set 以及更丰富的 run condition 组合能力。
 - App / Plugin：在 `World` 之上增加 `App` 和 `Plugin`，让系统、资源、消息、状态注册更模块化。
 - 测试和 benchmark：把现有 examples 中的语义沉淀成自动化测试，并加入 SparseSet/query/message 的性能基准。
 - 存储策略扩展：当前是 SparseSet；后续可以探索 Archetype/Table 存储或混合存储，用于优化多组件 query。
