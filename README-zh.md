@@ -12,6 +12,7 @@ English README: [README.md](README.md).
 - Query 支持 `with`、`without`、`or`、`none`、`added` 和 `changed` 过滤。
 - Optional query 可以为匹配到的 entity 返回可能不存在的组件，此时组件值是 `undefined`。
 - Query 易用 API 包括 `hasAll`、`hasAny`、`single` 和 `trySingle`。
+- `QueryState` 会缓存 query 的 store 解析结果，适合 system 反复运行同一个 query。
 - Change detection 是 per-system 语义，并支持 `eachAdded`、`eachChanged`、`markChanged` 和 `drainRemoved`。
 - Messages 通过 `defineMessage`、`writeMessage` 和 `MessageReader` 提供短生命周期、多 reader 的事件队列。
 - Removed component 记录同时支持显式 `drainRemoved` 和多 reader 的 `RemovedReader`。
@@ -179,6 +180,14 @@ npm run example:query-ergonomics
 
 这个示例展示 `hasAll`、`hasAny`、`single` 和 `trySingle`。
 
+## Query State 演示
+
+```sh
+npm run example:query-state
+```
+
+这个示例展示把 `queryState(...)` 作为可复用的 system 字段。`QueryState` 和 `optionalQueryState(...)` 会缓存 component/filter store 解析结果，并在新 component store 创建时失效。
+
 ## 测试和 Benchmark
 
 ```sh
@@ -186,7 +195,7 @@ npm test
 npm run benchmark
 ```
 
-测试通过 `tsx` 使用 Node 内置的 `node:test` runner。Benchmark 是轻量微基准，覆盖 spawn、按 entity 直接取组件、query 迭代、filtered query、optional query、buffered messages 和 immediate observers。
+测试通过 `tsx` 使用 Node 内置的 `node:test` runner。Benchmark 是轻量微基准，覆盖 spawn、按 entity 直接取组件、query 迭代、query state、filtered query、optional query、buffered messages 和 immediate observers。
 
 ## 后续可做
 

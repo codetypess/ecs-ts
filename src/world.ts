@@ -134,6 +134,19 @@ interface ResolvedQueryFilter {
     readonly changed: readonly SparseSet<unknown>[];
 }
 
+interface QueryStateCache {
+    readonly storeVersion: number;
+    readonly stores?: readonly SparseSet<unknown>[];
+    readonly filterStores?: ResolvedQueryFilter;
+}
+
+interface OptionalQueryStateCache {
+    readonly storeVersion: number;
+    readonly requiredStores?: readonly SparseSet<unknown>[];
+    readonly optionalStores?: readonly (SparseSet<unknown> | undefined)[];
+    readonly filterStores?: ResolvedQueryFilter;
+}
+
 export interface StateSystem<T extends StateValue> {
     onEnter?(world: World, dt: number, commands: Commands, value: T): void;
     onExit?(world: World, dt: number, commands: Commands, value: T): void;
@@ -155,6 +168,93 @@ const lifecycleSystemMethods = {
     last: "onLast",
     shutdown: "onShutdown",
 } as const satisfies Record<ScheduleStage, keyof System>;
+
+export class QueryState<TComponents extends readonly AnyComponentType[]> {
+    readonly types: TComponents;
+    readonly filter: QueryFilter;
+
+    constructor(types: TComponents, filter: QueryFilter = {}) {
+        this.types = cloneComponentTypes(types);
+        this.filter = cloneQueryFilter(filter);
+    }
+
+    iter(world: World): IterableIterator<QueryRow<TComponents>> {
+        return world.queryWithState(this);
+    }
+
+    each(
+        world: World,
+        visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
+    ): void {
+        for (const [entity, ...components] of this.iter(world)) {
+            visitor(entity, ...(components as ComponentTuple<TComponents>));
+        }
+    }
+}
+
+export class OptionalQueryState<
+    TRequiredComponents extends readonly AnyComponentType[],
+    TOptionalComponents extends readonly AnyComponentType[],
+> {
+    readonly required: TRequiredComponents;
+    readonly optional: TOptionalComponents;
+    readonly filter: QueryFilter;
+
+    constructor(
+        required: TRequiredComponents,
+        optional: TOptionalComponents,
+        filter: QueryFilter = {}
+    ) {
+        this.required = cloneComponentTypes(required);
+        this.optional = cloneComponentTypes(optional);
+        this.filter = cloneQueryFilter(filter);
+    }
+
+    iter(
+        world: World
+    ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
+        return world.queryOptionalWithState(this);
+    }
+
+    each(
+        world: World,
+        visitor: (
+            entity: Entity,
+            ...components: [
+                ...ComponentTuple<TRequiredComponents>,
+                ...OptionalComponentTuple<TOptionalComponents>,
+            ]
+        ) => void
+    ): void {
+        for (const [entity, ...components] of this.iter(world)) {
+            visitor(
+                entity,
+                ...(components as [
+                    ...ComponentTuple<TRequiredComponents>,
+                    ...OptionalComponentTuple<TOptionalComponents>,
+                ])
+            );
+        }
+    }
+}
+
+export function queryState<const TComponents extends readonly AnyComponentType[]>(
+    types: TComponents,
+    filter: QueryFilter = {}
+): QueryState<TComponents> {
+    return new QueryState(types, filter);
+}
+
+export function optionalQueryState<
+    const TRequiredComponents extends readonly AnyComponentType[],
+    const TOptionalComponents extends readonly AnyComponentType[],
+>(
+    required: TRequiredComponents,
+    optional: TOptionalComponents,
+    filter: QueryFilter = {}
+): OptionalQueryState<TRequiredComponents, TOptionalComponents> {
+    return new OptionalQueryState(required, optional, filter);
+}
 
 export class Commands {
     private readonly queue: CommandRunner[] = [];
@@ -297,10 +397,19 @@ export class World {
     private readonly removedComponents = new Map<number, RemovedComponents<unknown>>();
     private readonly messageStores = new Map<number, Messages<unknown>>();
     private readonly eventObservers = new Map<number, EventObserver<unknown>[]>();
+    private readonly queryStateCaches = new WeakMap<
+        QueryState<readonly AnyComponentType[]>,
+        QueryStateCache
+    >();
+    private readonly optionalQueryStateCaches = new WeakMap<
+        OptionalQueryState<readonly AnyComponentType[], readonly AnyComponentType[]>,
+        OptionalQueryStateCache
+    >();
     private readonly schedules = createSchedules();
     private activeChangeDetection: ChangeDetectionRange | undefined;
     private fixedTimeStep = 1 / 60;
     private fixedUpdateAccumulator = 0;
+    private componentStoreVersion = 0;
     private changeTick = 1;
     private didStartup = false;
     private didShutdown = false;
@@ -579,6 +688,39 @@ export class World {
         filter: QueryFilter = {}
     ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
         return this.iterateOptionalQuery(required, optional, filter, this.changeDetectionRange());
+    }
+
+    queryState<const TComponents extends readonly AnyComponentType[]>(
+        types: TComponents,
+        filter: QueryFilter = {}
+    ): QueryState<TComponents> {
+        return queryState(types, filter);
+    }
+
+    optionalQueryState<
+        const TRequiredComponents extends readonly AnyComponentType[],
+        const TOptionalComponents extends readonly AnyComponentType[],
+    >(
+        required: TRequiredComponents,
+        optional: TOptionalComponents,
+        filter: QueryFilter = {}
+    ): OptionalQueryState<TRequiredComponents, TOptionalComponents> {
+        return optionalQueryState(required, optional, filter);
+    }
+
+    queryWithState<const TComponents extends readonly AnyComponentType[]>(
+        state: QueryState<TComponents>
+    ): IterableIterator<QueryRow<TComponents>> {
+        return this.iterateQueryState(state, this.changeDetectionRange());
+    }
+
+    queryOptionalWithState<
+        const TRequiredComponents extends readonly AnyComponentType[],
+        const TOptionalComponents extends readonly AnyComponentType[],
+    >(
+        state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
+    ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
+        return this.iterateOptionalQueryState(state, this.changeDetectionRange());
     }
 
     trySingle<const TComponents extends readonly AnyComponentType[]>(
@@ -1058,6 +1200,31 @@ export class World {
             return;
         }
 
+        yield* this.iterateResolvedQuery<TComponents>(stores, filterStores, changeDetection);
+    }
+
+    private *iterateQueryState<const TComponents extends readonly AnyComponentType[]>(
+        state: QueryState<TComponents>,
+        changeDetection: ChangeDetectionRange
+    ): IterableIterator<QueryRow<TComponents>> {
+        const cache = this.resolveQueryStateCache(state);
+
+        if (cache === undefined) {
+            return;
+        }
+
+        yield* this.iterateResolvedQuery<TComponents>(
+            cache.stores,
+            cache.filterStores,
+            changeDetection
+        );
+    }
+
+    private *iterateResolvedQuery<const TComponents extends readonly AnyComponentType[]>(
+        stores: readonly SparseSet<unknown>[],
+        filterStores: ResolvedQueryFilter,
+        changeDetection: ChangeDetectionRange
+    ): IterableIterator<QueryRow<TComponents>> {
         const baseStore = chooseSmallestStore([...stores, ...filterStores.with]);
         const components: unknown[] = new Array(stores.length);
 
@@ -1100,6 +1267,45 @@ export class World {
         }
 
         const optionalStores = this.resolveOptionalStores(optional);
+
+        yield* this.iterateResolvedOptionalQuery<TRequiredComponents, TOptionalComponents>(
+            requiredStores,
+            optionalStores,
+            filterStores,
+            changeDetection
+        );
+    }
+
+    private *iterateOptionalQueryState<
+        const TRequiredComponents extends readonly AnyComponentType[],
+        const TOptionalComponents extends readonly AnyComponentType[],
+    >(
+        state: OptionalQueryState<TRequiredComponents, TOptionalComponents>,
+        changeDetection: ChangeDetectionRange
+    ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
+        const cache = this.resolveOptionalQueryStateCache(state);
+
+        if (cache === undefined) {
+            return;
+        }
+
+        yield* this.iterateResolvedOptionalQuery<TRequiredComponents, TOptionalComponents>(
+            cache.requiredStores,
+            cache.optionalStores,
+            cache.filterStores,
+            changeDetection
+        );
+    }
+
+    private *iterateResolvedOptionalQuery<
+        const TRequiredComponents extends readonly AnyComponentType[],
+        const TOptionalComponents extends readonly AnyComponentType[],
+    >(
+        requiredStores: readonly SparseSet<unknown>[],
+        optionalStores: readonly (SparseSet<unknown> | undefined)[],
+        filterStores: ResolvedQueryFilter,
+        changeDetection: ChangeDetectionRange
+    ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
         const baseStore = chooseSmallestStore([...requiredStores, ...filterStores.with]);
         const requiredComponents: unknown[] = new Array(requiredStores.length);
         const optionalComponents: unknown[] = new Array(optionalStores.length);
@@ -1265,6 +1471,62 @@ export class World {
         };
     }
 
+    private resolveQueryStateCache<const TComponents extends readonly AnyComponentType[]>(
+        state: QueryState<TComponents>
+    ): Required<QueryStateCache> | undefined {
+        const key = state as QueryState<readonly AnyComponentType[]>;
+        const existing = this.queryStateCaches.get(key);
+
+        if (existing?.storeVersion === this.componentStoreVersion) {
+            return resolvedQueryStateCache(existing);
+        }
+
+        const stores = this.resolveQueryStores(state.types);
+        const filterStores = stores === undefined ? undefined : this.resolveFilterStores(state.filter);
+        const cache = {
+            storeVersion: this.componentStoreVersion,
+            stores,
+            filterStores,
+        } satisfies QueryStateCache;
+
+        this.queryStateCaches.set(key, cache);
+
+        return resolvedQueryStateCache(cache);
+    }
+
+    private resolveOptionalQueryStateCache<
+        const TRequiredComponents extends readonly AnyComponentType[],
+        const TOptionalComponents extends readonly AnyComponentType[],
+    >(
+        state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
+    ): Required<OptionalQueryStateCache> | undefined {
+        const key = state as OptionalQueryState<
+            readonly AnyComponentType[],
+            readonly AnyComponentType[]
+        >;
+        const existing = this.optionalQueryStateCaches.get(key);
+
+        if (existing?.storeVersion === this.componentStoreVersion) {
+            return resolvedOptionalQueryStateCache(existing);
+        }
+
+        const requiredStores = this.resolveQueryStores(state.required);
+        const filterStores =
+            requiredStores === undefined ? undefined : this.resolveFilterStores(state.filter);
+        const optionalStores =
+            filterStores === undefined ? undefined : this.resolveOptionalStores(state.optional);
+        const cache = {
+            storeVersion: this.componentStoreVersion,
+            requiredStores,
+            optionalStores,
+            filterStores,
+        } satisfies OptionalQueryStateCache;
+
+        this.optionalQueryStateCaches.set(key, cache);
+
+        return resolvedOptionalQueryStateCache(cache);
+    }
+
     private ensureStore<T>(type: ComponentType<T>): SparseSet<T> {
         this.componentTypes.set(type.id, type);
 
@@ -1276,6 +1538,7 @@ export class World {
 
         const store = new SparseSet<T>();
         this.stores.set(type.id, store as SparseSet<unknown>);
+        this.componentStoreVersion++;
 
         return store;
     }
@@ -1482,6 +1745,53 @@ function createStateRecord<T extends StateValue>(type: StateType<T>, initial: T)
         onExit: new Map(),
         onTransition: new Map(),
     };
+}
+
+function cloneComponentTypes<TComponents extends readonly AnyComponentType[]>(
+    types: TComponents
+): TComponents {
+    return Object.freeze([...types]) as unknown as TComponents;
+}
+
+function cloneQueryFilter(filter: QueryFilter): QueryFilter {
+    return Object.freeze({
+        with: cloneFilterTypes(filter.with),
+        without: cloneFilterTypes(filter.without),
+        or: cloneFilterTypes(filter.or),
+        none: cloneFilterTypes(filter.none),
+        added: cloneFilterTypes(filter.added),
+        changed: cloneFilterTypes(filter.changed),
+    });
+}
+
+function cloneFilterTypes(
+    types: readonly AnyComponentType[] | undefined
+): readonly AnyComponentType[] | undefined {
+    return types === undefined ? undefined : Object.freeze([...types]);
+}
+
+function resolvedQueryStateCache(
+    cache: QueryStateCache
+): Required<QueryStateCache> | undefined {
+    if (cache.stores === undefined || cache.filterStores === undefined) {
+        return undefined;
+    }
+
+    return cache as Required<QueryStateCache>;
+}
+
+function resolvedOptionalQueryStateCache(
+    cache: OptionalQueryStateCache
+): Required<OptionalQueryStateCache> | undefined {
+    if (
+        cache.requiredStores === undefined ||
+        cache.optionalStores === undefined ||
+        cache.filterStores === undefined
+    ) {
+        return undefined;
+    }
+
+    return cache as Required<OptionalQueryStateCache>;
 }
 
 function getStateSystems<T extends StateValue>(

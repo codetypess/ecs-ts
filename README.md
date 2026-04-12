@@ -12,6 +12,7 @@ A small TypeScript ECS prototype based on the design discussion:
 - Queries can filter with `with`, `without`, `or`, `none`, `added`, and `changed`.
 - Optional queries can return `undefined` for components that may or may not exist on a matched entity.
 - Query ergonomics include `hasAll`, `hasAny`, `single`, and `trySingle`.
+- `QueryState` caches query store resolution for systems that run the same query repeatedly.
 - Change detection is per-system and supports `eachAdded`, `eachChanged`, `markChanged`, and `drainRemoved`.
 - Messages provide short-lived, multi-reader event queues through `defineMessage`, `writeMessage`, and `MessageReader`.
 - Removed component records support both explicit `drainRemoved` and multi-reader `RemovedReader`.
@@ -179,6 +180,14 @@ npm run example:query-ergonomics
 
 This demo shows `hasAll`, `hasAny`, `single`, and `trySingle`.
 
+## Query State Demo
+
+```sh
+npm run example:query-state
+```
+
+This demo shows `queryState(...)` as a reusable system field. `QueryState` and `optionalQueryState(...)` cache component/filter store resolution and invalidate when new component stores are created.
+
 ## Tests And Benchmarks
 
 ```sh
@@ -186,7 +195,7 @@ npm test
 npm run benchmark
 ```
 
-Tests use Node's built-in `node:test` runner through `tsx`. The benchmark is a lightweight micro-benchmark covering spawn, direct component get, query iteration, filtered queries, optional queries, buffered messages, and immediate observers.
+Tests use Node's built-in `node:test` runner through `tsx`. The benchmark is a lightweight micro-benchmark covering spawn, direct component get, query iteration, query state, filtered queries, optional queries, buffered messages, and immediate observers.
 
 ## Future Work
 

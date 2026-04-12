@@ -5,6 +5,7 @@ import {
     defineEvent,
     defineMessage,
     messageReader,
+    queryState,
     withComponent,
 } from "../src";
 
@@ -102,6 +103,7 @@ function printResults(results: readonly BenchmarkResult[]): void {
 }
 
 const movement = createMovementWorld(ENTITY_COUNT);
+const movingQuery = queryState([Position, Velocity]);
 const results: BenchmarkResult[] = [];
 
 results.push(
@@ -134,6 +136,22 @@ results.push(
 
         for (let loop = 0; loop < QUERY_LOOPS; loop++) {
             for (const [, position, velocity] of movement.world.query(Position, Velocity)) {
+                position.x += velocity.x * 0.001;
+                checksum += position.y;
+                operations++;
+            }
+        }
+
+        return operations;
+    })
+);
+
+results.push(
+    measure("queryState Position+Velocity", () => {
+        let operations = 0;
+
+        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+            for (const [, position, velocity] of movingQuery.iter(movement.world)) {
                 position.x += velocity.x * 0.001;
                 checksum += position.y;
                 operations++;
