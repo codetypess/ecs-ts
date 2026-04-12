@@ -10,6 +10,7 @@ A small TypeScript ECS prototype based on the design discussion:
 - Component storage uses `SparseSet`: O(1)-ish `get/has/add/remove`, dense iteration, and swap-remove deletion.
 - Queries choose the smallest component store as the base loop, then check other component stores by entity.
 - Queries can filter with `with` and `without`.
+- Query ergonomics include `hasAll`, `hasAny`, `single`, and `trySingle`.
 - Change detection is per-system and supports `eachAdded`, `eachChanged`, `markChanged`, and `drainRemoved`.
 - Messages provide short-lived, multi-reader event queues through `defineMessage`, `writeMessage`, and `MessageReader`.
 - Removed component records support both explicit `drainRemoved` and multi-reader `RemovedReader`.
@@ -143,9 +144,17 @@ npm run example:query
 
 This demo shows `eachWhere([Position, Velocity], { with: [Player], without: [Sleeping] }, ...)`.
 
+## Query Ergonomics Demo
+
+```sh
+npm run example:query-ergonomics
+```
+
+This demo shows `hasAll`, `hasAny`, `single`, and `trySingle`.
+
 ## Future Work
 
-- Query ergonomics: add `single`, `trySingle`, `hasAll`, `hasAny`, and richer `or/none/optional` query filters.
+- Query filters: add richer `or/none/optional` query filters.
 - Scheduler improvements: add system labels, `before/after` ordering, `runIf`, system sets, and fixed update.
 - Observer / immediate events: add immediate event dispatch on top of buffered `Messages`, useful for UI bubbling or entity-local events.
 - App / Plugin: add an `App` and `Plugin` layer above `World` for modular system, resource, message, and state registration.

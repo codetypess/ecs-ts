@@ -10,6 +10,7 @@ English README: [README.md](README.md).
 - Component 存储使用 `SparseSet`：`get/has/add/remove` 接近 O(1)，迭代走 dense 数组，删除使用 swap-remove。
 - Query 会选择最小的组件存储作为基础循环，再按 entity 检查其它组件存储。
 - Query 支持 `with` 和 `without` 过滤。
+- Query 易用 API 包括 `hasAll`、`hasAny`、`single` 和 `trySingle`。
 - Change detection 是 per-system 语义，并支持 `eachAdded`、`eachChanged`、`markChanged` 和 `drainRemoved`。
 - Messages 通过 `defineMessage`、`writeMessage` 和 `MessageReader` 提供短生命周期、多 reader 的事件队列。
 - Removed component 记录同时支持显式 `drainRemoved` 和多 reader 的 `RemovedReader`。
@@ -143,9 +144,17 @@ npm run example:query
 
 这个示例展示 `eachWhere([Position, Velocity], { with: [Player], without: [Sleeping] }, ...)`。
 
+## Query 易用 API 演示
+
+```sh
+npm run example:query-ergonomics
+```
+
+这个示例展示 `hasAll`、`hasAny`、`single` 和 `trySingle`。
+
 ## 后续可做
 
-- Query API 增强：增加 `single`、`trySingle`、`hasAll`、`hasAny`、更复杂的 `or/none/optional` 查询能力。
+- Query filters 增强：增加更复杂的 `or/none/optional` 查询能力。
 - Scheduler 增强：增加 system label、`before/after` 排序、`runIf`、system set、fixed update。
 - Observer / immediate event：在 `Messages` 之外增加立即触发型事件，用于 UI 冒泡、点击事件或 entity-local 事件。
 - App / Plugin：在 `World` 之上增加 `App` 和 `Plugin`，让系统、资源、消息、状态注册更模块化。

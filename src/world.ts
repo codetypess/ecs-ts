@@ -369,6 +369,34 @@ export class World {
         return this.isAlive(entity) && (this.getStore(type)?.has(entity) ?? false);
     }
 
+    hasAll(entity: Entity, types: readonly AnyComponentType[]): boolean {
+        if (!this.isAlive(entity)) {
+            return false;
+        }
+
+        for (const type of types) {
+            if (!this.getStore(type)?.has(entity)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    hasAny(entity: Entity, types: readonly AnyComponentType[]): boolean {
+        if (!this.isAlive(entity)) {
+            return false;
+        }
+
+        for (const type of types) {
+            if (this.getStore(type)?.has(entity)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     get<T>(entity: Entity, type: ComponentType<T>): T | undefined {
         if (!this.isAlive(entity)) {
             return undefined;
@@ -494,6 +522,39 @@ export class World {
         types: TComponents
     ): IterableIterator<QueryRow<TComponents>> {
         return this.iterateQuery(types, { changed: types }, this.changeDetectionRange());
+    }
+
+    trySingle<const TComponents extends readonly AnyComponentType[]>(
+        types: TComponents,
+        filter: QueryFilter = {}
+    ): QueryRow<TComponents> | undefined {
+        const iterator = this.queryWhere(types, filter);
+        const first = iterator.next();
+
+        if (first.done === true) {
+            return undefined;
+        }
+
+        const second = iterator.next();
+
+        if (second.done !== true) {
+            throw new Error("Expected at most one query result");
+        }
+
+        return first.value;
+    }
+
+    single<const TComponents extends readonly AnyComponentType[]>(
+        types: TComponents,
+        filter: QueryFilter = {}
+    ): QueryRow<TComponents> {
+        const row = this.trySingle(types, filter);
+
+        if (row === undefined) {
+            throw new Error("Expected exactly one query result");
+        }
+
+        return row;
     }
 
     each<const TComponents extends readonly AnyComponentType[]>(

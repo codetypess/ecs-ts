@@ -13,6 +13,7 @@
     "example:lifecycle": "tsx examples/lifecycle.ts",
     "example:messages": "tsx examples/messages.ts",
     "example:per-system-changes": "tsx examples/per-system-change-detection.ts",
+    "example:query-ergonomics": "tsx examples/query-ergonomics.ts",
     "example:query": "tsx examples/query-filter.ts",
     "example:removed": "tsx examples/removed-reader.ts",
     "example:required": "tsx examples/required-components.ts",
