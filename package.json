@@ -12,6 +12,7 @@
     "example:lifecycle": "tsx examples/lifecycle.ts",
     "example:messages": "tsx examples/messages.ts",
     "example:query": "tsx examples/query-filter.ts",
+    "example:required": "tsx examples/required-components.ts",
     "example:state": "tsx examples/state.ts",
     "example:ui": "tsx examples/ui-lifecycle.ts"
   },

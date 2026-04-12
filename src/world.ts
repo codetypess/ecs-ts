@@ -220,7 +220,51 @@ export class World {
 
     add<T>(entity: Entity, type: ComponentType<T>, value: T): this {
         this.assertAlive(entity);
+        this.addWithRequired(entity, type, value, []);
 
+        return this;
+    }
+
+    private addWithRequired<T>(
+        entity: Entity,
+        type: ComponentType<T>,
+        value: T,
+        resolving: readonly AnyComponentType[]
+    ): void {
+        this.addRequiredComponents(entity, type, resolving);
+        this.insertComponentOnly(entity, type, value);
+    }
+
+    private addRequiredComponents(
+        entity: Entity,
+        type: AnyComponentType,
+        resolving: readonly AnyComponentType[]
+    ): void {
+        if (type.required.length === 0) {
+            return;
+        }
+
+        const cycleStart = resolving.findIndex((resolvedType) => resolvedType.id === type.id);
+
+        if (cycleStart !== -1) {
+            const cycle = [...resolving.slice(cycleStart), type]
+                .map((resolvedType) => resolvedType.name)
+                .join(" -> ");
+            throw new Error(`Circular required component dependency: ${cycle}`);
+        }
+
+        const nextResolving = [...resolving, type];
+
+        for (const required of type.required) {
+            if (this.has(entity, required.type)) {
+                continue;
+            }
+
+            this.addWithRequired(entity, required.type, required.create(), nextResolving);
+        }
+    }
+
+    private insertComponentOnly<T>(entity: Entity, type: ComponentType<T>, value: T): void {
         const store = this.ensureStore(type);
         const hadComponent = store.has(entity);
 
@@ -235,8 +279,6 @@ export class World {
         }
 
         this.runComponentHooks(type, "onInsert", entity, value);
-
-        return this;
     }
 
     markChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
