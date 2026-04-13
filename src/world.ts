@@ -208,6 +208,18 @@ export class QueryState<TComponents extends readonly AnyComponentType[]> {
     ): void {
         world.eachWithState(this, visitor);
     }
+
+    matchesAny(world: World): boolean {
+        return world.matchesAnyWithState(this);
+    }
+
+    matchesNone(world: World): boolean {
+        return world.matchesNoneWithState(this);
+    }
+
+    matchesSingle(world: World): boolean {
+        return world.matchesSingleWithState(this);
+    }
 }
 
 export class OptionalQueryState<
@@ -245,6 +257,18 @@ export class OptionalQueryState<
         ) => void
     ): void {
         world.eachOptionalWithState(this, visitor);
+    }
+
+    matchesAny(world: World): boolean {
+        return world.matchesAnyOptionalWithState(this);
+    }
+
+    matchesNone(world: World): boolean {
+        return world.matchesNoneOptionalWithState(this);
+    }
+
+    matchesSingle(world: World): boolean {
+        return world.matchesSingleOptionalWithState(this);
     }
 }
 
@@ -727,6 +751,46 @@ export class World {
         return this.iterateQueryState(state, this.changeDetectionRange());
     }
 
+    matchesAnyWithState<const TComponents extends readonly AnyComponentType[]>(
+        state: QueryState<TComponents>
+    ): boolean {
+        const cache = this.resolveQueryStateCache(state);
+
+        if (cache === undefined) {
+            return false;
+        }
+
+        return this.countResolvedQueryMatches(
+            cache.stores,
+            cache.filterStores,
+            this.changeDetectionRange(),
+            1
+        ) === 1;
+    }
+
+    matchesNoneWithState<const TComponents extends readonly AnyComponentType[]>(
+        state: QueryState<TComponents>
+    ): boolean {
+        return !this.matchesAnyWithState(state);
+    }
+
+    matchesSingleWithState<const TComponents extends readonly AnyComponentType[]>(
+        state: QueryState<TComponents>
+    ): boolean {
+        const cache = this.resolveQueryStateCache(state);
+
+        if (cache === undefined) {
+            return false;
+        }
+
+        return this.countResolvedQueryMatches(
+            cache.stores,
+            cache.filterStores,
+            this.changeDetectionRange(),
+            2
+        ) === 1;
+    }
+
     queryOptionalWithState<
         const TRequiredComponents extends readonly AnyComponentType[],
         const TOptionalComponents extends readonly AnyComponentType[],
@@ -734,6 +798,55 @@ export class World {
         state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
     ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
         return this.iterateOptionalQueryState(state, this.changeDetectionRange());
+    }
+
+    matchesAnyOptionalWithState<
+        const TRequiredComponents extends readonly AnyComponentType[],
+        const TOptionalComponents extends readonly AnyComponentType[],
+    >(
+        state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
+    ): boolean {
+        const cache = this.resolveOptionalQueryStateCache(state);
+
+        if (cache === undefined) {
+            return false;
+        }
+
+        return this.countResolvedOptionalQueryMatches(
+            cache.requiredStores,
+            cache.filterStores,
+            this.changeDetectionRange(),
+            1
+        ) === 1;
+    }
+
+    matchesNoneOptionalWithState<
+        const TRequiredComponents extends readonly AnyComponentType[],
+        const TOptionalComponents extends readonly AnyComponentType[],
+    >(
+        state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
+    ): boolean {
+        return !this.matchesAnyOptionalWithState(state);
+    }
+
+    matchesSingleOptionalWithState<
+        const TRequiredComponents extends readonly AnyComponentType[],
+        const TOptionalComponents extends readonly AnyComponentType[],
+    >(
+        state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
+    ): boolean {
+        const cache = this.resolveOptionalQueryStateCache(state);
+
+        if (cache === undefined) {
+            return false;
+        }
+
+        return this.countResolvedOptionalQueryMatches(
+            cache.requiredStores,
+            cache.filterStores,
+            this.changeDetectionRange(),
+            2
+        ) === 1;
     }
 
     eachWithState<const TComponents extends readonly AnyComponentType[]>(
@@ -1338,6 +1451,38 @@ export class World {
         }
     }
 
+    private countResolvedQueryMatches(
+        stores: readonly SparseSet<unknown>[],
+        filterStores: ResolvedQueryFilter,
+        changeDetection: ChangeDetectionRange,
+        limit: number
+    ): number {
+        const baseStore = chooseSmallestStore([...stores, ...filterStores.with]);
+        let matches = 0;
+
+        for (const entity of baseStore.entities) {
+            if (!this.isAlive(entity)) {
+                continue;
+            }
+
+            if (!matchesFilter(entity, filterStores, changeDetection)) {
+                continue;
+            }
+
+            if (!this.hasComponents(entity, stores)) {
+                continue;
+            }
+
+            matches++;
+
+            if (matches >= limit) {
+                return matches;
+            }
+        }
+
+        return matches;
+    }
+
     private *iterateOptionalQuery<
         const TRequiredComponents extends readonly AnyComponentType[],
         const TOptionalComponents extends readonly AnyComponentType[],
@@ -1497,6 +1642,38 @@ export class World {
         }
     }
 
+    private countResolvedOptionalQueryMatches(
+        requiredStores: readonly SparseSet<unknown>[],
+        filterStores: ResolvedQueryFilter,
+        changeDetection: ChangeDetectionRange,
+        limit: number
+    ): number {
+        const baseStore = chooseSmallestStore([...requiredStores, ...filterStores.with]);
+        let matches = 0;
+
+        for (const entity of baseStore.entities) {
+            if (!this.isAlive(entity)) {
+                continue;
+            }
+
+            if (!matchesFilter(entity, filterStores, changeDetection)) {
+                continue;
+            }
+
+            if (!this.hasComponents(entity, requiredStores)) {
+                continue;
+            }
+
+            matches++;
+
+            if (matches >= limit) {
+                return matches;
+            }
+        }
+
+        return matches;
+    }
+
     private fillComponents(
         entity: Entity,
         stores: readonly SparseSet<unknown>[],
@@ -1510,6 +1687,16 @@ export class World {
             }
 
             output[index] = store.get(entity);
+        }
+
+        return true;
+    }
+
+    private hasComponents(entity: Entity, stores: readonly SparseSet<unknown>[]): boolean {
+        for (const store of stores) {
+            if (!store.has(entity)) {
+                return false;
+            }
         }
 
         return true;

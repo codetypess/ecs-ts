@@ -5,6 +5,9 @@ import type { SystemRunCondition, World } from "./world";
 export type RunIfPredicate<T> = (value: T, world: World) => boolean;
 export interface QueryRunIfSource {
     iter(world: World): Iterator<unknown>;
+    matchesAny?(world: World): boolean;
+    matchesNone?(world: World): boolean;
+    matchesSingle?(world: World): boolean;
 }
 
 export function runIfAll(...conditions: readonly SystemRunCondition[]): SystemRunCondition {
@@ -36,15 +39,19 @@ export function runIfNot(condition: SystemRunCondition): SystemRunCondition {
 }
 
 export function anyMatch(source: QueryRunIfSource): SystemRunCondition {
-    return (world) => source.iter(world).next().done !== true;
+    return (world) => source.matchesAny?.(world) ?? source.iter(world).next().done !== true;
 }
 
 export function noMatch(source: QueryRunIfSource): SystemRunCondition {
-    return (world) => source.iter(world).next().done === true;
+    return (world) => source.matchesNone?.(world) ?? source.iter(world).next().done === true;
 }
 
 export function singleMatch(source: QueryRunIfSource): SystemRunCondition {
     return (world) => {
+        if (source.matchesSingle !== undefined) {
+            return source.matchesSingle(world);
+        }
+
         const iterator = source.iter(world);
         const first = iterator.next();
 
