@@ -1,12 +1,22 @@
-import { World, defineResource } from "../src";
+import {
+    World,
+    defineResource,
+    defineState,
+    resourceMatches,
+    runIfAll,
+    runIfNot,
+    stateIs,
+} from "../src";
 
 const Log = defineResource<string[]>("Log");
 const FeatureEnabled = defineResource<{ value: boolean }>("FeatureEnabled");
+const GameMode = defineState<"running" | "paused">("GameMode", "running");
 
 class SetupSystem {
     onStartup(world: World): void {
         world.setResource(Log, []);
         world.setResource(FeatureEnabled, { value: true });
+        world.initState(GameMode);
     }
 }
 
@@ -36,10 +46,13 @@ world.setFixedTimeStep(0.5);
 world.configureSet("gameplay", {
     after: ["input"],
     before: ["render"],
-    runIf: (currentWorld) => currentWorld.resource(FeatureEnabled).value,
+    runIf: runIfAll(
+        stateIs(GameMode, "running"),
+        resourceMatches(FeatureEnabled, (feature) => feature.value)
+    ),
 });
 world.configureSet("paused", {
-    runIf: () => false,
+    runIf: runIfNot(stateIs(GameMode, "running")),
 });
 world.addSystem(new SetupSystem());
 world.addSystem(new FixedStepSystem());

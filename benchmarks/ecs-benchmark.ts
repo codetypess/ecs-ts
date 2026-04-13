@@ -4,8 +4,14 @@ import {
     defineComponent,
     defineEvent,
     defineMessage,
+    defineResource,
+    defineState,
     messageReader,
     queryState,
+    resourceMatches,
+    runIfAll,
+    runIfNot,
+    stateIs,
     withComponent,
 } from "../src";
 
@@ -25,6 +31,8 @@ const ENTITY_COUNT = 50_000;
 const QUERY_LOOPS = 20;
 const DIRECT_GET_LOOPS = 20;
 const EVENT_COUNT = 100_000;
+const SCHEDULER_UPDATES = 5_000;
+const SCHEDULER_SYSTEMS = 16;
 
 const Position = defineComponent<{ x: number; y: number }>("BenchPosition");
 const Velocity = defineComponent<{ x: number; y: number }>("BenchVelocity");
@@ -33,6 +41,8 @@ const Sleeping = defineComponent<null>("BenchSleeping");
 const Health = defineComponent<{ value: number }>("BenchHealth");
 const DamageMessage = defineMessage<{ target: Entity; amount: number }>("BenchDamageMessage");
 const DamageEvent = defineEvent<{ target: Entity; amount: number }>("BenchDamageEvent");
+const FeatureFlags = defineResource<{ enabled: boolean; paused: boolean }>("BenchFeatureFlags");
+const Mode = defineState<"running" | "paused">("BenchMode", "running");
 
 let checksum = 0;
 
@@ -80,6 +90,31 @@ function createMovementWorld(count: number): MovementWorld {
     }
 
     return { world, entities };
+}
+
+function createSchedulerWorld(enabled: boolean): World {
+    class NoopSystem {
+        onUpdate(): void {
+            checksum += 1;
+        }
+    }
+
+    const world = new World();
+
+    world.setResource(FeatureFlags, { enabled, paused: false });
+    world.initState(Mode);
+
+    for (let index = 0; index < SCHEDULER_SYSTEMS; index++) {
+        world.addSystem(new NoopSystem(), {
+            runIf: runIfAll(
+                stateIs(Mode, "running"),
+                resourceMatches(FeatureFlags, (flags) => flags.enabled),
+                runIfNot(resourceMatches(FeatureFlags, (flags) => flags.paused))
+            ),
+        });
+    }
+
+    return world;
 }
 
 function formatNumber(value: number): string {
@@ -247,6 +282,30 @@ results.push(
         }
 
         return EVENT_COUNT;
+    })
+);
+
+results.push(
+    measure("scheduler runIf composed (pass)", () => {
+        const world = createSchedulerWorld(true);
+
+        for (let index = 0; index < SCHEDULER_UPDATES; index++) {
+            world.update(0);
+        }
+
+        return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+    })
+);
+
+results.push(
+    measure("scheduler runIf composed (skip)", () => {
+        const world = createSchedulerWorld(false);
+
+        for (let index = 0; index < SCHEDULER_UPDATES; index++) {
+            world.update(0);
+        }
+
+        return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
     })
 );
 

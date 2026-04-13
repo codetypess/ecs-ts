@@ -5,6 +5,7 @@ export * from "./event";
 export * from "./message";
 export * from "./removed";
 export * from "./resource";
+export * from "./run-if";
 export * from "./sparse-set";
 export * from "./state";
 export * from "./world";

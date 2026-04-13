@@ -1051,6 +1051,10 @@ export class World {
         return this.requireState(type).current;
     }
 
+    hasState<T extends StateValue>(type: StateType<T>): boolean {
+        return this.states.has(type.id);
+    }
+
     setState<T extends StateValue>(type: StateType<T>, next: T): this {
         const state = this.ensureState(type);
         state.next = next;
@@ -1166,6 +1170,10 @@ export class World {
         } satisfies ResourceEntry<T> as ResourceEntry<unknown>);
 
         return this;
+    }
+
+    hasResource<T>(type: ResourceType<T>): boolean {
+        return this.resources.has(type.id);
     }
 
     getResource<T>(type: ResourceType<T>): T | undefined {
@@ -1773,11 +1781,6 @@ export class World {
 
     private runSystems(systems: readonly SystemRunner[], dt: number): void {
         for (const system of systems) {
-            if (!this.shouldRunSystem(system)) {
-                continue;
-            }
-
-            const commands = new Commands(this);
             const previousChangeDetection = this.activeChangeDetection;
             const thisRunTick = this.changeTick;
 
@@ -1787,6 +1790,11 @@ export class World {
             };
 
             try {
+                if (!this.shouldRunSystem(system)) {
+                    continue;
+                }
+
+                const commands = new Commands(this);
                 system.run(this, dt, commands);
                 commands.flush();
                 system.lastRunTick = thisRunTick;

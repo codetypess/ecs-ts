@@ -5,6 +5,17 @@ import {
     World,
     defineComponent,
     defineEvent,
+    defineResource,
+    defineState,
+    resourceAdded,
+    resourceChanged,
+    resourceExists,
+    resourceMatches,
+    runIfAll,
+    runIfAny,
+    runIfNot,
+    stateIs,
+    stateMatches,
     withComponent,
 } from "../src";
 
@@ -95,6 +106,99 @@ test("scheduler supports set run conditions and ordering", () => {
     world.update(0);
 
     assert.deepEqual(calls, ["input", "movement", "combat", "render", "cleanup"]);
+});
+
+test("scheduler composes runIf helpers for resources and state", () => {
+    const Flags = defineResource<{ enabled: boolean; paused: boolean }>("SchedulerFlags");
+    const Mode = defineState<"boot" | "running" | "paused">("SchedulerMode", "boot");
+    const calls: string[] = [];
+
+    class NamedSystem {
+        constructor(private readonly name: string) {}
+
+        onUpdate(): void {
+            calls.push(this.name);
+        }
+    }
+
+    const world = new World();
+
+    world.setResource(Flags, { enabled: true, paused: false });
+    world.initState(Mode);
+    world.addSystem(new NamedSystem("gameplay"), {
+        runIf: runIfAll(
+            resourceExists(Flags),
+            stateIs(Mode, "running"),
+            resourceMatches(Flags, (flags) => flags.enabled),
+            runIfNot(resourceMatches(Flags, (flags) => flags.paused))
+        ),
+    });
+    world.addSystem(new NamedSystem("overlay"), {
+        runIf: runIfAny(
+            stateMatches(Mode, (mode) => mode === "paused"),
+            resourceMatches(Flags, (flags) => flags.paused)
+        ),
+    });
+
+    world.update(0);
+    world.setState(Mode, "running");
+    world.update(0);
+    world.resource(Flags).paused = true;
+    world.markResourceChanged(Flags);
+    world.update(0);
+    world.resource(Flags).paused = false;
+    world.resource(Flags).enabled = false;
+    world.markResourceChanged(Flags);
+    world.update(0);
+
+    assert.deepEqual(calls, ["gameplay", "overlay"]);
+});
+
+test("scheduler runIf resource helpers respect per-system change detection", () => {
+    const Tick = defineResource<{ value: number }>("SchedulerTick");
+    const calls: string[] = [];
+
+    class SeedSystem {
+        onUpdate(world: World): void {
+            if (!world.hasResource(Tick)) {
+                world.setResource(Tick, { value: 1 });
+                calls.push("seed");
+                return;
+            }
+
+            if (world.resource(Tick).value === 1) {
+                world.resource(Tick).value = 2;
+                world.markResourceChanged(Tick);
+                calls.push("mutate");
+            }
+        }
+    }
+
+    class NamedSystem {
+        constructor(private readonly name: string) {}
+
+        onUpdate(): void {
+            calls.push(this.name);
+        }
+    }
+
+    const world = new World();
+
+    world.addSystem(new SeedSystem(), { label: "seed" });
+    world.addSystem(new NamedSystem("added"), {
+        after: ["seed"],
+        runIf: resourceAdded(Tick),
+    });
+    world.addSystem(new NamedSystem("changed"), {
+        after: ["added"],
+        runIf: resourceChanged(Tick),
+    });
+
+    world.update(0);
+    world.update(0);
+    world.update(0);
+
+    assert.deepEqual(calls, ["seed", "added", "changed", "mutate", "changed"]);
 });
 
 test("scheduler rejects ambiguous system and set labels inside a stage", () => {
