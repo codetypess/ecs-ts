@@ -93,6 +93,30 @@ npm run example:scheduler
 
 这个示例展示 system label、通过 `configureSet(...)` 和 `configureSetForStage(...)` 配置的 system set、`before`/`after` 排序、可组合的 `runIf` 以及配合 `setFixedTimeStep(...)` 使用的 `onFixedUpdate`。
 
+## Scheduler 配置
+
+对所有 stage 都生效的 set 规则用 `configureSet(...)`，而同一个 set 在特定 stage 需要不同排序或条件时，用 `configureSetForStage(...)`。
+
+```ts
+world.configureSet("gameplay", {
+    before: ["render"],
+    runIf: runIfAll(
+        stateIs(GameMode, "running"),
+        resourceMatches(FeatureFlags, (flags) => flags.enabled)
+    ),
+});
+
+world.configureSetForStage("startup", "gameplay", {
+    after: ["boot"],
+});
+
+world.configureSetForStage("fixedUpdate", "gameplay", {
+    after: ["physics-prepare"],
+});
+```
+
+如果一个 system 同时属于多个 set，那么排序约束会合并，所有命中的 `runIf` 条件都必须通过。
+
 ## 变更检测演示
 
 ```sh
@@ -202,9 +226,10 @@ npm run example:query-state
 ```sh
 npm test
 npm run benchmark
+npm run benchmark:json
 ```
 
-测试通过 `tsx` 使用 Node 内置的 `node:test` runner。Benchmark 是带多轮采样的轻量微基准，覆盖 spawn、按 entity 直接取组件、query 迭代、query state、filtered query、optional query、buffered messages、immediate observers 以及 scheduler `runIf` 开销。
+测试通过 `tsx` 使用 Node 内置的 `node:test` runner。Benchmark 是带多轮采样的轻量微基准，覆盖 spawn、按 entity 直接取组件、query 迭代、query state、filtered query、optional query、buffered messages、immediate observers 以及 scheduler `runIf` 开销。需要机器可读输出时可以用 `npm run benchmark:json`，然后重定向到对比工具或基线文件。
 
 ## 后续可做
 

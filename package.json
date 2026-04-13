@@ -10,6 +10,7 @@
     "build": "tsc",
     "test": "node --import tsx --test tests/*.test.ts",
     "benchmark": "tsx benchmarks/ecs-benchmark.ts",
+    "benchmark:json": "tsx benchmarks/ecs-benchmark.ts --json",
     "example:bundle": "tsx examples/bundle.ts",
     "example:changes": "tsx examples/change-detection.ts",
     "example:lifecycle": "tsx examples/lifecycle.ts",

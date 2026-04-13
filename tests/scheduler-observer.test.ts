@@ -190,6 +190,98 @@ test("scheduler stage-specific set runIf only affects that stage", () => {
     assert.deepEqual(calls, ["update"]);
 });
 
+test("scheduler applies stage-specific set ordering in fixedUpdate", () => {
+    const calls: string[] = [];
+
+    class NamedSystem {
+        constructor(private readonly name: string) {}
+
+        onFixedUpdate(_world: World, dt: number): void {
+            calls.push(`${this.name}:${dt.toFixed(1)}`);
+        }
+    }
+
+    const world = new World();
+
+    world.setFixedTimeStep(0.5);
+    world.configureSetForStage("fixedUpdate", "physics", {
+        after: ["prepare"],
+        before: ["render"],
+    });
+    world.addSystem(new NamedSystem("prepare"), { label: "prepare" });
+    world.addSystem(new NamedSystem("physics"), { set: "physics" });
+    world.addSystem(new NamedSystem("render"), { label: "render" });
+
+    world.update(1.2);
+
+    assert.deepEqual(calls, [
+        "prepare:0.5",
+        "physics:0.5",
+        "render:0.5",
+        "prepare:0.5",
+        "physics:0.5",
+        "render:0.5",
+    ]);
+});
+
+test("scheduler applies stage-specific set ordering in shutdown", () => {
+    const calls: string[] = [];
+
+    class NamedSystem {
+        constructor(private readonly name: string) {}
+
+        onShutdown(): void {
+            calls.push(this.name);
+        }
+    }
+
+    const world = new World();
+
+    world.configureSetForStage("shutdown", "cleanup", { after: ["save"] });
+    world.addSystem(new NamedSystem("cleanup"), { set: "cleanup" });
+    world.addSystem(new NamedSystem("save"), { label: "save" });
+
+    world.shutdown();
+
+    assert.deepEqual(calls, ["save", "cleanup"]);
+});
+
+test("scheduler combines multiple sets for ordering and runIf", () => {
+    const Gate = defineResource<{ enabled: boolean }>("SchedulerGate");
+    const calls: string[] = [];
+
+    class NamedSystem {
+        constructor(private readonly name: string) {}
+
+        onUpdate(): void {
+            calls.push(this.name);
+        }
+    }
+
+    const world = new World();
+
+    world.setResource(Gate, { enabled: false });
+    world.configureSet("gameplay", { after: ["input"] });
+    world.configureSet("network", {
+        before: ["render"],
+        runIf: (currentWorld) => currentWorld.resource(Gate).enabled,
+    });
+    world.addSystem(new NamedSystem("input"), { label: "input" });
+    world.addSystem(new NamedSystem("sync"), {
+        set: ["gameplay", "network"],
+    });
+    world.addSystem(new NamedSystem("render"), { label: "render" });
+
+    world.update(0);
+    assert.deepEqual(calls, ["input", "render"]);
+
+    calls.length = 0;
+    world.resource(Gate).enabled = true;
+    world.update(0);
+
+    assert.deepEqual(calls, ["input", "sync", "render"]);
+});
+
 test("scheduler invalidates sort cache when ordered systems are added later", () => {
     const calls: string[] = [];
 

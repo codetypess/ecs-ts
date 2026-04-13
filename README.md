@@ -93,6 +93,30 @@ npm run example:scheduler
 
 This demo shows system labels, system sets through `configureSet(...)` and `configureSetForStage(...)`, `before`/`after` ordering, composable `runIf`, and `onFixedUpdate` with `setFixedTimeStep(...)`.
 
+## Scheduler Configuration
+
+Use `configureSet(...)` for rules that should apply to a set in every stage, and `configureSetForStage(...)` when the same set needs different ordering or conditions in a specific stage.
+
+```ts
+world.configureSet("gameplay", {
+    before: ["render"],
+    runIf: runIfAll(
+        stateIs(GameMode, "running"),
+        resourceMatches(FeatureFlags, (flags) => flags.enabled)
+    ),
+});
+
+world.configureSetForStage("startup", "gameplay", {
+    after: ["boot"],
+});
+
+world.configureSetForStage("fixedUpdate", "gameplay", {
+    after: ["physics-prepare"],
+});
+```
+
+When a system belongs to multiple sets, ordering constraints are merged and all matching `runIf` conditions must pass.
+
 ## Change Detection Demo
 
 ```sh
@@ -202,9 +226,10 @@ This demo shows `queryState(...)` as a reusable system field. `QueryState` and `
 ```sh
 npm test
 npm run benchmark
+npm run benchmark:json
 ```
 
-Tests use Node's built-in `node:test` runner through `tsx`. The benchmark is a lightweight multi-sample micro-benchmark covering spawn, direct component get, query iteration, query state, filtered queries, optional queries, buffered messages, immediate observers, and scheduler `runIf` overhead.
+Tests use Node's built-in `node:test` runner through `tsx`. The benchmark is a lightweight multi-sample micro-benchmark covering spawn, direct component get, query iteration, query state, filtered queries, optional queries, buffered messages, immediate observers, and scheduler `runIf` overhead. Use `npm run benchmark:json` for machine-readable output that can be redirected into comparison tooling or baseline files.
 
 ## Future Work
 

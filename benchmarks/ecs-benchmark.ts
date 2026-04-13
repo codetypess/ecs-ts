@@ -18,6 +18,7 @@ import {
 interface BenchmarkResult {
     readonly name: string;
     readonly operations: number;
+    readonly samplesMs: readonly number[];
     readonly minMs: number;
     readonly medianMs: number;
     readonly maxMs: number;
@@ -27,6 +28,22 @@ interface BenchmarkResult {
 interface MovementWorld {
     readonly world: World;
     readonly entities: readonly Entity[];
+}
+
+interface BenchmarkReport {
+    readonly formatVersion: 1;
+    readonly config: {
+        readonly entityCount: number;
+        readonly queryLoops: number;
+        readonly directGetLoops: number;
+        readonly eventCount: number;
+        readonly schedulerUpdates: number;
+        readonly schedulerSystems: number;
+        readonly warmupRounds: number;
+        readonly sampleRounds: number;
+    };
+    readonly checksum: number;
+    readonly results: readonly BenchmarkResult[];
 }
 
 const ENTITY_COUNT = 50_000;
@@ -49,6 +66,7 @@ const FeatureFlags = defineResource<{ enabled: boolean; paused: boolean }>("Benc
 const Mode = defineState<"running" | "paused">("BenchMode", "running");
 
 let checksum = 0;
+const options = parseOptions(process.argv.slice(2));
 
 function measure(name: string, run: () => number): BenchmarkResult {
     for (let warmup = 0; warmup < WARMUP_ROUNDS; warmup++) {
@@ -75,6 +93,7 @@ function measure(name: string, run: () => number): BenchmarkResult {
     return {
         name,
         operations,
+        samplesMs: Object.freeze([...samples]),
         minMs,
         medianMs,
         maxMs,
@@ -179,6 +198,36 @@ function printResults(results: readonly BenchmarkResult[]): void {
     }
 
     console.log(`checksum=${Math.round(checksum)}`);
+}
+
+function createReport(results: readonly BenchmarkResult[]): BenchmarkReport {
+    return {
+        formatVersion: 1,
+        config: {
+            entityCount: ENTITY_COUNT,
+            queryLoops: QUERY_LOOPS,
+            directGetLoops: DIRECT_GET_LOOPS,
+            eventCount: EVENT_COUNT,
+            schedulerUpdates: SCHEDULER_UPDATES,
+            schedulerSystems: SCHEDULER_SYSTEMS,
+            warmupRounds: WARMUP_ROUNDS,
+            sampleRounds: SAMPLE_ROUNDS,
+        },
+        checksum: Math.round(checksum),
+        results,
+    };
+}
+
+function parseOptions(args: readonly string[]): { readonly json: boolean } {
+    let json = false;
+
+    for (const arg of args) {
+        if (arg === "--json") {
+            json = true;
+        }
+    }
+
+    return { json };
 }
 
 const movement = createMovementWorld(ENTITY_COUNT);
@@ -353,4 +402,10 @@ results.push(
     })
 );
 
-printResults(results);
+const report = createReport(results);
+
+if (options.json) {
+    console.log(JSON.stringify(report, null, 2));
+} else {
+    printResults(report.results);
+}
