@@ -26,6 +26,7 @@
     "example:required": "tsx examples/required-components.ts",
     "example:resources": "tsx examples/resource-change-detection.ts",
     "example:scheduler": "tsx examples/scheduler.ts",
+    "example:scheduler-showcase": "tsx examples/scheduler-showcase.ts",
     "example:state": "tsx examples/state.ts",
     "example:ui": "tsx examples/ui-lifecycle.ts"
   },

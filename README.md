@@ -93,6 +93,14 @@ npm run example:scheduler
 
 This demo shows system labels, system sets through `configureSet(...)` and `configureSetForStage(...)`, `before`/`after` ordering, composable `runIf`, and `onFixedUpdate` with `setFixedTimeStep(...)`.
 
+## Scheduler Showcase
+
+```sh
+npm run example:scheduler-showcase
+```
+
+This example runs a small multi-frame game loop and prints the full scheduler trace across startup, fixed update, update, last, and shutdown. It combines stage-specific set ordering, composable `runIf`, and query-backed `runIf` in one place.
+
 ## Scheduler Configuration
 
 Use `configureSet(...)` for rules that should apply to a set in every stage, and `configureSetForStage(...)` when the same set needs different ordering or conditions in a specific stage.

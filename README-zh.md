@@ -93,6 +93,14 @@ npm run example:scheduler
 
 这个示例展示 system label、通过 `configureSet(...)` 和 `configureSetForStage(...)` 配置的 system set、`before`/`after` 排序、可组合的 `runIf` 以及配合 `setFixedTimeStep(...)` 使用的 `onFixedUpdate`。
 
+## Scheduler Showcase
+
+```sh
+npm run example:scheduler-showcase
+```
+
+这个示例会跑一个小型多帧 game loop，并打印 startup、fixed update、update、last 和 shutdown 的完整调度轨迹。它把 stage-specific set 排序、组合 `runIf` 和 query-backed `runIf` 放在同一个例子里演示。
+
 ## Scheduler 配置
 
 对所有 stage 都生效的 set 规则用 `configureSet(...)`，而同一个 set 在特定 stage 需要不同排序或条件时，用 `configureSetForStage(...)`。
