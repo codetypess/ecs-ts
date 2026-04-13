@@ -14,6 +14,7 @@
     "example:changes": "tsx examples/change-detection.ts",
     "example:lifecycle": "tsx examples/lifecycle.ts",
     "example:messages": "tsx examples/messages.ts",
+    "example:net-entity-map": "tsx examples/net-entity-map.ts",
     "example:per-system-changes": "tsx examples/per-system-change-detection.ts",
     "example:observer": "tsx examples/observer.ts",
     "example:query-advanced": "tsx examples/query-filter-advanced.ts",

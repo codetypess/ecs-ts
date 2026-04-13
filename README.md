@@ -19,6 +19,7 @@ A small TypeScript ECS prototype based on the design discussion:
 - Components can declare required components that are inserted automatically when missing.
 - Resources support per-system added/changed detection.
 - Systems can use `Commands` for deferred structural edits.
+- `App` and `Plugin` provide a lightweight module layer above `World`.
 - Components support lifecycle hooks: `onAdd`, `onInsert`, `onReplace`, `onRemove`, and `onDespawn`.
 - Systems are lifecycle objects/classes with methods such as `onPreStartup`, `onStartup`, `onPostStartup`, `onFixedUpdate`, `onUpdate`, `onPostUpdate`, and `onShutdown`.
 - Systems can use labels, system sets, `before`/`after` ordering, `runIf` predicates, and a fixed update stage.
@@ -116,6 +117,14 @@ npm run example:messages
 
 This demo shows a Bevy-style buffered message flow: one system writes `Damage` messages through `Commands`, while another system keeps a `MessageReader` cursor and reads only messages it has not seen yet.
 
+## App / Plugin Example
+
+```sh
+npm run example:net-entity-map
+```
+
+This example shows modular registration through `App` and `Plugin`, using a local `NetEntityMap` resource to map server IDs to local ECS entities during snapshot sync.
+
 ## Observer Demo
 
 ```sh
@@ -200,6 +209,6 @@ Tests use Node's built-in `node:test` runner through `tsx`. The benchmark is a l
 ## Future Work
 
 - Scheduler improvements: add richer run condition composition and stage-specific set configuration.
-- App / Plugin: add an `App` and `Plugin` layer above `World` for modular system, resource, message, and state registration.
+- App / Plugin: add plugin dependencies, plugin ordering, and richer app lifecycle hooks.
 - Tests and benchmarks: expand coverage for edge cases and add more stable benchmark baselines.
 - Storage strategy experiments: keep SparseSet as the current baseline, then explore Archetype/Table or hybrid storage for faster multi-component queries.

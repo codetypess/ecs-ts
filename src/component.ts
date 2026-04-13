@@ -71,9 +71,6 @@ export function bundle(...entries: ComponentEntry<unknown>[]): Bundle {
     });
 }
 
-export function requireComponent<T>(
-    type: ComponentType<T>,
-    create: () => T
-): RequiredComponent<T> {
+export function requireComponent<T>(type: ComponentType<T>, create: () => T): RequiredComponent<T> {
     return Object.freeze({ type, create });
 }

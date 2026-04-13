@@ -19,6 +19,7 @@ English README: [README.md](README.md).
 - Component 可以声明 required components，在组件缺失时自动插入依赖组件。
 - Resource 支持 per-system 的 added/changed 检测。
 - System 可以使用 `Commands` 做延迟结构修改。
+- `App` 和 `Plugin` 在 `World` 之上提供了轻量的模块化注册层。
 - Component 支持 lifecycle hooks：`onAdd`、`onInsert`、`onReplace`、`onRemove` 和 `onDespawn`。
 - System 是带生命周期方法的 object/class，例如 `onPreStartup`、`onStartup`、`onPostStartup`、`onFixedUpdate`、`onUpdate`、`onPostUpdate` 和 `onShutdown`。
 - System 支持 label、system set、`before`/`after` 排序、`runIf` 条件以及 fixed update 阶段。
@@ -116,6 +117,14 @@ npm run example:messages
 
 这个示例展示类似 Bevy 的 buffered message 流程：一个系统通过 `Commands` 写入 `Damage` messages，另一个系统持有 `MessageReader` cursor 并只读取自己还没见过的消息。
 
+## App / Plugin 示例
+
+```sh
+npm run example:net-entity-map
+```
+
+这个示例展示如何通过 `App` 和 `Plugin` 做模块化注册，并用一个本地 `NetEntityMap` resource 把服务器 ID 映射到本地 ECS entity，用于 snapshot 同步。
+
 ## Observer 演示
 
 ```sh
@@ -200,6 +209,6 @@ npm run benchmark
 ## 后续可做
 
 - Scheduler 增强：增加更丰富的 run condition 组合能力，以及按 stage 配置 set 的能力。
-- App / Plugin：在 `World` 之上增加 `App` 和 `Plugin`，让系统、资源、消息、状态注册更模块化。
+- App / Plugin：增加 plugin 依赖、plugin 排序以及更丰富的 app 生命周期钩子。
 - 测试和 benchmark：继续扩展边界场景覆盖，并增加更稳定的 benchmark 基线。
 - 存储策略扩展：当前是 SparseSet；后续可以探索 Archetype/Table 存储或混合存储，用于优化多组件 query。
