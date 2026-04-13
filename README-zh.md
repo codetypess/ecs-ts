@@ -5,7 +5,7 @@
 English README: [README.md](README.md).
 
 - Entity 是数字形式的 `index + generation` 句柄，因此旧实体 ID 不会误命中新复用的实体。
-- Component 通过 `defineComponent<T>()` 注册。
+- Component 通过 `defineComponent<T>()` 注册；marker component 推荐使用 `null`，component value 不能包含 `undefined`。
 - Bundle 用来把多个 component entry 组合起来，供 spawn、insert、remove 调用复用。
 - Component 存储使用 `SparseSet`：`get/has/add/remove` 接近 O(1)，迭代走 dense 数组，删除使用 swap-remove。
 - Query 会选择最小的组件存储作为基础循环，再按 entity 检查其它组件存储。

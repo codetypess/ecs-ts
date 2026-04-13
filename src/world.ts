@@ -598,11 +598,13 @@ export class World {
     }
 
     mustGet<T>(entity: Entity, type: ComponentType<T>): T {
-        if (!this.has(entity, type)) {
+        const value = this.get(entity, type);
+
+        if (value === undefined) {
             throw new Error(`Entity ${formatEntity(entity)} does not have ${type.name}`);
         }
 
-        return this.get(entity, type)!;
+        return value;
     }
 
     getMany<const TComponents extends readonly AnyComponentType[]>(

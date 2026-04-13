@@ -5,7 +5,7 @@ A small TypeScript ECS prototype based on the design discussion:
 中文说明见 [README-zh.md](README-zh.md).
 
 - Entities are numeric `index + generation` handles, so stale entity IDs do not accidentally hit recycled entities.
-- Components are registered with `defineComponent<T>()`.
+- Components are registered with `defineComponent<T>()`; marker components should use `null`, and component values cannot include `undefined`.
 - Bundles group multiple component entries for spawn/insert/remove calls.
 - Component storage uses `SparseSet`: O(1)-ish `get/has/add/remove`, dense iteration, and swap-remove deletion.
 - Queries choose the smallest component store as the base loop, then check other component stores by entity.
