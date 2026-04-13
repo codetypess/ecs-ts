@@ -22,7 +22,7 @@ A small TypeScript ECS prototype based on the design discussion:
 - `App` and `Plugin` provide a lightweight module layer above `World`.
 - Components support lifecycle hooks: `onAdd`, `onInsert`, `onReplace`, `onRemove`, and `onDespawn`.
 - Systems are lifecycle objects/classes with methods such as `onPreStartup`, `onStartup`, `onPostStartup`, `onFixedUpdate`, `onUpdate`, `onPostUpdate`, and `onShutdown`.
-- Systems can use labels, system sets, `before`/`after` ordering, composable `runIf` predicates, and a fixed update stage.
+- Systems can use labels, system sets, stage-specific set config, `before`/`after` ordering, composable `runIf` predicates, and a fixed update stage.
 - State transitions support object/class systems through `addStateSystem` and `addTransitionSystem`.
 - Observers support immediate events through `defineEvent`, `observe`, and `trigger`.
 
@@ -91,7 +91,7 @@ This demo prints component hook order (`onAdd`, `onInsert`, `onReplace`, `onRemo
 npm run example:scheduler
 ```
 
-This demo shows system labels, system sets through `configureSet(...)`, `before`/`after` ordering, composable `runIf`, and `onFixedUpdate` with `setFixedTimeStep(...)`.
+This demo shows system labels, system sets through `configureSet(...)` and `configureSetForStage(...)`, `before`/`after` ordering, composable `runIf`, and `onFixedUpdate` with `setFixedTimeStep(...)`.
 
 ## Change Detection Demo
 
@@ -204,11 +204,11 @@ npm test
 npm run benchmark
 ```
 
-Tests use Node's built-in `node:test` runner through `tsx`. The benchmark is a lightweight micro-benchmark covering spawn, direct component get, query iteration, query state, filtered queries, optional queries, buffered messages, immediate observers, and scheduler `runIf` overhead.
+Tests use Node's built-in `node:test` runner through `tsx`. The benchmark is a lightweight multi-sample micro-benchmark covering spawn, direct component get, query iteration, query state, filtered queries, optional queries, buffered messages, immediate observers, and scheduler `runIf` overhead.
 
 ## Future Work
 
-- Scheduler improvements: add stage-specific set configuration and reusable condition groups.
+- Scheduler improvements: add query-backed run conditions and reusable condition groups.
 - App / Plugin: add plugin dependencies, plugin ordering, and richer app lifecycle hooks.
 - Tests and benchmarks: expand coverage for edge cases and add more stable benchmark baselines.
 - Storage strategy experiments: keep SparseSet as the current baseline, then explore Archetype/Table or hybrid storage for faster multi-component queries.

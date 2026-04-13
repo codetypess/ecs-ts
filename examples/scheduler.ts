@@ -17,6 +17,13 @@ class SetupSystem {
         world.setResource(Log, []);
         world.setResource(FeatureEnabled, { value: true });
         world.initState(GameMode);
+        world.resource(Log).push("startup:setup");
+    }
+}
+
+class GameplayStartupSystem {
+    onStartup(world: World): void {
+        world.resource(Log).push("startup:gameplay");
     }
 }
 
@@ -30,7 +37,7 @@ class NamedUpdateSystem {
     constructor(private readonly name: string) {}
 
     onUpdate(world: World): void {
-        world.resource(Log).push(this.name);
+        world.resource(Log).push(`update:${this.name}`);
     }
 }
 
@@ -44,17 +51,23 @@ const world = new World();
 
 world.setFixedTimeStep(0.5);
 world.configureSet("gameplay", {
-    after: ["input"],
     before: ["render"],
     runIf: runIfAll(
         stateIs(GameMode, "running"),
         resourceMatches(FeatureEnabled, (feature) => feature.value)
     ),
 });
+world.configureSetForStage("startup", "gameplay", {
+    after: ["setup"],
+});
+world.configureSetForStage("update", "gameplay", {
+    after: ["input"],
+});
 world.configureSet("paused", {
     runIf: runIfNot(stateIs(GameMode, "running")),
 });
-world.addSystem(new SetupSystem());
+world.addSystem(new SetupSystem(), { label: "setup" });
+world.addSystem(new GameplayStartupSystem(), { set: "gameplay" });
 world.addSystem(new FixedStepSystem());
 world.addSystem(new NamedUpdateSystem("render"), { label: "render" });
 world.addSystem(new NamedUpdateSystem("movement"), {

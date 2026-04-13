@@ -4,6 +4,7 @@ import type { ResourceType } from "./resource";
 import type { StateType, StateValue } from "./state";
 import type {
     Commands,
+    ScheduleStage,
     StateSystem,
     System,
     SystemOptions,
@@ -54,6 +55,16 @@ export class App {
 
     configureSet(set: SystemSetLabel, options: SystemSetOptions): this {
         this.world.configureSet(set, options);
+
+        return this;
+    }
+
+    configureSetForStage(
+        stage: ScheduleStage,
+        set: SystemSetLabel,
+        options: SystemSetOptions
+    ): this {
+        this.world.configureSetForStage(stage, set, options);
 
         return this;
     }

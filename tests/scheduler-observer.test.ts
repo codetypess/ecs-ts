@@ -108,6 +108,88 @@ test("scheduler supports set run conditions and ordering", () => {
     assert.deepEqual(calls, ["input", "movement", "combat", "render", "cleanup"]);
 });
 
+test("scheduler supports stage-specific set ordering", () => {
+    const calls: string[] = [];
+
+    class BootSystem {
+        onStartup(): void {
+            calls.push("startup:boot");
+        }
+    }
+
+    class InputSystem {
+        onUpdate(): void {
+            calls.push("update:input");
+        }
+    }
+
+    class LateSystem {
+        onStartup(): void {
+            calls.push("startup:late");
+        }
+
+        onUpdate(): void {
+            calls.push("update:late");
+        }
+    }
+
+    class GameplaySystem {
+        onStartup(): void {
+            calls.push("startup:gameplay");
+        }
+
+        onUpdate(): void {
+            calls.push("update:gameplay");
+        }
+    }
+
+    const world = new World();
+
+    world.configureSet("gameplay", { before: ["late"] });
+    world.configureSetForStage("startup", "gameplay", { after: ["boot"] });
+    world.configureSetForStage("update", "gameplay", { after: ["input"] });
+    world.addSystem(new BootSystem(), { label: "boot" });
+    world.addSystem(new InputSystem(), { label: "input" });
+    world.addSystem(new GameplaySystem(), { set: "gameplay" });
+    world.addSystem(new LateSystem(), { label: "late" });
+
+    world.update(0);
+
+    assert.deepEqual(calls, [
+        "startup:boot",
+        "startup:gameplay",
+        "startup:late",
+        "update:input",
+        "update:gameplay",
+        "update:late",
+    ]);
+});
+
+test("scheduler stage-specific set runIf only affects that stage", () => {
+    const calls: string[] = [];
+
+    class ConditionalSystem {
+        onStartup(): void {
+            calls.push("startup");
+        }
+
+        onUpdate(): void {
+            calls.push("update");
+        }
+    }
+
+    const world = new World();
+
+    world.configureSet("conditional", { runIf: () => true });
+    world.configureSetForStage("startup", "conditional", { runIf: () => false });
+    world.configureSetForStage("update", "conditional", { runIf: () => true });
+    world.addSystem(new ConditionalSystem(), { set: "conditional" });
+
+    world.update(0);
+
+    assert.deepEqual(calls, ["update"]);
+});
+
 test("scheduler composes runIf helpers for resources and state", () => {
     const Flags = defineResource<{ enabled: boolean; paused: boolean }>("SchedulerFlags");
     const Mode = defineState<"boot" | "running" | "paused">("SchedulerMode", "boot");

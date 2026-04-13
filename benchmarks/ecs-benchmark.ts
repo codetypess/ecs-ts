@@ -18,7 +18,9 @@ import {
 interface BenchmarkResult {
     readonly name: string;
     readonly operations: number;
-    readonly elapsedMs: number;
+    readonly minMs: number;
+    readonly medianMs: number;
+    readonly maxMs: number;
     readonly opsPerSecond: number;
 }
 
@@ -33,6 +35,8 @@ const DIRECT_GET_LOOPS = 20;
 const EVENT_COUNT = 100_000;
 const SCHEDULER_UPDATES = 5_000;
 const SCHEDULER_SYSTEMS = 16;
+const WARMUP_ROUNDS = 1;
+const SAMPLE_ROUNDS = 5;
 
 const Position = defineComponent<{ x: number; y: number }>("BenchPosition");
 const Velocity = defineComponent<{ x: number; y: number }>("BenchVelocity");
@@ -47,16 +51,33 @@ const Mode = defineState<"running" | "paused">("BenchMode", "running");
 let checksum = 0;
 
 function measure(name: string, run: () => number): BenchmarkResult {
-    const start = globalThis.performance.now();
-    const operations = run();
+    for (let warmup = 0; warmup < WARMUP_ROUNDS; warmup++) {
+        run();
+    }
 
-    const elapsedMs = globalThis.performance.now() - start;
-    const opsPerSecond = operations / (elapsedMs / 1000);
+    const samples: number[] = [];
+    let operations = 0;
+
+    for (let sample = 0; sample < SAMPLE_ROUNDS; sample++) {
+        const start = globalThis.performance.now();
+        const currentOperations = run();
+        const elapsedMs = globalThis.performance.now() - start;
+
+        samples.push(elapsedMs);
+        operations = currentOperations;
+    }
+
+    const minMs = Math.min(...samples);
+    const maxMs = Math.max(...samples);
+    const medianMs = median(samples);
+    const opsPerSecond = operations / (medianMs / 1000);
 
     return {
         name,
         operations,
-        elapsedMs,
+        minMs,
+        medianMs,
+        maxMs,
         opsPerSecond,
     };
 }
@@ -121,15 +142,38 @@ function formatNumber(value: number): string {
     return Math.round(value).toLocaleString("en-US");
 }
 
+function median(values: readonly number[]): number {
+    const sorted = [...values].sort((left, right) => left - right);
+    const middle = Math.floor(sorted.length / 2);
+
+    if (sorted.length % 2 === 0) {
+        return (sorted[middle - 1]! + sorted[middle]!) / 2;
+    }
+
+    return sorted[middle]!;
+}
+
 function printResults(results: readonly BenchmarkResult[]): void {
     console.log(`entities=${formatNumber(ENTITY_COUNT)}`);
-    console.log("benchmark".padEnd(36), "ops".padStart(12), "ms".padStart(10), "ops/sec".padStart(14));
+    console.log(
+        `samples=${SAMPLE_ROUNDS}, warmup=${WARMUP_ROUNDS}`
+    );
+    console.log(
+        "benchmark".padEnd(36),
+        "ops".padStart(12),
+        "min".padStart(10),
+        "median".padStart(10),
+        "max".padStart(10),
+        "ops/sec".padStart(14)
+    );
 
     for (const result of results) {
         console.log(
             result.name.padEnd(36),
             formatNumber(result.operations).padStart(12),
-            result.elapsedMs.toFixed(2).padStart(10),
+            result.minMs.toFixed(2).padStart(10),
+            result.medianMs.toFixed(2).padStart(10),
+            result.maxMs.toFixed(2).padStart(10),
             formatNumber(result.opsPerSecond).padStart(14)
         );
     }

@@ -44,6 +44,8 @@ test("app plugins can register systems, resources, states, and drive updates", (
             app.setResource(Log, []);
             app.initState(Mode);
             app.configureSet("gameplay", { runIf: () => true });
+            app.configureSetForStage("startup", "gameplay", { runIf: () => false });
+            app.configureSetForStage("update", "gameplay", { runIf: () => true });
             app.addSystem(new BootstrapSystem());
             app.addSystem(new RunningSystem(), { set: "gameplay" });
             app.addStateSystem(Mode, "running", new RunningEnterSystem());

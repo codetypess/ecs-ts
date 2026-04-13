@@ -22,7 +22,7 @@ English README: [README.md](README.md).
 - `App` 和 `Plugin` 在 `World` 之上提供了轻量的模块化注册层。
 - Component 支持 lifecycle hooks：`onAdd`、`onInsert`、`onReplace`、`onRemove` 和 `onDespawn`。
 - System 是带生命周期方法的 object/class，例如 `onPreStartup`、`onStartup`、`onPostStartup`、`onFixedUpdate`、`onUpdate`、`onPostUpdate` 和 `onShutdown`。
-- System 支持 label、system set、`before`/`after` 排序、可组合的 `runIf` 条件以及 fixed update 阶段。
+- System 支持 label、system set、按 stage 配置 set、`before`/`after` 排序、可组合的 `runIf` 条件以及 fixed update 阶段。
 - State transitions 支持通过 `addStateSystem` 和 `addTransitionSystem` 注册 object/class system。
 - Observer 支持通过 `defineEvent`、`observe` 和 `trigger` 触发立即事件。
 
@@ -91,7 +91,7 @@ npm run example:lifecycle
 npm run example:scheduler
 ```
 
-这个示例展示 system label、通过 `configureSet(...)` 配置的 system set、`before`/`after` 排序、可组合的 `runIf` 以及配合 `setFixedTimeStep(...)` 使用的 `onFixedUpdate`。
+这个示例展示 system label、通过 `configureSet(...)` 和 `configureSetForStage(...)` 配置的 system set、`before`/`after` 排序、可组合的 `runIf` 以及配合 `setFixedTimeStep(...)` 使用的 `onFixedUpdate`。
 
 ## 变更检测演示
 
@@ -204,11 +204,11 @@ npm test
 npm run benchmark
 ```
 
-测试通过 `tsx` 使用 Node 内置的 `node:test` runner。Benchmark 是轻量微基准，覆盖 spawn、按 entity 直接取组件、query 迭代、query state、filtered query、optional query、buffered messages、immediate observers 以及 scheduler `runIf` 开销。
+测试通过 `tsx` 使用 Node 内置的 `node:test` runner。Benchmark 是带多轮采样的轻量微基准，覆盖 spawn、按 entity 直接取组件、query 迭代、query state、filtered query、optional query、buffered messages、immediate observers 以及 scheduler `runIf` 开销。
 
 ## 后续可做
 
-- Scheduler 增强：增加按 stage 配置 set 的能力，以及可复用的条件组。
+- Scheduler 增强：增加基于 query 的运行条件，以及可复用的条件组。
 - App / Plugin：增加 plugin 依赖、plugin 排序以及更丰富的 app 生命周期钩子。
 - 测试和 benchmark：继续扩展边界场景覆盖，并增加更稳定的 benchmark 基线。
 - 存储策略扩展：当前是 SparseSet；后续可以探索 Archetype/Table 存储或混合存储，用于优化多组件 query。

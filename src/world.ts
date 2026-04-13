@@ -411,6 +411,7 @@ export class World {
         OptionalQueryStateCache
     >();
     private readonly systemSets = new Map<SystemSetLabel, SystemSetConfig>();
+    private readonly systemSetsByStage = createSystemSetStageConfigs();
     private readonly schedules = createSchedules();
     private activeChangeDetection: ChangeDetectionRange | undefined;
     private fixedTimeStep = 1 / 60;
@@ -887,11 +888,17 @@ export class World {
     }
 
     configureSet(set: SystemSetLabel, options: SystemSetOptions): this {
-        this.systemSets.set(set, {
-            before: options.before ?? [],
-            after: options.after ?? [],
-            runIf: options.runIf,
-        });
+        this.systemSets.set(set, createSystemSetConfig(options));
+
+        return this;
+    }
+
+    configureSetForStage(
+        stage: ScheduleStage,
+        set: SystemSetLabel,
+        options: SystemSetOptions
+    ): this {
+        this.systemSetsByStage[stage].set(set, createSystemSetConfig(options));
 
         return this;
     }
@@ -1767,7 +1774,16 @@ export class World {
     }
 
     private runSchedule(stage: ScheduleStage, dt: number): void {
-        this.runSystems(sortSystemRunners(this.schedules[stage], stage, this.systemSets), dt);
+        this.runSystems(
+            sortSystemRunners(
+                this.schedules[stage],
+                stage,
+                this.systemSets,
+                this.systemSetsByStage[stage]
+            ),
+            stage,
+            dt
+        );
     }
 
     private runFixedUpdate(dt: number): void {
@@ -1779,7 +1795,7 @@ export class World {
         }
     }
 
-    private runSystems(systems: readonly SystemRunner[], dt: number): void {
+    private runSystems(systems: readonly SystemRunner[], stage: ScheduleStage, dt: number): void {
         for (const system of systems) {
             const previousChangeDetection = this.activeChangeDetection;
             const thisRunTick = this.changeTick;
@@ -1790,7 +1806,7 @@ export class World {
             };
 
             try {
-                if (!this.shouldRunSystem(system)) {
+                if (!this.shouldRunSystem(system, stage)) {
                     continue;
                 }
 
@@ -1805,9 +1821,13 @@ export class World {
         }
     }
 
-    private shouldRunSystem(system: SystemRunner): boolean {
+    private shouldRunSystem(system: SystemRunner, stage: ScheduleStage): boolean {
         for (const set of system.sets) {
             if (this.systemSets.get(set)?.runIf?.(this) === false) {
+                return false;
+            }
+
+            if (this.systemSetsByStage[stage].get(set)?.runIf?.(this) === false) {
                 return false;
             }
         }
@@ -1821,7 +1841,7 @@ export class World {
                 continue;
             }
 
-            this.runSystems(state.onEnter.get(state.current) ?? [], dt);
+            this.runSystems(state.onEnter.get(state.current) ?? [], "update", dt);
             state.didEnterInitial = true;
         }
     }
@@ -1843,10 +1863,10 @@ export class World {
             }
 
             state.didEnterInitial = true;
-            this.runSystems(state.onExit.get(from) ?? [], dt);
-            this.runSystems(state.onTransition.get(from)?.get(to) ?? [], dt);
+            this.runSystems(state.onExit.get(from) ?? [], "update", dt);
+            this.runSystems(state.onTransition.get(from)?.get(to) ?? [], "update", dt);
             state.current = to;
-            this.runSystems(state.onEnter.get(to) ?? [], dt);
+            this.runSystems(state.onEnter.get(to) ?? [], "update", dt);
         }
     }
 
@@ -1997,12 +2017,39 @@ function normalizeSystemSets(
     return [set as SystemSetLabel];
 }
 
+function createSystemSetConfig(options: SystemSetOptions): SystemSetConfig {
+    return {
+        before: options.before ?? [],
+        after: options.after ?? [],
+        runIf: options.runIf,
+    };
+}
+
+function createSystemSetStageConfigs(): Record<
+    ScheduleStage,
+    Map<SystemSetLabel, SystemSetConfig>
+> {
+    return {
+        preStartup: new Map(),
+        startup: new Map(),
+        postStartup: new Map(),
+        first: new Map(),
+        preUpdate: new Map(),
+        fixedUpdate: new Map(),
+        update: new Map(),
+        postUpdate: new Map(),
+        last: new Map(),
+        shutdown: new Map(),
+    };
+}
+
 function sortSystemRunners(
     systems: readonly SystemRunner[],
     stage: ScheduleStage,
-    systemSets: ReadonlyMap<SystemSetLabel, SystemSetConfig>
+    systemSets: ReadonlyMap<SystemSetLabel, SystemSetConfig>,
+    stageSystemSets: ReadonlyMap<SystemSetLabel, SystemSetConfig>
 ): readonly SystemRunner[] {
-    if (!systemsNeedSorting(systems, systemSets)) {
+    if (!systemsNeedSorting(systems, systemSets, stageSystemSets)) {
         return systems;
     }
 
@@ -2053,19 +2100,8 @@ function sortSystemRunners(
         }
 
         for (const set of system.sets) {
-            const config = systemSets.get(set);
-
-            if (config === undefined) {
-                continue;
-            }
-
-            for (const label of config.before) {
-                addBeforeEdges(system, label, labels, setMembers, edges);
-            }
-
-            for (const label of config.after) {
-                addAfterEdges(system, label, labels, setMembers, edges);
-            }
+            addSystemSetEdges(system, systemSets.get(set), labels, setMembers, edges);
+            addSystemSetEdges(system, stageSystemSets.get(set), labels, setMembers, edges);
         }
     }
 
@@ -2074,7 +2110,8 @@ function sortSystemRunners(
 
 function systemsNeedSorting(
     systems: readonly SystemRunner[],
-    systemSets: ReadonlyMap<SystemSetLabel, SystemSetConfig>
+    systemSets: ReadonlyMap<SystemSetLabel, SystemSetConfig>,
+    stageSystemSets: ReadonlyMap<SystemSetLabel, SystemSetConfig>
 ): boolean {
     for (const system of systems) {
         if (system.label !== undefined || system.before.length > 0 || system.after.length > 0) {
@@ -2082,15 +2119,40 @@ function systemsNeedSorting(
         }
 
         for (const set of system.sets) {
-            const config = systemSets.get(set);
-
-            if (config !== undefined && (config.before.length > 0 || config.after.length > 0)) {
+            if (
+                hasSystemSetOrdering(systemSets.get(set)) ||
+                hasSystemSetOrdering(stageSystemSets.get(set))
+            ) {
                 return true;
             }
         }
     }
 
     return false;
+}
+
+function addSystemSetEdges(
+    system: SystemRunner,
+    config: SystemSetConfig | undefined,
+    labels: ReadonlyMap<SystemLabel, SystemRunner>,
+    setMembers: ReadonlyMap<SystemSetLabel, readonly SystemRunner[]>,
+    edges: ReadonlyMap<SystemRunner, SystemRunner[]>
+): void {
+    if (config === undefined) {
+        return;
+    }
+
+    for (const label of config.before) {
+        addBeforeEdges(system, label, labels, setMembers, edges);
+    }
+
+    for (const label of config.after) {
+        addAfterEdges(system, label, labels, setMembers, edges);
+    }
+}
+
+function hasSystemSetOrdering(config: SystemSetConfig | undefined): boolean {
+    return config !== undefined && (config.before.length > 0 || config.after.length > 0);
 }
 
 function addBeforeEdges(
