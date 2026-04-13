@@ -110,6 +110,11 @@ interface SystemSetConfig {
     readonly runIf: SystemRunCondition | undefined;
 }
 
+interface ScheduleCacheEntry {
+    dirty: boolean;
+    systems: readonly SystemRunner[] | undefined;
+}
+
 export interface System {
     onPreStartup?(world: World, dt: number, commands: Commands): void;
     onStartup?(world: World, dt: number, commands: Commands): void;
@@ -413,6 +418,7 @@ export class World {
     private readonly systemSets = new Map<SystemSetLabel, SystemSetConfig>();
     private readonly systemSetsByStage = createSystemSetStageConfigs();
     private readonly schedules = createSchedules();
+    private readonly sortedSchedules = createScheduleCacheEntries();
     private activeChangeDetection: ChangeDetectionRange | undefined;
     private fixedTimeStep = 1 / 60;
     private fixedUpdateAccumulator = 0;
@@ -889,6 +895,7 @@ export class World {
 
     configureSet(set: SystemSetLabel, options: SystemSetOptions): this {
         this.systemSets.set(set, createSystemSetConfig(options));
+        this.invalidateAllScheduleCaches();
 
         return this;
     }
@@ -899,6 +906,7 @@ export class World {
         options: SystemSetOptions
     ): this {
         this.systemSetsByStage[stage].set(set, createSystemSetConfig(options));
+        this.invalidateScheduleCache(stage);
 
         return this;
     }
@@ -1769,21 +1777,45 @@ export class World {
 
             if (method !== undefined) {
                 this.schedules[stage].push(createSystemRunner(method.bind(system), options));
+                this.invalidateScheduleCache(stage);
             }
         }
     }
 
     private runSchedule(stage: ScheduleStage, dt: number): void {
         this.runSystems(
-            sortSystemRunners(
+            this.resolveSortedSchedule(stage),
+            stage,
+            dt
+        );
+    }
+
+    private resolveSortedSchedule(stage: ScheduleStage): readonly SystemRunner[] {
+        const cache = this.sortedSchedules[stage];
+
+        if (cache.dirty || cache.systems === undefined) {
+            cache.systems = sortSystemRunners(
                 this.schedules[stage],
                 stage,
                 this.systemSets,
                 this.systemSetsByStage[stage]
-            ),
-            stage,
-            dt
-        );
+            );
+            cache.dirty = false;
+        }
+
+        return cache.systems;
+    }
+
+    private invalidateScheduleCache(stage: ScheduleStage): void {
+        const cache = this.sortedSchedules[stage];
+        cache.dirty = true;
+        cache.systems = undefined;
+    }
+
+    private invalidateAllScheduleCaches(): void {
+        for (const stage of scheduleStages) {
+            this.invalidateScheduleCache(stage);
+        }
     }
 
     private runFixedUpdate(dt: number): void {
@@ -2349,6 +2381,21 @@ function createSchedules(): Record<ScheduleStage, SystemRunner[]> {
         postUpdate: [],
         last: [],
         shutdown: [],
+    };
+}
+
+function createScheduleCacheEntries(): Record<ScheduleStage, ScheduleCacheEntry> {
+    return {
+        preStartup: { dirty: true, systems: undefined },
+        startup: { dirty: true, systems: undefined },
+        postStartup: { dirty: true, systems: undefined },
+        first: { dirty: true, systems: undefined },
+        preUpdate: { dirty: true, systems: undefined },
+        fixedUpdate: { dirty: true, systems: undefined },
+        update: { dirty: true, systems: undefined },
+        postUpdate: { dirty: true, systems: undefined },
+        last: { dirty: true, systems: undefined },
+        shutdown: { dirty: true, systems: undefined },
     };
 }
 

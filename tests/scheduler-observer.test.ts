@@ -190,6 +190,59 @@ test("scheduler stage-specific set runIf only affects that stage", () => {
     assert.deepEqual(calls, ["update"]);
 });
 
+test("scheduler invalidates sort cache when ordered systems are added later", () => {
+    const calls: string[] = [];
+
+    class NamedSystem {
+        constructor(private readonly name: string) {}
+
+        onUpdate(): void {
+            calls.push(this.name);
+        }
+    }
+
+    const world = new World();
+
+    world.addSystem(new NamedSystem("A"), { label: "a" });
+    world.addSystem(new NamedSystem("C"), { label: "c", before: ["a"] });
+
+    world.update(0);
+    assert.deepEqual(calls, ["C", "A"]);
+
+    calls.length = 0;
+    world.addSystem(new NamedSystem("B"), { label: "b", after: ["a"] });
+    world.update(0);
+
+    assert.deepEqual(calls, ["C", "A", "B"]);
+});
+
+test("scheduler invalidates stage-specific set ordering cache when reconfigured", () => {
+    const calls: string[] = [];
+
+    class NamedSystem {
+        constructor(private readonly name: string) {}
+
+        onUpdate(): void {
+            calls.push(this.name);
+        }
+    }
+
+    const world = new World();
+
+    world.addSystem(new NamedSystem("input"), { label: "input" });
+    world.addSystem(new NamedSystem("gameplay"), { set: "gameplay" });
+    world.addSystem(new NamedSystem("render"), { label: "render" });
+
+    world.update(0);
+    assert.deepEqual(calls, ["input", "gameplay", "render"]);
+
+    calls.length = 0;
+    world.configureSetForStage("update", "gameplay", { after: ["render"] });
+    world.update(0);
+
+    assert.deepEqual(calls, ["input", "render", "gameplay"]);
+});
+
 test("scheduler composes runIf helpers for resources and state", () => {
     const Flags = defineResource<{ enabled: boolean; paused: boolean }>("SchedulerFlags");
     const Mode = defineState<"boot" | "running" | "paused">("SchedulerMode", "boot");
