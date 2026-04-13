@@ -1,6 +1,7 @@
 import {
     Entity,
     World,
+    anyMatch,
     defineComponent,
     defineEvent,
     defineMessage,
@@ -64,6 +65,7 @@ const DamageMessage = defineMessage<{ target: Entity; amount: number }>("BenchDa
 const DamageEvent = defineEvent<{ target: Entity; amount: number }>("BenchDamageEvent");
 const FeatureFlags = defineResource<{ enabled: boolean; paused: boolean }>("BenchFeatureFlags");
 const Mode = defineState<"running" | "paused">("BenchMode", "running");
+const QueryRunIf = queryState([Position, Velocity], { none: [Sleeping] });
 
 let checksum = 0;
 const options = parseOptions(process.argv.slice(2));
@@ -151,6 +153,37 @@ function createSchedulerWorld(enabled: boolean): World {
                 resourceMatches(FeatureFlags, (flags) => flags.enabled),
                 runIfNot(resourceMatches(FeatureFlags, (flags) => flags.paused))
             ),
+        });
+    }
+
+    return world;
+}
+
+function createQueryRunIfSchedulerWorld(matching: boolean): World {
+    class NoopSystem {
+        onUpdate(): void {
+            checksum += 1;
+        }
+    }
+
+    const world = new World();
+
+    if (matching) {
+        world.spawn(
+            withComponent(Position, { x: 0, y: 0 }),
+            withComponent(Velocity, { x: 1, y: 0 })
+        );
+    } else {
+        world.spawn(
+            withComponent(Position, { x: 0, y: 0 }),
+            withComponent(Velocity, { x: 1, y: 0 }),
+            withComponent(Sleeping, null)
+        );
+    }
+
+    for (let index = 0; index < SCHEDULER_SYSTEMS; index++) {
+        world.addSystem(new NoopSystem(), {
+            runIf: anyMatch(QueryRunIf),
         });
     }
 
@@ -393,6 +426,30 @@ results.push(
 results.push(
     measure("scheduler runIf composed (skip)", () => {
         const world = createSchedulerWorld(false);
+
+        for (let index = 0; index < SCHEDULER_UPDATES; index++) {
+            world.update(0);
+        }
+
+        return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+    })
+);
+
+results.push(
+    measure("scheduler runIf anyMatch query (pass)", () => {
+        const world = createQueryRunIfSchedulerWorld(true);
+
+        for (let index = 0; index < SCHEDULER_UPDATES; index++) {
+            world.update(0);
+        }
+
+        return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+    })
+);
+
+results.push(
+    measure("scheduler runIf anyMatch query (skip)", () => {
+        const world = createQueryRunIfSchedulerWorld(false);
 
         for (let index = 0; index < SCHEDULER_UPDATES; index++) {
             world.update(0);

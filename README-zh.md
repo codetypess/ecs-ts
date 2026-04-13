@@ -117,6 +117,16 @@ world.configureSetForStage("fixedUpdate", "gameplay", {
 
 如果一个 system 同时属于多个 set，那么排序约束会合并，所有命中的 `runIf` 条件都必须通过。
 
+当某个 system 只应在存在匹配实体时运行时，也可以让 `runIf` 直接复用缓存后的 query state：
+
+```ts
+const activeBodies = queryState([RigidBody, Transform]);
+
+world.addSystem(new PhysicsSystem(), {
+    runIf: anyMatch(activeBodies),
+});
+```
+
 ## 变更检测演示
 
 ```sh

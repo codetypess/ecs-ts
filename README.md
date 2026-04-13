@@ -117,6 +117,16 @@ world.configureSetForStage("fixedUpdate", "gameplay", {
 
 When a system belongs to multiple sets, ordering constraints are merged and all matching `runIf` conditions must pass.
 
+`runIf` can also be driven by cached query state when a system should only run while matching entities exist:
+
+```ts
+const activeBodies = queryState([RigidBody, Transform]);
+
+world.addSystem(new PhysicsSystem(), {
+    runIf: anyMatch(activeBodies),
+});
+```
+
 ## Change Detection Demo
 
 ```sh

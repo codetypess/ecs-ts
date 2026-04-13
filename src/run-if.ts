@@ -3,6 +3,9 @@ import type { StateType, StateValue } from "./state";
 import type { SystemRunCondition, World } from "./world";
 
 export type RunIfPredicate<T> = (value: T, world: World) => boolean;
+export interface QueryRunIfSource {
+    iter(world: World): Iterator<unknown>;
+}
 
 export function runIfAll(...conditions: readonly SystemRunCondition[]): SystemRunCondition {
     return (world) => {
@@ -30,6 +33,27 @@ export function runIfAny(...conditions: readonly SystemRunCondition[]): SystemRu
 
 export function runIfNot(condition: SystemRunCondition): SystemRunCondition {
     return (world) => !condition(world);
+}
+
+export function anyMatch(source: QueryRunIfSource): SystemRunCondition {
+    return (world) => source.iter(world).next().done !== true;
+}
+
+export function noMatch(source: QueryRunIfSource): SystemRunCondition {
+    return (world) => source.iter(world).next().done === true;
+}
+
+export function singleMatch(source: QueryRunIfSource): SystemRunCondition {
+    return (world) => {
+        const iterator = source.iter(world);
+        const first = iterator.next();
+
+        if (first.done === true) {
+            return false;
+        }
+
+        return iterator.next().done === true;
+    };
 }
 
 export function resourceExists<T>(type: ResourceType<T>): SystemRunCondition {
