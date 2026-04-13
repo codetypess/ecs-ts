@@ -5,7 +5,7 @@
 English README: [README.md](README.md).
 
 - Entity 是数字形式的 `index + generation` 句柄，因此旧实体 ID 不会误命中新复用的实体。
-- Component 通过 `defineComponent<T>()` 注册；marker component 推荐使用 `null`，component value 不能包含 `undefined`。
+- Component 通过 `defineComponent<T>()` 注册；marker component 推荐使用 `{}` payload，component value 不能包含 `null` 或 `undefined`。
 - Bundle 用来把多个 component entry 组合起来，供 spawn、insert、remove 调用复用。
 - Component 存储使用 `SparseSet`：`get/has/add/remove` 接近 O(1)，迭代走 dense 数组，删除使用 swap-remove。
 - Query 会选择最小的组件存储作为基础循环，再按 entity 检查其它组件存储。
@@ -33,15 +33,15 @@ import { World, defineComponent } from "./src";
 
 const Position = defineComponent<{ x: number; y: number }>("Position");
 const Velocity = defineComponent<{ x: number; y: number }>("Velocity");
-const Player = defineComponent<null>("Player");
-const Sleeping = defineComponent<null>("Sleeping");
+const Player = defineComponent("Player");
+const Sleeping = defineComponent("Sleeping");
 
 const world = new World();
 const entity = world.spawn();
 
 world.add(entity, Position, { x: 0, y: 0 });
 world.add(entity, Velocity, { x: 1, y: 0 });
-world.add(entity, Player, null);
+world.add(entity, Player, {});
 
 world.each([Position, Velocity], (_entity, position, velocity) => {
     position.x += velocity.x;

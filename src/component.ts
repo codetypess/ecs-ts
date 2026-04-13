@@ -47,12 +47,21 @@ export interface Bundle {
     readonly entries: readonly ComponentEntry<unknown>[];
 }
 
-type DefineComponentArgs<T> = undefined extends T
+type DefineComponentArgs<T> = null extends T
+    ? [name: never, options?: never]
+    : undefined extends T
     ? [name: never, options?: never]
     : [name: string, options?: ComponentOptions<T>];
 
-export function defineComponent<T = null>(...args: DefineComponentArgs<T>): ComponentType<T> {
-    const [name, options = {} as ComponentOptions<T>] = args as [string, ComponentOptions<T>?];
+export function defineComponent(
+    name: string,
+    options?: ComponentOptions<Record<string, never>>
+): ComponentType<Record<string, never>>;
+export function defineComponent<T>(...args: DefineComponentArgs<T>): ComponentType<T>;
+export function defineComponent<T>(
+    name: string,
+    options: ComponentOptions<T> = {} as ComponentOptions<T>
+): ComponentType<T> {
     const { require = [], ...lifecycle } = options;
 
     return Object.freeze({

@@ -58,8 +58,8 @@ const SAMPLE_ROUNDS = 5;
 
 const Position = defineComponent<{ x: number; y: number }>("BenchPosition");
 const Velocity = defineComponent<{ x: number; y: number }>("BenchVelocity");
-const Player = defineComponent<null>("BenchPlayer");
-const Sleeping = defineComponent<null>("BenchSleeping");
+const Player = defineComponent("BenchPlayer");
+const Sleeping = defineComponent("BenchSleeping");
 const Health = defineComponent<{ value: number }>("BenchHealth");
 const DamageMessage = defineMessage<{ target: Entity; amount: number }>("BenchDamageMessage");
 const DamageEvent = defineEvent<{ target: Entity; amount: number }>("BenchDamageEvent");
@@ -118,14 +118,14 @@ function createMovementWorld(count: number): MovementWorld {
                 world.spawn(
                     position,
                     velocity,
-                    withComponent(Player, null),
-                    withComponent(Sleeping, null)
+                    withComponent(Player, {}),
+                    withComponent(Sleeping, {})
                 )
             );
         } else if (isPlayer) {
-            entities.push(world.spawn(position, velocity, withComponent(Player, null)));
+            entities.push(world.spawn(position, velocity, withComponent(Player, {})));
         } else if (isSleeping) {
-            entities.push(world.spawn(position, velocity, withComponent(Sleeping, null)));
+            entities.push(world.spawn(position, velocity, withComponent(Sleeping, {})));
         } else {
             entities.push(world.spawn(position, velocity));
         }
@@ -177,7 +177,7 @@ function createQueryRunIfSchedulerWorld(matching: boolean): World {
         world.spawn(
             withComponent(Position, { x: 0, y: 0 }),
             withComponent(Velocity, { x: 1, y: 0 }),
-            withComponent(Sleeping, null)
+            withComponent(Sleeping, {})
         );
     }
 

@@ -12,14 +12,14 @@ const Velocity = defineComponent<{ x: number; y: number }>("Velocity", {
     require: [requireComponent(Position, () => ({ x: 0, y: 0 }))],
 });
 const Health = defineComponent<{ value: number }>("Health");
-const Player = defineComponent<null>("Player");
+const Player = defineComponent("Player");
 
 function playerBundle(x: number, y: number) {
     return bundle(
         withComponent(Position, { x, y }),
         withComponent(Velocity, { x: 0, y: 0 }),
         withComponent(Health, { value: 100 }),
-        withComponent(Player, null)
+        withComponent(Player, {})
     );
 }
 
@@ -32,6 +32,6 @@ world.each([Position, Velocity, Health, Player], (entity, position, velocity, he
     );
 });
 
-world.removeBundle(player, bundle(withComponent(Player, null), withComponent(Health, { value: 0 })));
+world.removeBundle(player, bundle(withComponent(Player, {}), withComponent(Health, { value: 0 })));
 
 console.log(`after remove bundle: hasPlayer=${world.has(player, Player)} hasHealth=${world.has(player, Health)}`);

@@ -11,7 +11,7 @@ const Velocity = defineComponent<{ x: number; y: number }>("Velocity", {
     require: [requireComponent(Transform, () => ({ x: 0, y: 0 }))],
 });
 const Mass = defineComponent<number>("Mass");
-const RigidBody = defineComponent<null>("RigidBody", {
+const RigidBody = defineComponent("RigidBody", {
     require: [
         requireComponent(Mass, () => 1),
         requireComponent(Velocity, () => ({ x: 0, y: 0 })),
@@ -20,11 +20,11 @@ const RigidBody = defineComponent<null>("RigidBody", {
 
 const world = new World();
 
-const defaultBody = world.spawn(withComponent(RigidBody, null));
+const defaultBody = world.spawn(withComponent(RigidBody, {}));
 const customBody = world.spawn(
     withComponent(Mass, 10),
     withComponent(Transform, { x: 5, y: 5 }),
-    withComponent(RigidBody, null)
+    withComponent(RigidBody, {})
 );
 
 for (const [entity, rigidBody, mass, velocity, transform] of world.query(

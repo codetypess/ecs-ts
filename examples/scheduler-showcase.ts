@@ -21,8 +21,8 @@ const GameMode = defineState<"running" | "paused">("SchedulerShowcaseMode", "run
 
 const Transform = defineComponent<{ x: number; y: number }>("SchedulerShowcaseTransform");
 const Velocity = defineComponent<{ x: number; y: number }>("SchedulerShowcaseVelocity");
-const RigidBody = defineComponent<null>("SchedulerShowcaseRigidBody");
-const Sleeping = defineComponent<null>("SchedulerShowcaseSleeping");
+const RigidBody = defineComponent("SchedulerShowcaseRigidBody");
+const Sleeping = defineComponent("SchedulerShowcaseSleeping");
 
 const activeBodies = queryState([Transform, Velocity, RigidBody], {
     none: [Sleeping],
@@ -48,14 +48,14 @@ class SpawnSceneSystem {
         const controlled = world.spawn(
             withComponent(Transform, { x: 0, y: 0 }),
             withComponent(Velocity, { x: 1, y: 0 }),
-            withComponent(RigidBody, null)
+            withComponent(RigidBody, {})
         );
 
         world.spawn(
             withComponent(Transform, { x: 100, y: 0 }),
             withComponent(Velocity, { x: 0, y: 1 }),
-            withComponent(RigidBody, null),
-            withComponent(Sleeping, null)
+            withComponent(RigidBody, {}),
+            withComponent(Sleeping, {})
         );
 
         world.resource(ControlledEntity).value = controlled;
@@ -106,7 +106,7 @@ class InputSystem {
         }
 
         if (frame === 0) {
-            commands.add(controlled, Sleeping, null);
+            commands.add(controlled, Sleeping, {});
             appendLog(world, "update:input:sleep-controlled");
         } else if (frame === 1) {
             commands.setState(GameMode, "paused");

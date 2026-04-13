@@ -9,13 +9,13 @@ import {
     withComponent,
 } from "../src";
 
-const Enemy = defineComponent<null>("Enemy");
+const Enemy = defineComponent("Enemy");
 const Health = defineComponent<{ value: number }>("Health");
 const Damage = defineMessage<{ target: Entity; amount: number }>("Damage");
 
 class AttackSystem {
     onStartup(_world: World, _dt: number, commands: Commands): void {
-        commands.spawn(withComponent(Enemy, null), withComponent(Health, { value: 100 }));
+        commands.spawn(withComponent(Enemy, {}), withComponent(Health, { value: 100 }));
     }
 
     onUpdate(world: World, _dt: number, commands: Commands): void {

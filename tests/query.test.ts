@@ -5,38 +5,38 @@ import { World, defineComponent, optionalQueryState, queryState, withComponent }
 test("advanced query filters support or, none, and optional components", () => {
     const Position = defineComponent<{ x: number; y: number }>("QueryPosition");
     const Velocity = defineComponent<{ x: number; y: number }>("QueryVelocity");
-    const Player = defineComponent<null>("QueryPlayer");
-    const Npc = defineComponent<null>("QueryNpc");
-    const Sleeping = defineComponent<null>("QuerySleeping");
-    const Frozen = defineComponent<null>("QueryFrozen");
+    const Player = defineComponent("QueryPlayer");
+    const Npc = defineComponent("QueryNpc");
+    const Sleeping = defineComponent("QuerySleeping");
+    const Frozen = defineComponent("QueryFrozen");
     const Name = defineComponent<{ value: string }>("QueryName");
     const world = new World();
 
     world.spawn(
         withComponent(Position, { x: 0, y: 0 }),
         withComponent(Velocity, { x: 1, y: 0 }),
-        withComponent(Player, null),
+        withComponent(Player, {}),
         withComponent(Name, { value: "player" })
     );
 
     world.spawn(
         withComponent(Position, { x: 10, y: 0 }),
-        withComponent(Npc, null),
+        withComponent(Npc, {}),
         withComponent(Name, { value: "idle-npc" })
     );
 
     world.spawn(
         withComponent(Position, { x: 20, y: 0 }),
         withComponent(Velocity, { x: 0, y: 1 }),
-        withComponent(Npc, null),
-        withComponent(Sleeping, null)
+        withComponent(Npc, {}),
+        withComponent(Sleeping, {})
     );
 
     world.spawn(
         withComponent(Position, { x: 30, y: 0 }),
         withComponent(Velocity, { x: -1, y: 0 }),
-        withComponent(Player, null),
-        withComponent(Frozen, null)
+        withComponent(Player, {}),
+        withComponent(Frozen, {})
     );
 
     const rows = Array.from(
@@ -69,7 +69,7 @@ test("advanced query filters support or, none, and optional components", () => {
 
 test("single query helpers report none, one, and multiple matches", () => {
     const Position = defineComponent<{ x: number; y: number }>("SinglePosition");
-    const Player = defineComponent<null>("SinglePlayer");
+    const Player = defineComponent("SinglePlayer");
     const world = new World();
 
     assert.equal(world.trySingle([Position]), undefined);
@@ -77,7 +77,7 @@ test("single query helpers report none, one, and multiple matches", () => {
 
     const entity = world.spawn(
         withComponent(Position, { x: 1, y: 2 }),
-        withComponent(Player, null)
+        withComponent(Player, {})
     );
 
     assert.equal(world.single([Position])[0], entity);
@@ -91,8 +91,8 @@ test("single query helpers report none, one, and multiple matches", () => {
 test("query state caches resolved stores and invalidates when stores are created", () => {
     const Position = defineComponent<{ x: number; y: number }>("QueryStatePosition");
     const Velocity = defineComponent<{ x: number; y: number }>("QueryStateVelocity");
-    const Player = defineComponent<null>("QueryStatePlayer");
-    const Sleeping = defineComponent<null>("QueryStateSleeping");
+    const Player = defineComponent("QueryStatePlayer");
+    const Sleeping = defineComponent("QueryStateSleeping");
     const world = new World();
     const movingPlayers = queryState([Position, Velocity], {
         or: [Player],
@@ -104,13 +104,13 @@ test("query state caches resolved stores and invalidates when stores are created
     const active = world.spawn(
         withComponent(Position, { x: 0, y: 0 }),
         withComponent(Velocity, { x: 1, y: 0 }),
-        withComponent(Player, null)
+        withComponent(Player, {})
     );
     world.spawn(
         withComponent(Position, { x: 10, y: 0 }),
         withComponent(Velocity, { x: 1, y: 0 }),
-        withComponent(Player, null),
-        withComponent(Sleeping, null)
+        withComponent(Player, {}),
+        withComponent(Sleeping, {})
     );
 
     const matches: {

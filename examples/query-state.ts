@@ -2,7 +2,7 @@ import { World, defineComponent, formatEntity, queryState, withComponent } from 
 
 const Position = defineComponent<{ x: number; y: number }>("Position");
 const Velocity = defineComponent<{ x: number; y: number }>("Velocity");
-const Sleeping = defineComponent<null>("Sleeping");
+const Sleeping = defineComponent("Sleeping");
 
 class MovementSystem {
     private readonly moving = queryState([Position, Velocity], {
@@ -28,7 +28,7 @@ world.spawn(
 world.spawn(
     withComponent(Position, { x: 10, y: 0 }),
     withComponent(Velocity, { x: 0, y: 1 }),
-    withComponent(Sleeping, null)
+    withComponent(Sleeping, {})
 );
 
 world.addSystem(new MovementSystem());

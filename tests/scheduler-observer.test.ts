@@ -289,8 +289,8 @@ test("scheduler combines multiple sets for ordering and runIf", () => {
 test("scheduler supports query-backed runIf helpers", () => {
     const Position = defineComponent<{ x: number; y: number }>("RunIfQueryPosition");
     const Velocity = defineComponent<{ x: number; y: number }>("RunIfQueryVelocity");
-    const Player = defineComponent<null>("RunIfQueryPlayer");
-    const Sleeping = defineComponent<null>("RunIfQuerySleeping");
+    const Player = defineComponent("RunIfQueryPlayer");
+    const Sleeping = defineComponent("RunIfQuerySleeping");
     const moving = queryState([Position, Velocity], { none: [Sleeping] });
     const players = queryState([Player]);
     const calls: string[] = [];
@@ -322,13 +322,13 @@ test("scheduler supports query-backed runIf helpers", () => {
     world.spawn(
         withComponent(Position, { x: 0, y: 0 }),
         withComponent(Velocity, { x: 1, y: 0 }),
-        withComponent(Player, null)
+        withComponent(Player, {})
     );
     world.update(0);
     assert.deepEqual(calls, ["move", "single-player"]);
 
     calls.length = 0;
-    world.spawn(withComponent(Player, null));
+    world.spawn(withComponent(Player, {}));
     world.update(0);
     assert.deepEqual(calls, ["move"]);
 
@@ -336,7 +336,7 @@ test("scheduler supports query-backed runIf helpers", () => {
     world.spawn(
         withComponent(Position, { x: 10, y: 0 }),
         withComponent(Velocity, { x: 0, y: 1 }),
-        withComponent(Sleeping, null)
+        withComponent(Sleeping, {})
     );
     world.update(0);
     assert.deepEqual(calls, ["move"]);

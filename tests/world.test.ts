@@ -27,10 +27,10 @@ test("entity generation prevents stale handles from reading recycled entities", 
 });
 
 test("bundles insert and remove reusable component groups", () => {
-    const Player = defineComponent<null>("TestPlayer");
+    const Player = defineComponent("TestPlayer");
     const Health = defineComponent<{ value: number }>("TestHealth");
     const PlayerBundle = bundle(
-        withComponent(Player, null),
+        withComponent(Player, {}),
         withComponent(Health, { value: 100 })
     );
     const world = new World();
@@ -48,7 +48,7 @@ test("required components are inserted transitively without overwriting existing
         require: [requireComponent(Transform, () => ({ x: 0, y: 0 }))],
     });
     const Mass = defineComponent<number>("TestMass");
-    const RigidBody = defineComponent<null>("TestRigidBody", {
+    const RigidBody = defineComponent("TestRigidBody", {
         require: [
             requireComponent(Mass, () => 1),
             requireComponent(Velocity, () => ({ x: 0, y: 0 })),
@@ -57,7 +57,7 @@ test("required components are inserted transitively without overwriting existing
     const world = new World();
     const entity = world.spawn(withComponent(Transform, { x: 5, y: 6 }));
 
-    world.add(entity, RigidBody, null);
+    world.add(entity, RigidBody, {});
 
     assert.equal(world.hasAll(entity, [RigidBody, Mass, Velocity, Transform]), true);
     assert.deepEqual(world.mustGet(entity, Transform), { x: 5, y: 6 });
