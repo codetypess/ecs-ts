@@ -7,9 +7,9 @@ import type {
     ComponentLifecycleStage,
     ComponentType,
 } from "./component";
-import { assertComponentValue } from "./component";
 import { Entity, EntityManager, formatEntity } from "./entity";
 import type { EventObserver, EventType } from "./event";
+import { assertComponentValue } from "./internal/component-value";
 import type { MessageId, MessageReader, MessageType } from "./message";
 import { Messages } from "./message";
 import type { RemovedComponent, RemovedReader } from "./removed";

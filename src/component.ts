@@ -1,4 +1,5 @@
 import type { Entity } from "./entity";
+import { assertComponentValue } from "./internal/component-value";
 import type { World } from "./world";
 
 let nextComponentId = 0;
@@ -84,12 +85,6 @@ export function withMarker<TComponent extends AnyComponentType>(
     type: ComponentData<TComponent> extends Record<string, never> ? TComponent : never
 ): ComponentEntry<ComponentData<TComponent>> {
     return withComponent(type, {} as ComponentData<TComponent>);
-}
-
-export function assertComponentValue<T>(type: ComponentType<T>, value: T): void {
-    if (value === null || value === undefined) {
-        throw new TypeError(`Component ${type.name} value cannot be ${String(value)}`);
-    }
 }
 
 export function bundle(...entries: ComponentEntry<unknown>[]): Bundle {
