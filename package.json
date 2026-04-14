@@ -12,6 +12,7 @@
   },
   "files": [
     "docs/*.md",
+    "docs/zh/*.md",
     "dist/*.d.ts",
     "dist/*.js",
     "dist/*.js.map",

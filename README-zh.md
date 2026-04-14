@@ -63,9 +63,9 @@ console.log(position);
 
 ## 指南
 
-- [Queries](docs/queries.md)：filters、optional components、single-entity helpers 和 `QueryState`。
-- [Scheduler](docs/scheduler.md)：生命周期阶段、labels、system sets、排序、fixed update 和 `runIf`。
-- [Change Detection](docs/change-detection.md)：component/resource added 和 changed 检测、removed readers 以及 messages。
+- [Queries](docs/zh/queries.md)：filters、optional components、single-entity helpers 和 `QueryState`。
+- [Scheduler](docs/zh/scheduler.md)：生命周期阶段、labels、system sets、排序、fixed update 和 `runIf`。
+- [Change Detection](docs/zh/change-detection.md)：component/resource added 和 changed 检测、removed readers 以及 messages。
 
 ## 示例
 
