@@ -1,5 +1,7 @@
 # Queries
 
+中文：[Queries](zh/queries.md).
+
 Queries are the main way to iterate matching entities and component values.
 
 ## Basic Queries

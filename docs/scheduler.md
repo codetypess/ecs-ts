@@ -1,5 +1,7 @@
 # Scheduler
 
+中文：[Scheduler](zh/scheduler.md).
+
 Systems are lifecycle objects/classes. `World` discovers these methods when a system is registered:
 
 - `onPreStartup`

@@ -1,5 +1,7 @@
 # Change Detection
 
+中文：[Change Detection](zh/change-detection.md).
+
 Change detection uses the active system's last-run tick and the world's current change tick. This lets each system observe changes that happened since that system last ran.
 
 ## Components
