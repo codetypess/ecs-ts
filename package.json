@@ -11,6 +11,7 @@
     }
   },
   "files": [
+    "docs/*.md",
     "dist/*.d.ts",
     "dist/*.js",
     "dist/*.js.map",

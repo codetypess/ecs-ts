@@ -61,183 +61,34 @@ const position = world.get(entity, Position);
 console.log(position);
 ```
 
-## Bundle 演示
+## 指南
+
+- [Queries](docs/queries.md)：filters、optional components、single-entity helpers 和 `QueryState`。
+- [Scheduler](docs/scheduler.md)：生命周期阶段、labels、system sets、排序、fixed update 和 `runIf`。
+- [Change Detection](docs/change-detection.md)：component/resource added 和 changed 检测、removed readers 以及 messages。
+
+## 示例
 
 ```sh
 npm run example:bundle
-```
-
-这个示例展示 `bundle(...)`、`spawnBundle(...)` 和 `removeBundle(...)`。Bundle 不是组件，它只是可复用的一组 component entries。
-
-## UI 生命周期示例
-
-```sh
+npm run example:lifecycle
+npm run example:scheduler
+npm run example:scheduler-showcase
+npm run example:query
+npm run example:query-advanced
+npm run example:query-ergonomics
+npm run example:query-state
+npm run example:changes
+npm run example:per-system-changes
+npm run example:messages
+npm run example:removed
+npm run example:resources
+npm run example:required
+npm run example:state
+npm run example:observer
+npm run example:net-entity-map
 npm run example:ui
 ```
-
-这个脚本通过 `tsx` 直接运行 TypeScript 示例。UI 示例展示了异步 loader 如何把完成结果写入运行时队列，然后在下一次 update 中提交回 ECS。`UiLoading` 会在移除时中止未完成任务，`UiInstance` 会在 entity despawn 时销毁真实 UI handle。
-
-## 生命周期演示
-
-```sh
-npm run example:lifecycle
-```
-
-这个示例会打印 component hook 顺序（`onAdd`、`onInsert`、`onReplace`、`onRemove`、`onDespawn`）以及 class-based system 生命周期方法（`onPreStartup`、`onStartup`、`onPostStartup`、`onUpdate`、`onPostUpdate`、`onShutdown`）。
-
-## Scheduler 演示
-
-```sh
-npm run example:scheduler
-```
-
-这个示例展示 system label、通过 `configureSet(...)` 和 `configureSetForStage(...)` 配置的 system set、`before`/`after` 排序、可组合的 `runIf` 以及配合 `setFixedTimeStep(...)` 使用的 `onFixedUpdate`。
-
-## Scheduler Showcase
-
-```sh
-npm run example:scheduler-showcase
-```
-
-这个示例会跑一个小型多帧 game loop，并打印 startup、fixed update、update、last 和 shutdown 的完整调度轨迹。它把 stage-specific set 排序、组合 `runIf` 和 query-backed `runIf` 放在同一个例子里演示。
-
-## Scheduler 配置
-
-对所有 stage 都生效的 set 规则用 `configureSet(...)`，而同一个 set 在特定 stage 需要不同排序或条件时，用 `configureSetForStage(...)`。
-
-```ts
-world.configureSet("gameplay", {
-    before: ["render"],
-    runIf: runIfAll(
-        stateIs(GameMode, "running"),
-        resourceMatches(FeatureFlags, (flags) => flags.enabled)
-    ),
-});
-
-world.configureSetForStage("startup", "gameplay", {
-    after: ["boot"],
-});
-
-world.configureSetForStage("fixedUpdate", "gameplay", {
-    after: ["physics-prepare"],
-});
-```
-
-如果一个 system 同时属于多个 set，那么排序约束会合并，所有命中的 `runIf` 条件都必须通过。
-
-当某个 system 只应在存在匹配实体时运行时，也可以让 `runIf` 直接复用缓存后的 query state：
-
-```ts
-const activeBodies = queryState([RigidBody, Transform]);
-
-world.addSystem(new PhysicsSystem(), {
-    runIf: anyMatch(activeBodies),
-});
-```
-
-## 变更检测演示
-
-```sh
-npm run example:changes
-```
-
-这个示例展示 `eachAdded`、手动 `markChanged` 和 `drainRemoved`。
-
-## Per-System 变更检测演示
-
-```sh
-npm run example:per-system-changes
-```
-
-这个示例展示 state system 通过自己的 last-run change tick，看到在该 system 运行前已经发生的 component change。
-
-## Message 演示
-
-```sh
-npm run example:messages
-```
-
-这个示例展示类似 Bevy 的 buffered message 流程：一个系统通过 `Commands` 写入 `Damage` messages，另一个系统持有 `MessageReader` cursor 并只读取自己还没见过的消息。
-
-## App / Plugin 示例
-
-```sh
-npm run example:net-entity-map
-```
-
-这个示例展示如何通过 `App` 和 `Plugin` 做模块化注册，并用一个本地 `NetEntityMap` resource 把服务器 ID 映射到本地 ECS entity，用于 snapshot 同步。
-
-## Observer 演示
-
-```sh
-npm run example:observer
-```
-
-这个示例展示通过 `defineEvent`、`world.observe(...)`、`world.trigger(...)` 和 `commands.trigger(...)` 触发立即事件。
-
-## Removed Reader 演示
-
-```sh
-npm run example:removed
-```
-
-这个示例展示多个系统如何通过独立的 `RemovedReader` cursor 读取同一批 removed component 记录。
-
-## Required Components 演示
-
-```sh
-npm run example:required
-```
-
-这个示例展示 required component 插入：添加 `RigidBody` 时会自动插入缺失的 `Mass`、`Velocity` 以及传递依赖 `Transform`，但不会覆盖已经存在的组件。
-
-## Resource 变更检测演示
-
-```sh
-npm run example:resources
-```
-
-这个示例展示 `isResourceAdded`、`isResourceChanged`、`markResourceChanged` 和 resource 替换。
-
-## State 演示
-
-```sh
-npm run example:state
-```
-
-这个示例展示通过 `addStateSystem(...)` 注册 state-specific class systems，以及通过 `addTransitionSystem(...)` 注册 transition class systems。
-
-## Query Filter 演示
-
-```sh
-npm run example:query
-```
-
-这个示例展示 `eachWhere([Position, Velocity], { with: [Player], without: [Sleeping] }, ...)`。
-
-## 高级 Query Filter 演示
-
-```sh
-npm run example:query-advanced
-```
-
-这个示例展示 `or`、`none` 以及用于可选组件的 `queryOptional(...)`。
-
-## Query 易用 API 演示
-
-```sh
-npm run example:query-ergonomics
-```
-
-这个示例展示 `hasAll`、`hasAny`、`single` 和 `trySingle`。
-
-## Query State 演示
-
-```sh
-npm run example:query-state
-```
-
-这个示例展示把 `queryState(...)` 作为可复用的 system 字段。`QueryState` 和 `optionalQueryState(...)` 会缓存 component/filter store 解析结果，并在新 component store 创建时失效。热路径优先用 `state.each(world, ...)`，避免 iterator row 每行创建数组。
 
 ## 测试和 Benchmark
 
@@ -251,7 +102,7 @@ npm run benchmark:json
 
 ## 后续可做
 
-- Scheduler 增强：增加基于 query 的运行条件，以及可复用的条件组。
+- Scheduler 增强：增加更直接的 scheduler 单元测试和更丰富的诊断信息。
 - App / Plugin：增加 plugin 依赖、plugin 排序以及更丰富的 app 生命周期钩子。
 - 测试和 benchmark：继续扩展边界场景覆盖，并增加更稳定的 benchmark 基线。
 - 存储策略扩展：当前是 SparseSet；后续可以探索 Archetype/Table 存储或混合存储，用于优化多组件 query。

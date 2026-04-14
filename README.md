@@ -61,183 +61,34 @@ const position = world.get(entity, Position);
 console.log(position);
 ```
 
-## Bundle Demo
+## Guides
+
+- [Queries](docs/queries.md): filters, optional components, single-entity helpers, and `QueryState`.
+- [Scheduler](docs/scheduler.md): lifecycle stages, labels, system sets, ordering, fixed update, and `runIf`.
+- [Change Detection](docs/change-detection.md): component/resource added and changed checks, removed readers, and messages.
+
+## Examples
 
 ```sh
 npm run example:bundle
-```
-
-This demo shows `bundle(...)`, `spawnBundle(...)`, and `removeBundle(...)`. Bundles are not components; they are just reusable groups of component entries.
-
-## UI Lifecycle Example
-
-```sh
+npm run example:lifecycle
+npm run example:scheduler
+npm run example:scheduler-showcase
+npm run example:query
+npm run example:query-advanced
+npm run example:query-ergonomics
+npm run example:query-state
+npm run example:changes
+npm run example:per-system-changes
+npm run example:messages
+npm run example:removed
+npm run example:resources
+npm run example:required
+npm run example:state
+npm run example:observer
+npm run example:net-entity-map
 npm run example:ui
 ```
-
-This script runs the TypeScript example directly through `tsx`. The UI example shows an async loader that writes completion results into a runtime queue, then commits those results back into ECS on the next update. `UiLoading` aborts pending work on removal, and `UiInstance` destroys the real UI handle when the entity is despawned.
-
-## Lifecycle Demo
-
-```sh
-npm run example:lifecycle
-```
-
-This demo prints component hook order (`onAdd`, `onInsert`, `onReplace`, `onRemove`, `onDespawn`) and class-based system lifecycle methods (`onPreStartup`, `onStartup`, `onPostStartup`, `onUpdate`, `onPostUpdate`, `onShutdown`).
-
-## Scheduler Demo
-
-```sh
-npm run example:scheduler
-```
-
-This demo shows system labels, system sets through `configureSet(...)` and `configureSetForStage(...)`, `before`/`after` ordering, composable `runIf`, and `onFixedUpdate` with `setFixedTimeStep(...)`.
-
-## Scheduler Showcase
-
-```sh
-npm run example:scheduler-showcase
-```
-
-This example runs a small multi-frame game loop and prints the full scheduler trace across startup, fixed update, update, last, and shutdown. It combines stage-specific set ordering, composable `runIf`, and query-backed `runIf` in one place.
-
-## Scheduler Configuration
-
-Use `configureSet(...)` for rules that should apply to a set in every stage, and `configureSetForStage(...)` when the same set needs different ordering or conditions in a specific stage.
-
-```ts
-world.configureSet("gameplay", {
-    before: ["render"],
-    runIf: runIfAll(
-        stateIs(GameMode, "running"),
-        resourceMatches(FeatureFlags, (flags) => flags.enabled)
-    ),
-});
-
-world.configureSetForStage("startup", "gameplay", {
-    after: ["boot"],
-});
-
-world.configureSetForStage("fixedUpdate", "gameplay", {
-    after: ["physics-prepare"],
-});
-```
-
-When a system belongs to multiple sets, ordering constraints are merged and all matching `runIf` conditions must pass.
-
-`runIf` can also be driven by cached query state when a system should only run while matching entities exist:
-
-```ts
-const activeBodies = queryState([RigidBody, Transform]);
-
-world.addSystem(new PhysicsSystem(), {
-    runIf: anyMatch(activeBodies),
-});
-```
-
-## Change Detection Demo
-
-```sh
-npm run example:changes
-```
-
-This demo shows `eachAdded`, manual `markChanged`, and `drainRemoved`.
-
-## Per-System Change Detection Demo
-
-```sh
-npm run example:per-system-changes
-```
-
-This demo shows a state system seeing a component change that happened before that system ran, using its own last-run change tick.
-
-## Message Demo
-
-```sh
-npm run example:messages
-```
-
-This demo shows a Bevy-style buffered message flow: one system writes `Damage` messages through `Commands`, while another system keeps a `MessageReader` cursor and reads only messages it has not seen yet.
-
-## App / Plugin Example
-
-```sh
-npm run example:net-entity-map
-```
-
-This example shows modular registration through `App` and `Plugin`, using a local `NetEntityMap` resource to map server IDs to local ECS entities during snapshot sync.
-
-## Observer Demo
-
-```sh
-npm run example:observer
-```
-
-This demo shows immediate event dispatch through `defineEvent`, `world.observe(...)`, `world.trigger(...)`, and `commands.trigger(...)`.
-
-## Removed Reader Demo
-
-```sh
-npm run example:removed
-```
-
-This demo shows multiple systems reading the same removed component records through independent `RemovedReader` cursors.
-
-## Required Components Demo
-
-```sh
-npm run example:required
-```
-
-This demo shows required component insertion: adding `RigidBody` automatically inserts missing `Mass`, `Velocity`, and transitive `Transform` components without overwriting components that were already present.
-
-## Resource Change Detection Demo
-
-```sh
-npm run example:resources
-```
-
-This demo shows `isResourceAdded`, `isResourceChanged`, `markResourceChanged`, and resource replacement.
-
-## State Demo
-
-```sh
-npm run example:state
-```
-
-This demo shows state-specific class systems through `addStateSystem(...)`, plus transition class systems through `addTransitionSystem(...)`.
-
-## Query Filter Demo
-
-```sh
-npm run example:query
-```
-
-This demo shows `eachWhere([Position, Velocity], { with: [Player], without: [Sleeping] }, ...)`.
-
-## Advanced Query Filter Demo
-
-```sh
-npm run example:query-advanced
-```
-
-This demo shows `or`, `none`, and `queryOptional(...)` for optional components.
-
-## Query Ergonomics Demo
-
-```sh
-npm run example:query-ergonomics
-```
-
-This demo shows `hasAll`, `hasAny`, `single`, and `trySingle`.
-
-## Query State Demo
-
-```sh
-npm run example:query-state
-```
-
-This demo shows `queryState(...)` as a reusable system field. `QueryState` and `optionalQueryState(...)` cache component/filter store resolution and invalidate when new component stores are created. Use `state.each(world, ...)` on hot paths to avoid the per-row arrays created by iterator rows.
 
 ## Tests And Benchmarks
 
@@ -251,7 +102,7 @@ Tests use Node's built-in `node:test` runner through `tsx`. The benchmark is a l
 
 ## Future Work
 
-- Scheduler improvements: add query-backed run conditions and reusable condition groups.
+- Scheduler improvements: add more direct scheduler unit tests and richer diagnostics.
 - App / Plugin: add plugin dependencies, plugin ordering, and richer app lifecycle hooks.
 - Tests and benchmarks: expand coverage for edge cases and add more stable benchmark baselines.
 - Storage strategy experiments: keep SparseSet as the current baseline, then explore Archetype/Table or hybrid storage for faster multi-component queries.
