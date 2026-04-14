@@ -21,6 +21,7 @@ import {
     stateIs,
     stateMatches,
     withComponent,
+    withMarker,
 } from "../src";
 
 test("scheduler runs fixed update, ordering, and runIf", () => {
@@ -322,13 +323,13 @@ test("scheduler supports query-backed runIf helpers", () => {
     world.spawn(
         withComponent(Position, { x: 0, y: 0 }),
         withComponent(Velocity, { x: 1, y: 0 }),
-        withComponent(Player, {})
+        withMarker(Player)
     );
     world.update(0);
     assert.deepEqual(calls, ["move", "single-player"]);
 
     calls.length = 0;
-    world.spawn(withComponent(Player, {}));
+    world.spawn(withMarker(Player));
     world.update(0);
     assert.deepEqual(calls, ["move"]);
 
@@ -336,7 +337,7 @@ test("scheduler supports query-backed runIf helpers", () => {
     world.spawn(
         withComponent(Position, { x: 10, y: 0 }),
         withComponent(Velocity, { x: 0, y: 1 }),
-        withComponent(Sleeping, {})
+        withMarker(Sleeping)
     );
     world.update(0);
     assert.deepEqual(calls, ["move"]);

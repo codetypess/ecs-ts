@@ -1,4 +1,11 @@
-import { World, defineComponent, requireComponent, withComponent, type ComponentData } from "../src";
+import {
+    World,
+    defineComponent,
+    requireComponent,
+    withComponent,
+    withMarker,
+    type ComponentData,
+} from "../src";
 
 function expectType<T>(value: T): void {
     void value;
@@ -13,8 +20,8 @@ const Value = defineComponent<{ value: number }>("ComponentTypecheckValue");
 
 expectType<Record<string, never>>({} satisfies ComponentData<typeof Marker>);
 expectType<Record<string, never>>({} satisfies ComponentData<typeof MarkerWithRequired>);
-withComponent(Marker, {});
-withComponent(MarkerWithRequired, {});
+withMarker(Marker);
+withMarker(MarkerWithRequired);
 withComponent(Value, { value: 1 });
 
 // @ts-expect-error required component options are not marker payload data
@@ -29,8 +36,11 @@ withComponent(Marker, undefined);
 // @ts-expect-error value component payloads must match their component data
 withComponent(Value, {});
 
+// @ts-expect-error value components are not markers
+withMarker(Value);
+
 const world = new World();
-const entity = world.spawn(withComponent(Marker, {}), withComponent(Value, { value: 1 }));
+const entity = world.spawn(withMarker(Marker), withComponent(Value, { value: 1 }));
 
 for (const [matched, marker, value] of world.query(Marker, Value)) {
     expectType<number>(matched);

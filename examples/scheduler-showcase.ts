@@ -11,6 +11,7 @@ import {
     runIfAll,
     stateIs,
     withComponent,
+    withMarker,
 } from "../src";
 
 const Log = defineResource<string[]>("SchedulerShowcaseLog");
@@ -48,14 +49,14 @@ class SpawnSceneSystem {
         const controlled = world.spawn(
             withComponent(Transform, { x: 0, y: 0 }),
             withComponent(Velocity, { x: 1, y: 0 }),
-            withComponent(RigidBody, {})
+            withMarker(RigidBody)
         );
 
         world.spawn(
             withComponent(Transform, { x: 100, y: 0 }),
             withComponent(Velocity, { x: 0, y: 1 }),
-            withComponent(RigidBody, {}),
-            withComponent(Sleeping, {})
+            withMarker(RigidBody),
+            withMarker(Sleeping)
         );
 
         world.resource(ControlledEntity).value = controlled;

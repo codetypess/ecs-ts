@@ -14,6 +14,7 @@ import {
     runIfNot,
     stateIs,
     withComponent,
+    withMarker,
 } from "../src";
 
 interface BenchmarkResult {
@@ -118,14 +119,14 @@ function createMovementWorld(count: number): MovementWorld {
                 world.spawn(
                     position,
                     velocity,
-                    withComponent(Player, {}),
-                    withComponent(Sleeping, {})
+                    withMarker(Player),
+                    withMarker(Sleeping)
                 )
             );
         } else if (isPlayer) {
-            entities.push(world.spawn(position, velocity, withComponent(Player, {})));
+            entities.push(world.spawn(position, velocity, withMarker(Player)));
         } else if (isSleeping) {
-            entities.push(world.spawn(position, velocity, withComponent(Sleeping, {})));
+            entities.push(world.spawn(position, velocity, withMarker(Sleeping)));
         } else {
             entities.push(world.spawn(position, velocity));
         }
@@ -177,7 +178,7 @@ function createQueryRunIfSchedulerWorld(matching: boolean): World {
         world.spawn(
             withComponent(Position, { x: 0, y: 0 }),
             withComponent(Velocity, { x: 1, y: 0 }),
-            withComponent(Sleeping, {})
+            withMarker(Sleeping)
         );
     }
 

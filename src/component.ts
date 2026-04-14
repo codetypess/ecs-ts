@@ -79,6 +79,12 @@ export function withComponent<TComponent extends AnyComponentType>(
     return { type, value };
 }
 
+export function withMarker<TComponent extends AnyComponentType>(
+    type: ComponentData<TComponent> extends Record<string, never> ? TComponent : never
+): ComponentEntry<ComponentData<TComponent>> {
+    return withComponent(type, {} as ComponentData<TComponent>);
+}
+
 export function bundle(...entries: ComponentEntry<unknown>[]): Bundle {
     return Object.freeze({
         entries: Object.freeze([...entries]),

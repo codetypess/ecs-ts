@@ -5,6 +5,7 @@ import {
     formatEntity,
     requireComponent,
     withComponent,
+    withMarker,
 } from "../src";
 
 const Position = defineComponent<{ x: number; y: number }>("Position");
@@ -19,7 +20,7 @@ function playerBundle(x: number, y: number) {
         withComponent(Position, { x, y }),
         withComponent(Velocity, { x: 0, y: 0 }),
         withComponent(Health, { value: 100 }),
-        withComponent(Player, {})
+        withMarker(Player)
     );
 }
 
@@ -32,6 +33,6 @@ world.each([Position, Velocity, Health, Player], (entity, position, velocity, he
     );
 });
 
-world.removeBundle(player, bundle(withComponent(Player, {}), withComponent(Health, { value: 0 })));
+world.removeBundle(player, bundle(withMarker(Player), withComponent(Health, { value: 0 })));
 
 console.log(`after remove bundle: hasPlayer=${world.has(player, Player)} hasHealth=${world.has(player, Health)}`);

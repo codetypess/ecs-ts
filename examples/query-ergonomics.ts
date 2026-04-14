@@ -1,4 +1,4 @@
-import { World, defineComponent, formatEntity, withComponent } from "../src";
+import { World, defineComponent, formatEntity, withComponent, withMarker } from "../src";
 
 const Position = defineComponent<{ x: number; y: number }>("Position");
 const Velocity = defineComponent<{ x: number; y: number }>("Velocity");
@@ -9,10 +9,10 @@ const world = new World();
 const player = world.spawn(
     withComponent(Position, { x: 0, y: 0 }),
     withComponent(Velocity, { x: 1, y: 0 }),
-    withComponent(Player, {})
+    withMarker(Player)
 );
 
-world.spawn(withComponent(Position, { x: 10, y: 0 }), withComponent(Enemy, {}));
+world.spawn(withComponent(Position, { x: 10, y: 0 }), withMarker(Enemy));
 
 console.log(`player has movement=${world.hasAll(player, [Position, Velocity])}`);
 console.log(`player has role=${world.hasAny(player, [Player, Enemy])}`);

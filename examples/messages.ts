@@ -7,6 +7,7 @@ import {
     formatEntity,
     messageReader,
     withComponent,
+    withMarker,
 } from "../src";
 
 const Enemy = defineComponent("Enemy");
@@ -15,7 +16,7 @@ const Damage = defineMessage<{ target: Entity; amount: number }>("Damage");
 
 class AttackSystem {
     onStartup(_world: World, _dt: number, commands: Commands): void {
-        commands.spawn(withComponent(Enemy, {}), withComponent(Health, { value: 100 }));
+        commands.spawn(withMarker(Enemy), withComponent(Health, { value: 100 }));
     }
 
     onUpdate(world: World, _dt: number, commands: Commands): void {

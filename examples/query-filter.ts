@@ -1,4 +1,4 @@
-import { World, defineComponent, formatEntity, withComponent } from "../src";
+import { World, defineComponent, formatEntity, withComponent, withMarker } from "../src";
 
 const Position = defineComponent<{ x: number; y: number }>("Position");
 const Velocity = defineComponent<{ x: number; y: number }>("Velocity");
@@ -10,13 +10,13 @@ const world = new World();
 world.spawn(
     withComponent(Position, { x: 0, y: 0 }),
     withComponent(Velocity, { x: 1, y: 0 }),
-    withComponent(Player, {})
+    withMarker(Player)
 );
 
 world.spawn(
     withComponent(Position, { x: 10, y: 0 }),
     withComponent(Velocity, { x: 0, y: 1 }),
-    withComponent(Sleeping, {})
+    withMarker(Sleeping)
 );
 
 world.eachWhere(

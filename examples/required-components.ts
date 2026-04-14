@@ -4,6 +4,7 @@ import {
     formatEntity,
     requireComponent,
     withComponent,
+    withMarker,
 } from "../src";
 
 const Transform = defineComponent<{ x: number; y: number }>("Transform");
@@ -20,11 +21,11 @@ const RigidBody = defineComponent("RigidBody", {
 
 const world = new World();
 
-const defaultBody = world.spawn(withComponent(RigidBody, {}));
+const defaultBody = world.spawn(withMarker(RigidBody));
 const customBody = world.spawn(
     withComponent(Mass, 10),
     withComponent(Transform, { x: 5, y: 5 }),
-    withComponent(RigidBody, {})
+    withMarker(RigidBody)
 );
 
 for (const [entity, rigidBody, mass, velocity, transform] of world.query(

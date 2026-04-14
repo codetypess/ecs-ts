@@ -5,7 +5,7 @@ A small TypeScript ECS prototype based on the design discussion:
 中文说明见 [README-zh.md](README-zh.md).
 
 - Entities are numeric `index + generation` handles, so stale entity IDs do not accidentally hit recycled entities.
-- Components are registered with `defineComponent<T>()`; marker components should use `{}` payloads, and component values cannot include `null` or `undefined`.
+- Components are registered with `defineComponent<T>()`; marker components default to `{}` payloads and can use `withMarker(...)`, and component values cannot include `null` or `undefined`.
 - Bundles group multiple component entries for spawn/insert/remove calls.
 - Component storage uses `SparseSet`: O(1)-ish `get/has/add/remove`, dense iteration, and swap-remove deletion.
 - Queries choose the smallest component store as the base loop, then check other component stores by entity.
@@ -29,7 +29,7 @@ A small TypeScript ECS prototype based on the design discussion:
 ## Basic Usage
 
 ```ts
-import { World, defineComponent } from "./src";
+import { World, defineComponent, withComponent, withMarker } from "./src";
 
 const Position = defineComponent<{ x: number; y: number }>("Position");
 const Velocity = defineComponent<{ x: number; y: number }>("Velocity");
@@ -37,11 +37,11 @@ const Player = defineComponent("Player");
 const Sleeping = defineComponent("Sleeping");
 
 const world = new World();
-const entity = world.spawn();
-
-world.add(entity, Position, { x: 0, y: 0 });
-world.add(entity, Velocity, { x: 1, y: 0 });
-world.add(entity, Player, {});
+const entity = world.spawn(
+    withComponent(Position, { x: 0, y: 0 }),
+    withComponent(Velocity, { x: 1, y: 0 }),
+    withMarker(Player)
+);
 
 world.each([Position, Velocity], (_entity, position, velocity) => {
     position.x += velocity.x;

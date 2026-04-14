@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { World, defineComponent, optionalQueryState, queryState, withComponent } from "../src";
+import {
+    World,
+    defineComponent,
+    optionalQueryState,
+    queryState,
+    withComponent,
+    withMarker,
+} from "../src";
 
 test("advanced query filters support or, none, and optional components", () => {
     const Position = defineComponent<{ x: number; y: number }>("QueryPosition");
@@ -15,28 +22,28 @@ test("advanced query filters support or, none, and optional components", () => {
     world.spawn(
         withComponent(Position, { x: 0, y: 0 }),
         withComponent(Velocity, { x: 1, y: 0 }),
-        withComponent(Player, {}),
+        withMarker(Player),
         withComponent(Name, { value: "player" })
     );
 
     world.spawn(
         withComponent(Position, { x: 10, y: 0 }),
-        withComponent(Npc, {}),
+        withMarker(Npc),
         withComponent(Name, { value: "idle-npc" })
     );
 
     world.spawn(
         withComponent(Position, { x: 20, y: 0 }),
         withComponent(Velocity, { x: 0, y: 1 }),
-        withComponent(Npc, {}),
-        withComponent(Sleeping, {})
+        withMarker(Npc),
+        withMarker(Sleeping)
     );
 
     world.spawn(
         withComponent(Position, { x: 30, y: 0 }),
         withComponent(Velocity, { x: -1, y: 0 }),
-        withComponent(Player, {}),
-        withComponent(Frozen, {})
+        withMarker(Player),
+        withMarker(Frozen)
     );
 
     const rows = Array.from(
@@ -77,7 +84,7 @@ test("single query helpers report none, one, and multiple matches", () => {
 
     const entity = world.spawn(
         withComponent(Position, { x: 1, y: 2 }),
-        withComponent(Player, {})
+        withMarker(Player)
     );
 
     assert.equal(world.single([Position])[0], entity);
@@ -104,13 +111,13 @@ test("query state caches resolved stores and invalidates when stores are created
     const active = world.spawn(
         withComponent(Position, { x: 0, y: 0 }),
         withComponent(Velocity, { x: 1, y: 0 }),
-        withComponent(Player, {})
+        withMarker(Player)
     );
     world.spawn(
         withComponent(Position, { x: 10, y: 0 }),
         withComponent(Velocity, { x: 1, y: 0 }),
-        withComponent(Player, {}),
-        withComponent(Sleeping, {})
+        withMarker(Player),
+        withMarker(Sleeping)
     );
 
     const matches: {

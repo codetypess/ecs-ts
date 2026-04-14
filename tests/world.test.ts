@@ -7,6 +7,7 @@ import {
     formatEntity,
     requireComponent,
     withComponent,
+    withMarker,
 } from "../src";
 
 test("entity generation prevents stale handles from reading recycled entities", () => {
@@ -30,7 +31,7 @@ test("bundles insert and remove reusable component groups", () => {
     const Player = defineComponent("TestPlayer");
     const Health = defineComponent<{ value: number }>("TestHealth");
     const PlayerBundle = bundle(
-        withComponent(Player, {}),
+        withMarker(Player),
         withComponent(Health, { value: 100 })
     );
     const world = new World();
