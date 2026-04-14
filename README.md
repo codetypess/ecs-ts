@@ -96,9 +96,10 @@ npm run example:ui
 npm test
 npm run benchmark
 npm run benchmark:json
+npm run benchmark:compare -- --baseline /tmp/ecs-baseline.json --current /tmp/ecs-current.json
 ```
 
-Tests use Node's built-in `node:test` runner through `tsx`. The benchmark is a lightweight multi-sample micro-benchmark covering spawn, direct component get, query iteration, query state, filtered queries, optional queries, buffered messages, immediate observers, and scheduler `runIf` overhead. Use `npm run benchmark:json` for machine-readable output that can be redirected into comparison tooling or baseline files.
+Tests use Node's built-in `node:test` runner through `tsx`. The benchmark is a lightweight multi-sample micro-benchmark covering spawn, direct component get, query iteration, query state, filtered queries, optional queries, buffered messages, immediate observers, and scheduler `runIf` overhead. Use `npm --silent run benchmark:json > /tmp/ecs-baseline.json` for machine-readable output, then compare same-machine reports with `npm run benchmark:compare -- --baseline <baseline.json> --current <current.json> --threshold 15%`.
 
 ## Future Work
 
