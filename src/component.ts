@@ -72,7 +72,10 @@ export function defineComponent<T>(
     });
 }
 
-export function withComponent<T>(type: ComponentType<T>, value: T): ComponentEntry<T> {
+export function withComponent<TComponent extends AnyComponentType>(
+    type: TComponent,
+    value: ComponentData<TComponent>
+): ComponentEntry<ComponentData<TComponent>> {
     return { type, value };
 }
 

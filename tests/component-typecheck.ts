@@ -1,7 +1,46 @@
-import { defineComponent } from "../src";
+import { World, defineComponent, requireComponent, withComponent, type ComponentData } from "../src";
 
-defineComponent("ComponentTypecheckDefaultMarker");
-defineComponent<{ value: number }>("ComponentTypecheckValue");
+function expectType<T>(value: T): void {
+    void value;
+}
+
+const Marker = defineComponent("ComponentTypecheckDefaultMarker");
+const RequiredValue = defineComponent<number>("ComponentTypecheckRequiredValue");
+const MarkerWithRequired = defineComponent("ComponentTypecheckMarkerWithRequired", {
+    require: [requireComponent(RequiredValue, () => 1)],
+});
+const Value = defineComponent<{ value: number }>("ComponentTypecheckValue");
+
+expectType<Record<string, never>>({} satisfies ComponentData<typeof Marker>);
+expectType<Record<string, never>>({} satisfies ComponentData<typeof MarkerWithRequired>);
+withComponent(Marker, {});
+withComponent(MarkerWithRequired, {});
+withComponent(Value, { value: 1 });
+
+// @ts-expect-error required component options are not marker payload data
+expectType<ComponentData<typeof MarkerWithRequired>>({ require: [] });
+
+// @ts-expect-error marker component payloads cannot be null
+withComponent(Marker, null);
+
+// @ts-expect-error marker component payloads cannot be undefined
+withComponent(Marker, undefined);
+
+// @ts-expect-error value component payloads must match their component data
+withComponent(Value, {});
+
+const world = new World();
+const entity = world.spawn(withComponent(Marker, {}), withComponent(Value, { value: 1 }));
+
+for (const [matched, marker, value] of world.query(Marker, Value)) {
+    expectType<number>(matched);
+    expectType<Record<string, never>>(marker);
+    expectType<{ value: number }>(value);
+}
+
+expectType<readonly [Record<string, never>, { value: number }] | undefined>(
+    world.getMany(entity, Marker, Value)
+);
 
 // @ts-expect-error component values cannot be null
 defineComponent<null>("ComponentTypecheckInvalidNull");
