@@ -278,6 +278,7 @@ function topologicalSortSystems(
     const ordered: SystemRunner[] = [];
     const permanent = new Set<SystemRunner>();
     const temporary = new Set<SystemRunner>();
+    const stack: SystemRunner[] = [];
 
     function visit(system: SystemRunner): void {
         if (permanent.has(system)) {
@@ -285,15 +286,22 @@ function topologicalSortSystems(
         }
 
         if (temporary.has(system)) {
-            throw new Error(`System ordering cycle detected in ${stage}`);
+            const cycleStart = stack.indexOf(system);
+            const cycleSystems =
+                cycleStart === -1 ? [system] : [...stack.slice(cycleStart), system];
+            const cycle = cycleSystems.map(formatSystemRunner).join(" -> ");
+
+            throw new Error(`System ordering cycle detected in ${stage}: ${cycle}`);
         }
 
         temporary.add(system);
+        stack.push(system);
 
         for (const dependency of edges.get(system) ?? []) {
             visit(dependency);
         }
 
+        stack.pop();
         temporary.delete(system);
         permanent.add(system);
         ordered.push(system);
@@ -304,6 +312,18 @@ function topologicalSortSystems(
     }
 
     return ordered;
+}
+
+function formatSystemRunner(system: SystemRunner): string {
+    const label = system.label === undefined ? undefined : `label:${String(system.label)}`;
+
+    if (system.sets.length === 0) {
+        return label ?? "<anonymous>";
+    }
+
+    const sets = `sets:${system.sets.map(String).join(",")}`;
+
+    return label === undefined ? sets : `${label} (${sets})`;
 }
 
 export function createSchedules(): Record<ScheduleStage, SystemRunner[]> {

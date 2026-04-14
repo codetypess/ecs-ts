@@ -88,6 +88,17 @@ test("sortSystemRunners rejects duplicate system and set labels", () => {
 test("sortSystemRunners rejects ordering cycles", () => {
     assert.throws(
         () => sort([runner({ label: "a", after: ["b"] }), runner({ label: "b", after: ["a"] })]),
-        /System ordering cycle detected in update/
+        /System ordering cycle detected in update: label:a -> label:b -> label:a/
+    );
+});
+
+test("sortSystemRunners includes set labels in cycle diagnostics", () => {
+    assert.throws(
+        () =>
+            sort([
+                runner({ set: "gameplay", after: ["render"] }),
+                runner({ label: "render", after: ["gameplay"] }),
+            ]),
+        /System ordering cycle detected in update: sets:gameplay -> label:render -> sets:gameplay/
     );
 });
