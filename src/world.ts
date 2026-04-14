@@ -7,6 +7,7 @@ import type {
     ComponentLifecycleStage,
     ComponentType,
 } from "./component";
+import { assertComponentValue } from "./component";
 import { Entity, EntityManager, formatEntity } from "./entity";
 import type { EventObserver, EventType } from "./event";
 import type { MessageId, MessageReader, MessageType } from "./message";
@@ -499,6 +500,7 @@ export class World {
         value: T,
         resolving: readonly AnyComponentType[]
     ): void {
+        assertComponentValue(type, value);
         this.addRequiredComponents(entity, type, resolving);
         this.insertComponentOnly(entity, type, value);
     }
@@ -533,6 +535,7 @@ export class World {
     }
 
     private insertComponentOnly<T>(entity: Entity, type: ComponentType<T>, value: T): void {
+        assertComponentValue(type, value);
         const store = this.ensureStore(type);
         const hadComponent = store.has(entity);
 

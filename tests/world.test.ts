@@ -43,6 +43,33 @@ test("bundles insert and remove reusable component groups", () => {
     assert.equal(world.hasAny(entity, [Player, Health]), false);
 });
 
+test("component values reject null and undefined at runtime", () => {
+    const Position = defineComponent<{ x: number; y: number }>("InvalidValuePosition");
+    const RequiredPosition = defineComponent("InvalidValueRequiredPosition", {
+        require: [
+            requireComponent(Position, () => null as unknown as { x: number; y: number }),
+        ],
+    });
+    const world = new World();
+    const entity = world.spawn();
+
+    assert.throws(
+        () => withComponent(Position, null as unknown as { x: number; y: number }),
+        /Component InvalidValuePosition value cannot be null/
+    );
+    assert.throws(
+        () => world.add(entity, Position, undefined as unknown as { x: number; y: number }),
+        /Component InvalidValuePosition value cannot be undefined/
+    );
+    assert.throws(
+        () => world.add(entity, RequiredPosition, {}),
+        /Component InvalidValuePosition value cannot be null/
+    );
+
+    assert.equal(world.has(entity, Position), false);
+    assert.equal(world.has(entity, RequiredPosition), false);
+});
+
 test("required components are inserted transitively without overwriting existing data", () => {
     const Transform = defineComponent<{ x: number; y: number }>("TestTransform");
     const Velocity = defineComponent<{ x: number; y: number }>("TestVelocity", {

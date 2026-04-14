@@ -76,6 +76,7 @@ export function withComponent<TComponent extends AnyComponentType>(
     type: TComponent,
     value: ComponentData<TComponent>
 ): ComponentEntry<ComponentData<TComponent>> {
+    assertComponentValue(type, value);
     return { type, value };
 }
 
@@ -83,6 +84,12 @@ export function withMarker<TComponent extends AnyComponentType>(
     type: ComponentData<TComponent> extends Record<string, never> ? TComponent : never
 ): ComponentEntry<ComponentData<TComponent>> {
     return withComponent(type, {} as ComponentData<TComponent>);
+}
+
+export function assertComponentValue<T>(type: ComponentType<T>, value: T): void {
+    if (value === null || value === undefined) {
+        throw new TypeError(`Component ${type.name} value cannot be ${String(value)}`);
+    }
 }
 
 export function bundle(...entries: ComponentEntry<unknown>[]): Bundle {
