@@ -11,7 +11,12 @@
     }
   },
   "files": [
-    "dist"
+    "dist/*.d.ts",
+    "dist/*.js",
+    "dist/*.js.map",
+    "dist/internal/*.d.ts",
+    "dist/internal/*.js",
+    "dist/internal/*.js.map"
   ],
   "scripts": {
     "check": "npm run typecheck && npm run lint",
@@ -20,6 +25,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
+    "pack:check": "npm pack --dry-run",
     "test": "node --import tsx --test tests/*.test.ts",
     "benchmark": "tsx benchmarks/ecs-benchmark.ts",
     "benchmark:json": "tsx benchmarks/ecs-benchmark.ts --json",
