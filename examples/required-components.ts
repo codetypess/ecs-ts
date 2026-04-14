@@ -13,10 +13,7 @@ const Velocity = defineComponent<{ x: number; y: number }>("Velocity", {
 });
 const Mass = defineComponent<number>("Mass");
 const RigidBody = defineComponent("RigidBody", {
-    require: [
-        requireComponent(Mass, () => 1),
-        requireComponent(Velocity, () => ({ x: 0, y: 0 })),
-    ],
+    require: [requireComponent(Mass, () => 1), requireComponent(Velocity, () => ({ x: 0, y: 0 }))],
 });
 
 const world = new World();

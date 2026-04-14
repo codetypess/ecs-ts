@@ -82,10 +82,7 @@ test("single query helpers report none, one, and multiple matches", () => {
     assert.equal(world.trySingle([Position]), undefined);
     assert.throws(() => world.single([Position]), /Expected exactly one query result/);
 
-    const entity = world.spawn(
-        withComponent(Position, { x: 1, y: 2 }),
-        withMarker(Player)
-    );
+    const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }), withMarker(Player));
 
     assert.equal(world.single([Position])[0], entity);
 
@@ -134,16 +131,13 @@ test("query state caches resolved stores and invalidates when stores are created
         });
     });
 
-    assert.deepEqual(
-        matches,
-        [
-            {
-                entity: active,
-                position: { x: 0, y: 0 },
-                velocity: { x: 1, y: 0 },
-            },
-        ]
-    );
+    assert.deepEqual(matches, [
+        {
+            entity: active,
+            position: { x: 0, y: 0 },
+            velocity: { x: 1, y: 0 },
+        },
+    ]);
 });
 
 test("optional query state sees optional stores created after the cache was resolved", () => {

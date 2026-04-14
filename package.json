@@ -16,6 +16,8 @@
   "scripts": {
     "check": "npm run typecheck && npm run lint",
     "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
     "test": "node --import tsx --test tests/*.test.ts",

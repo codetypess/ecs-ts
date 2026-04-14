@@ -30,10 +30,7 @@ test("entity generation prevents stale handles from reading recycled entities", 
 test("bundles insert and remove reusable component groups", () => {
     const Player = defineComponent("TestPlayer");
     const Health = defineComponent<{ value: number }>("TestHealth");
-    const PlayerBundle = bundle(
-        withMarker(Player),
-        withComponent(Health, { value: 100 })
-    );
+    const PlayerBundle = bundle(withMarker(Player), withComponent(Health, { value: 100 }));
     const world = new World();
 
     const entity = world.spawnBundle(PlayerBundle);
@@ -46,9 +43,7 @@ test("bundles insert and remove reusable component groups", () => {
 test("component values reject null and undefined at runtime", () => {
     const Position = defineComponent<{ x: number; y: number }>("InvalidValuePosition");
     const RequiredPosition = defineComponent("InvalidValueRequiredPosition", {
-        require: [
-            requireComponent(Position, () => null as unknown as { x: number; y: number }),
-        ],
+        require: [requireComponent(Position, () => null as unknown as { x: number; y: number })],
     });
     const world = new World();
     const entity = world.spawn();

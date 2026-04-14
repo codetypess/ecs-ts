@@ -1,4 +1,11 @@
-import { World, defineComponent, formatEntity, queryState, withComponent, withMarker } from "../src";
+import {
+    World,
+    defineComponent,
+    formatEntity,
+    queryState,
+    withComponent,
+    withMarker,
+} from "../src";
 
 const Position = defineComponent<{ x: number; y: number }>("Position");
 const Velocity = defineComponent<{ x: number; y: number }>("Velocity");
@@ -20,10 +27,7 @@ class MovementSystem {
 
 const world = new World();
 
-world.spawn(
-    withComponent(Position, { x: 0, y: 0 }),
-    withComponent(Velocity, { x: 1, y: 0 })
-);
+world.spawn(withComponent(Position, { x: 0, y: 0 }), withComponent(Velocity, { x: 1, y: 0 }));
 
 world.spawn(
     withComponent(Position, { x: 10, y: 0 }),

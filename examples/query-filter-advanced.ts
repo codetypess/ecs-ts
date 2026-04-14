@@ -37,14 +37,10 @@ world.spawn(
     withMarker(Frozen)
 );
 
-for (const [entity, position, velocity, name] of world.queryOptional(
-    [Position],
-    [Velocity, Name],
-    {
-        or: [Player, Npc],
-        none: [Sleeping, Frozen],
-    }
-)) {
+for (const [entity, position, velocity, name] of world.queryOptional([Position], [Velocity, Name], {
+    or: [Player, Npc],
+    none: [Sleeping, Frozen],
+})) {
     if (velocity !== undefined) {
         position.x += velocity.x;
         position.y += velocity.y;

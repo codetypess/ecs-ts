@@ -17,7 +17,9 @@ import {
 const Log = defineResource<string[]>("SchedulerShowcaseLog");
 const Frame = defineResource<{ value: number }>("SchedulerShowcaseFrame");
 const FeatureFlags = defineResource<{ physicsEnabled: boolean }>("SchedulerShowcaseFlags");
-const ControlledEntity = defineResource<{ value: Entity | undefined }>("SchedulerShowcaseControlled");
+const ControlledEntity = defineResource<{ value: Entity | undefined }>(
+    "SchedulerShowcaseControlled"
+);
 const GameMode = defineState<"running" | "paused">("SchedulerShowcaseMode", "running");
 
 const Transform = defineComponent<{ x: number; y: number }>("SchedulerShowcaseTransform");

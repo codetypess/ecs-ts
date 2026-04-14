@@ -1,62 +1,62 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "tsx: Current File",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "node",
-            "runtimeArgs": ["--import", "tsx"],
-            "program": "${file}",
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "sourceMaps": true,
-            "skipFiles": ["<node_internals>/**"]
-        },
-        {
-            "name": "tsx: Current Test File",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "node",
-            "runtimeArgs": ["--import", "tsx", "--test"],
-            "program": "${file}",
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "sourceMaps": true,
-            "skipFiles": ["<node_internals>/**"]
-        },
-        {
-            "name": "tsx: All Tests",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "node",
-            "runtimeArgs": ["--import", "tsx", "--test"],
-            "program": "${workspaceFolder}/tests/world.test.ts",
-            "args": [
-                "${workspaceFolder}/tests/query.test.ts",
-                "${workspaceFolder}/tests/change-message-removed.test.ts",
-                "${workspaceFolder}/tests/scheduler-observer.test.ts"
-            ],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "sourceMaps": true,
-            "skipFiles": ["<node_internals>/**"]
-        },
-        {
-            "name": "tsx: Benchmark",
-            "type": "node",
-            "request": "launch",
-            "runtimeExecutable": "node",
-            "runtimeArgs": ["--import", "tsx"],
-            "program": "${workspaceFolder}/benchmarks/ecs-benchmark.ts",
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "internalConsoleOptions": "neverOpen",
-            "sourceMaps": true,
-            "skipFiles": ["<node_internals>/**"]
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "tsx: Current File",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--import", "tsx"],
+      "program": "${file}",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "tsx: Current Test File",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--import", "tsx", "--test"],
+      "program": "${file}",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "tsx: All Tests",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--import", "tsx", "--test"],
+      "program": "${workspaceFolder}/tests/world.test.ts",
+      "args": [
+        "${workspaceFolder}/tests/query.test.ts",
+        "${workspaceFolder}/tests/change-message-removed.test.ts",
+        "${workspaceFolder}/tests/scheduler-observer.test.ts"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "tsx: Benchmark",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--import", "tsx"],
+      "program": "${workspaceFolder}/benchmarks/ecs-benchmark.ts",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
 }

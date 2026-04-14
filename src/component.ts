@@ -51,8 +51,8 @@ export interface Bundle {
 type DefineComponentArgs<T> = null extends T
     ? [name: never, options?: never]
     : undefined extends T
-    ? [name: never, options?: never]
-    : [name: string, options?: ComponentOptions<T>];
+      ? [name: never, options?: never]
+      : [name: string, options?: ComponentOptions<T>];
 
 export function defineComponent(
     name: string,

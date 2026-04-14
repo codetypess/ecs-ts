@@ -56,10 +56,7 @@ interface ScheduleCacheEntry {
     systems: readonly SystemRunner[] | undefined;
 }
 
-export function createSystemRunner(
-    run: SystemCallback,
-    options: SystemOptions = {}
-): SystemRunner {
+export function createSystemRunner(run: SystemCallback, options: SystemOptions = {}): SystemRunner {
     return {
         run,
         label: options.label,

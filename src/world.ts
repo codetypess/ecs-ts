@@ -58,12 +58,7 @@ import { SparseSet } from "./sparse-set";
 import type { StateType, StateValue } from "./state";
 
 export { scheduleStages } from "./scheduler";
-export {
-    OptionalQueryState,
-    QueryState,
-    optionalQueryState,
-    queryState,
-} from "./query";
+export { OptionalQueryState, QueryState, optionalQueryState, queryState } from "./query";
 export type {
     ComponentTuple,
     OptionalComponentTuple,
@@ -612,12 +607,14 @@ export class World {
             return false;
         }
 
-        return this.countResolvedQueryMatches(
-            cache.stores,
-            cache.filterStores,
-            this.changeDetectionRange(),
-            1
-        ) === 1;
+        return (
+            this.countResolvedQueryMatches(
+                cache.stores,
+                cache.filterStores,
+                this.changeDetectionRange(),
+                1
+            ) === 1
+        );
     }
 
     matchesNoneWithState<const TComponents extends readonly AnyComponentType[]>(
@@ -635,12 +632,14 @@ export class World {
             return false;
         }
 
-        return this.countResolvedQueryMatches(
-            cache.stores,
-            cache.filterStores,
-            this.changeDetectionRange(),
-            2
-        ) === 1;
+        return (
+            this.countResolvedQueryMatches(
+                cache.stores,
+                cache.filterStores,
+                this.changeDetectionRange(),
+                2
+            ) === 1
+        );
     }
 
     queryOptionalWithState<
@@ -655,50 +654,48 @@ export class World {
     matchesAnyOptionalWithState<
         const TRequiredComponents extends readonly AnyComponentType[],
         const TOptionalComponents extends readonly AnyComponentType[],
-    >(
-        state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
-    ): boolean {
+    >(state: OptionalQueryState<TRequiredComponents, TOptionalComponents>): boolean {
         const cache = this.resolveOptionalQueryStateCache(state);
 
         if (cache === undefined) {
             return false;
         }
 
-        return this.countResolvedOptionalQueryMatches(
-            cache.requiredStores,
-            cache.filterStores,
-            this.changeDetectionRange(),
-            1
-        ) === 1;
+        return (
+            this.countResolvedOptionalQueryMatches(
+                cache.requiredStores,
+                cache.filterStores,
+                this.changeDetectionRange(),
+                1
+            ) === 1
+        );
     }
 
     matchesNoneOptionalWithState<
         const TRequiredComponents extends readonly AnyComponentType[],
         const TOptionalComponents extends readonly AnyComponentType[],
-    >(
-        state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
-    ): boolean {
+    >(state: OptionalQueryState<TRequiredComponents, TOptionalComponents>): boolean {
         return !this.matchesAnyOptionalWithState(state);
     }
 
     matchesSingleOptionalWithState<
         const TRequiredComponents extends readonly AnyComponentType[],
         const TOptionalComponents extends readonly AnyComponentType[],
-    >(
-        state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
-    ): boolean {
+    >(state: OptionalQueryState<TRequiredComponents, TOptionalComponents>): boolean {
         const cache = this.resolveOptionalQueryStateCache(state);
 
         if (cache === undefined) {
             return false;
         }
 
-        return this.countResolvedOptionalQueryMatches(
-            cache.requiredStores,
-            cache.filterStores,
-            this.changeDetectionRange(),
-            2
-        ) === 1;
+        return (
+            this.countResolvedOptionalQueryMatches(
+                cache.requiredStores,
+                cache.filterStores,
+                this.changeDetectionRange(),
+                2
+            ) === 1
+        );
     }
 
     eachWithState<const TComponents extends readonly AnyComponentType[]>(
@@ -1043,21 +1040,13 @@ export class World {
         return this;
     }
 
-    onEnter<T extends StateValue>(
-        type: StateType<T>,
-        value: T,
-        system: SystemCallback
-    ): this {
+    onEnter<T extends StateValue>(type: StateType<T>, value: T, system: SystemCallback): this {
         getStateSystems(this.ensureState(type).onEnter, value).push(createSystemRunner(system));
 
         return this;
     }
 
-    onExit<T extends StateValue>(
-        type: StateType<T>,
-        value: T,
-        system: SystemCallback
-    ): this {
+    onExit<T extends StateValue>(type: StateType<T>, value: T, system: SystemCallback): this {
         getStateSystems(this.ensureState(type).onExit, value).push(createSystemRunner(system));
 
         return this;
@@ -1414,10 +1403,10 @@ export class World {
 
             this.fillOptionalComponents(entity, optionalStores, components, requiredStores.length);
 
-            yield [
-                entity,
-                ...components,
-            ] as unknown as OptionalQueryRow<TRequiredComponents, TOptionalComponents>;
+            yield [entity, ...components] as unknown as OptionalQueryRow<
+                TRequiredComponents,
+                TOptionalComponents
+            >;
         }
     }
 
@@ -1822,11 +1811,7 @@ export class World {
     }
 
     private runSchedule(stage: ScheduleStage, dt: number): void {
-        this.runSystems(
-            this.resolveSortedSchedule(stage),
-            stage,
-            dt
-        );
+        this.runSystems(this.resolveSortedSchedule(stage), stage, dt);
     }
 
     private resolveSortedSchedule(stage: ScheduleStage): readonly SystemRunner[] {

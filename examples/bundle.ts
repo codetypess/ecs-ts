@@ -35,4 +35,6 @@ world.each([Position, Velocity, Health, Player], (entity, position, velocity, he
 
 world.removeBundle(player, bundle(withMarker(Player), withComponent(Health, { value: 0 })));
 
-console.log(`after remove bundle: hasPlayer=${world.has(player, Player)} hasHealth=${world.has(player, Health)}`);
+console.log(
+    `after remove bundle: hasPlayer=${world.has(player, Player)} hasHealth=${world.has(player, Health)}`
+);

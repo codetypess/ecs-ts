@@ -116,12 +116,7 @@ function createMovementWorld(count: number): MovementWorld {
 
         if (isPlayer && isSleeping) {
             entities.push(
-                world.spawn(
-                    position,
-                    velocity,
-                    withMarker(Player),
-                    withMarker(Sleeping)
-                )
+                world.spawn(position, velocity, withMarker(Player), withMarker(Sleeping))
             );
         } else if (isPlayer) {
             entities.push(world.spawn(position, velocity, withMarker(Player)));
@@ -208,9 +203,7 @@ function median(values: readonly number[]): number {
 
 function printResults(results: readonly BenchmarkResult[]): void {
     console.log(`entities=${formatNumber(ENTITY_COUNT)}`);
-    console.log(
-        `samples=${SAMPLE_ROUNDS}, warmup=${WARMUP_ROUNDS}`
-    );
+    console.log(`samples=${SAMPLE_ROUNDS}, warmup=${WARMUP_ROUNDS}`);
     console.log(
         "benchmark".padEnd(36),
         "ops".padStart(12),
