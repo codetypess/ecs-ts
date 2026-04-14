@@ -3,11 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "check": "npm run typecheck && npm run lint",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "test": "node --import tsx --test tests/*.test.ts",
     "benchmark": "tsx benchmarks/ecs-benchmark.ts",
     "benchmark:json": "tsx benchmarks/ecs-benchmark.ts --json",
