@@ -167,3 +167,75 @@ test("optional query state sees optional stores created after the cache was reso
 
     assert.deepEqual(afterName, [{ entity, name: { value: "capital" } }]);
 });
+
+test("query state tracks structural filter changes through cached plans", () => {
+    const Position = defineComponent<{ x: number; y: number }>("SignatureStatePosition");
+    const markers = Array.from({ length: 40 }, (_value, index) =>
+        defineComponent(`SignatureStateMarker${index}`)
+    );
+    const Required = markers[35]!;
+    const OrMatch = markers[36]!;
+    const Banned = markers[37]!;
+    const Excluded = markers[38]!;
+    const world = new World();
+    const filtered = queryState([Position], {
+        with: [Required],
+        or: [OrMatch, Banned],
+        without: [Banned],
+        none: [Excluded],
+    });
+    const active = world.spawn(
+        withComponent(Position, { x: 1, y: 2 }),
+        withMarker(Required),
+        withMarker(OrMatch)
+    );
+
+    world.spawn(
+        withComponent(Position, { x: 3, y: 4 }),
+        withMarker(Required),
+        withMarker(OrMatch),
+        withMarker(Excluded)
+    );
+
+    world.spawn(
+        withComponent(Position, { x: 5, y: 6 }),
+        withMarker(Required),
+        withMarker(Banned)
+    );
+
+    const matchedEntities = (): typeof active[] =>
+        Array.from(filtered.iter(world), ([entity]) => entity);
+
+    assert.deepEqual(matchedEntities(), [active]);
+    assert.equal(filtered.matchesAny(world), true);
+    assert.equal(filtered.matchesSingle(world), true);
+
+    world.add(active, Excluded, {});
+
+    assert.deepEqual(matchedEntities(), []);
+    assert.equal(filtered.matchesNone(world), true);
+
+    world.remove(active, Excluded);
+
+    assert.deepEqual(matchedEntities(), [active]);
+
+    world.remove(active, OrMatch);
+
+    assert.deepEqual(matchedEntities(), []);
+    assert.equal(filtered.matchesNone(world), true);
+
+    world.add(active, Banned, {});
+
+    assert.deepEqual(matchedEntities(), []);
+
+    world.remove(active, Banned);
+    world.add(active, OrMatch, {});
+
+    assert.deepEqual(matchedEntities(), [active]);
+    assert.equal(filtered.matchesSingle(world), true);
+
+    world.despawn(active);
+
+    assert.deepEqual(matchedEntities(), []);
+    assert.equal(filtered.matchesNone(world), true);
+});

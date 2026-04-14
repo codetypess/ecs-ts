@@ -39,6 +39,8 @@ export interface ChangeDetectionRange {
     readonly thisRunTick: number;
 }
 
+export type QueryFilterMode = "none" | "structural" | "change";
+
 export interface ResolvedQueryFilter {
     readonly with: readonly SparseSet<unknown>[];
     readonly without: readonly SparseSet<unknown>[];
@@ -48,17 +50,29 @@ export interface ResolvedQueryFilter {
     readonly changed: readonly SparseSet<unknown>[];
 }
 
+export interface ResolvedQueryPlan {
+    readonly stores: readonly SparseSet<unknown>[];
+    readonly filterStores: ResolvedQueryFilter;
+    readonly baseStore: SparseSet<unknown>;
+    readonly filterMode: QueryFilterMode;
+}
+
+export interface ResolvedOptionalQueryPlan {
+    readonly requiredStores: readonly SparseSet<unknown>[];
+    readonly optionalStores: readonly (SparseSet<unknown> | undefined)[];
+    readonly filterStores: ResolvedQueryFilter;
+    readonly baseStore: SparseSet<unknown>;
+    readonly filterMode: QueryFilterMode;
+}
+
 export interface QueryStateCache {
     readonly storeVersion: number;
-    readonly stores?: readonly SparseSet<unknown>[];
-    readonly filterStores?: ResolvedQueryFilter;
+    readonly plan?: ResolvedQueryPlan;
 }
 
 export interface OptionalQueryStateCache {
     readonly storeVersion: number;
-    readonly requiredStores?: readonly SparseSet<unknown>[];
-    readonly optionalStores?: readonly (SparseSet<unknown> | undefined)[];
-    readonly filterStores?: ResolvedQueryFilter;
+    readonly plan?: ResolvedOptionalQueryPlan;
 }
 
 export class QueryState<TComponents extends readonly AnyComponentType[]> {
@@ -187,26 +201,14 @@ function cloneFilterTypes(
 
 export function resolvedQueryStateCache(
     cache: QueryStateCache
-): Required<QueryStateCache> | undefined {
-    if (cache.stores === undefined || cache.filterStores === undefined) {
-        return undefined;
-    }
-
-    return cache as Required<QueryStateCache>;
+): ResolvedQueryPlan | undefined {
+    return cache.plan;
 }
 
 export function resolvedOptionalQueryStateCache(
     cache: OptionalQueryStateCache
-): Required<OptionalQueryStateCache> | undefined {
-    if (
-        cache.requiredStores === undefined ||
-        cache.optionalStores === undefined ||
-        cache.filterStores === undefined
-    ) {
-        return undefined;
-    }
-
-    return cache as Required<OptionalQueryStateCache>;
+): ResolvedOptionalQueryPlan | undefined {
+    return cache.plan;
 }
 
 export function matchesFilter(
@@ -305,12 +307,22 @@ export function isTickInRange(tick: number, changeDetection: ChangeDetectionRang
     return tick > changeDetection.lastRunTick && tick <= changeDetection.thisRunTick;
 }
 
-export function chooseSmallestStore(stores: readonly SparseSet<unknown>[]): SparseSet<unknown> {
+export function chooseSmallestStore(
+    stores: readonly SparseSet<unknown>[],
+    additionalStores: readonly SparseSet<unknown>[] = []
+): SparseSet<unknown> {
+    // Use the smallest candidate as the scan source to minimize per-entity filter checks.
     let smallest = stores[0]!;
 
     for (let index = 1; index < stores.length; index++) {
         const store = stores[index]!;
 
+        if (store.size < smallest.size) {
+            smallest = store;
+        }
+    }
+
+    for (const store of additionalStores) {
         if (store.size < smallest.size) {
             smallest = store;
         }

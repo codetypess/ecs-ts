@@ -6,20 +6,11 @@ import type {
     ComponentLifecycleStage,
     ComponentType,
 } from "./component";
+import { assertComponentValue } from "./component";
 import { Entity, EntityManager, formatEntity } from "./entity";
 import type { EventObserver, EventType } from "./event";
-import { assertComponentValue } from "./internal/component-value";
 import type { MessageId, MessageReader, MessageType } from "./message";
 import { Messages } from "./message";
-import {
-    chooseSmallestStore,
-    isTickInRange,
-    matchesFilter,
-    optionalQueryState,
-    queryState,
-    resolvedOptionalQueryStateCache,
-    resolvedQueryStateCache,
-} from "./query";
 import type {
     ChangeDetectionRange,
     ComponentTuple,
@@ -28,23 +19,25 @@ import type {
     OptionalQueryState,
     OptionalQueryStateCache,
     QueryFilter,
+    QueryFilterMode,
     QueryRow,
     QueryState,
     QueryStateCache,
+    ResolvedOptionalQueryPlan,
     ResolvedQueryFilter,
+    ResolvedQueryPlan,
+} from "./query";
+import {
+    chooseSmallestStore,
+    isTickInRange,
+    optionalQueryState,
+    queryState,
+    resolvedOptionalQueryStateCache,
+    resolvedQueryStateCache,
 } from "./query";
 import type { RemovedComponent, RemovedReader } from "./removed";
 import { RemovedComponents } from "./removed";
 import type { ResourceType } from "./resource";
-import {
-    createScheduleCacheEntries,
-    createSchedules,
-    createSystemRunner,
-    createSystemSetConfig,
-    createSystemSetStageConfigs,
-    scheduleStages,
-    sortSystemRunners,
-} from "./scheduler";
 import type {
     ScheduleStage,
     SystemCallback,
@@ -54,11 +47,19 @@ import type {
     SystemSetLabel,
     SystemSetOptions,
 } from "./scheduler";
+import {
+    createScheduleCacheEntries,
+    createSchedules,
+    createSystemRunner,
+    createSystemSetConfig,
+    createSystemSetStageConfigs,
+    scheduleStages,
+    sortSystemRunners,
+} from "./scheduler";
 import { SparseSet } from "./sparse-set";
 import type { StateType, StateValue } from "./state";
 
-export { scheduleStages } from "./scheduler";
-export { OptionalQueryState, QueryState, optionalQueryState, queryState } from "./query";
+export { OptionalQueryState, optionalQueryState, QueryState, queryState } from "./query";
 export type {
     ComponentTuple,
     OptionalComponentTuple,
@@ -66,6 +67,7 @@ export type {
     QueryFilter,
     QueryRow,
 } from "./query";
+export { scheduleStages } from "./scheduler";
 export type {
     ScheduleStage,
     SystemLabel,
@@ -601,20 +603,13 @@ export class World {
     matchesAnyWithState<const TComponents extends readonly AnyComponentType[]>(
         state: QueryState<TComponents>
     ): boolean {
-        const cache = this.resolveQueryStateCache(state);
+        const plan = this.resolveQueryStateCache(state);
 
-        if (cache === undefined) {
+        if (plan === undefined) {
             return false;
         }
 
-        return (
-            this.countResolvedQueryMatches(
-                cache.stores,
-                cache.filterStores,
-                this.changeDetectionRange(),
-                1
-            ) === 1
-        );
+        return this.countResolvedQueryMatches(plan, this.changeDetectionRange(), 1) === 1;
     }
 
     matchesNoneWithState<const TComponents extends readonly AnyComponentType[]>(
@@ -626,20 +621,13 @@ export class World {
     matchesSingleWithState<const TComponents extends readonly AnyComponentType[]>(
         state: QueryState<TComponents>
     ): boolean {
-        const cache = this.resolveQueryStateCache(state);
+        const plan = this.resolveQueryStateCache(state);
 
-        if (cache === undefined) {
+        if (plan === undefined) {
             return false;
         }
 
-        return (
-            this.countResolvedQueryMatches(
-                cache.stores,
-                cache.filterStores,
-                this.changeDetectionRange(),
-                2
-            ) === 1
-        );
+        return this.countResolvedQueryMatches(plan, this.changeDetectionRange(), 2) === 1;
     }
 
     queryOptionalWithState<
@@ -655,20 +643,13 @@ export class World {
         const TRequiredComponents extends readonly AnyComponentType[],
         const TOptionalComponents extends readonly AnyComponentType[],
     >(state: OptionalQueryState<TRequiredComponents, TOptionalComponents>): boolean {
-        const cache = this.resolveOptionalQueryStateCache(state);
+        const plan = this.resolveOptionalQueryStateCache(state);
 
-        if (cache === undefined) {
+        if (plan === undefined) {
             return false;
         }
 
-        return (
-            this.countResolvedOptionalQueryMatches(
-                cache.requiredStores,
-                cache.filterStores,
-                this.changeDetectionRange(),
-                1
-            ) === 1
-        );
+        return this.countResolvedOptionalQueryMatches(plan, this.changeDetectionRange(), 1) === 1;
     }
 
     matchesNoneOptionalWithState<
@@ -682,20 +663,13 @@ export class World {
         const TRequiredComponents extends readonly AnyComponentType[],
         const TOptionalComponents extends readonly AnyComponentType[],
     >(state: OptionalQueryState<TRequiredComponents, TOptionalComponents>): boolean {
-        const cache = this.resolveOptionalQueryStateCache(state);
+        const plan = this.resolveOptionalQueryStateCache(state);
 
-        if (cache === undefined) {
+        if (plan === undefined) {
             return false;
         }
 
-        return (
-            this.countResolvedOptionalQueryMatches(
-                cache.requiredStores,
-                cache.filterStores,
-                this.changeDetectionRange(),
-                2
-            ) === 1
-        );
+        return this.countResolvedOptionalQueryMatches(plan, this.changeDetectionRange(), 2) === 1;
     }
 
     eachWithState<const TComponents extends readonly AnyComponentType[]>(
@@ -813,9 +787,13 @@ export class World {
         const optionalStores = this.resolveOptionalStores(optional);
 
         this.eachResolvedOptionalQuery(
-            requiredStores,
-            optionalStores,
-            filterStores,
+            {
+                requiredStores,
+                optionalStores,
+                filterStores,
+                baseStore: chooseSmallestStore(requiredStores, filterStores.with),
+                filterMode: this.resolveFilterMode(filterStores),
+            },
             this.changeDetectionRange(),
             visitor
         );
@@ -846,7 +824,16 @@ export class World {
             return;
         }
 
-        this.eachResolvedQuery(stores, filterStores, this.changeDetectionRange(), visitor);
+        this.eachResolvedQuery(
+            {
+                stores,
+                filterStores,
+                baseStore: chooseSmallestStore(stores, filterStores.with),
+                filterMode: this.resolveFilterMode(filterStores),
+            },
+            this.changeDetectionRange(),
+            visitor
+        );
     }
 
     addSystem(system: System, options: SystemOptions = {}): this {
@@ -1207,44 +1194,140 @@ export class World {
             return;
         }
 
-        yield* this.iterateResolvedQuery<TComponents>(stores, filterStores, changeDetection);
+        yield* this.iterateResolvedQuery<TComponents>(
+            {
+                stores,
+                filterStores,
+                baseStore: chooseSmallestStore(stores, filterStores.with),
+                filterMode: this.resolveFilterMode(filterStores),
+            },
+            changeDetection
+        );
     }
 
     private *iterateQueryState<const TComponents extends readonly AnyComponentType[]>(
         state: QueryState<TComponents>,
         changeDetection: ChangeDetectionRange
     ): IterableIterator<QueryRow<TComponents>> {
-        const cache = this.resolveQueryStateCache(state);
+        const plan = this.resolveQueryStateCache(state);
 
-        if (cache === undefined) {
+        if (plan === undefined) {
             return;
         }
 
-        yield* this.iterateResolvedQuery<TComponents>(
-            cache.stores,
-            cache.filterStores,
-            changeDetection
-        );
+        yield* this.iterateResolvedQuery<TComponents>(plan, changeDetection);
     }
 
     private *iterateResolvedQuery<const TComponents extends readonly AnyComponentType[]>(
-        stores: readonly SparseSet<unknown>[],
-        filterStores: ResolvedQueryFilter,
+        plan: ResolvedQueryPlan,
         changeDetection: ChangeDetectionRange
     ): IterableIterator<QueryRow<TComponents>> {
-        const baseStore = chooseSmallestStore([...stores, ...filterStores.with]);
-        const components: unknown[] = new Array(stores.length);
+        // Specialize the hottest small-arity cases so iteration avoids temporary arrays/spreads.
+        if (plan.stores.length === 1) {
+            const store0 = plan.stores[0]!;
 
-        for (const entity of baseStore.entities) {
+            for (const entity of plan.baseStore.entities) {
+                if (!this.isAlive(entity)) {
+                    continue;
+                }
+
+                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                    continue;
+                }
+
+                const value0 = store0.get(entity);
+
+                if (value0 === undefined) {
+                    continue;
+                }
+
+                yield [entity, value0] as unknown as QueryRow<TComponents>;
+            }
+
+            return;
+        }
+
+        if (plan.stores.length === 2) {
+            const store0 = plan.stores[0]!;
+            const store1 = plan.stores[1]!;
+
+            for (const entity of plan.baseStore.entities) {
+                if (!this.isAlive(entity)) {
+                    continue;
+                }
+
+                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                    continue;
+                }
+
+                const value0 = store0.get(entity);
+
+                if (value0 === undefined) {
+                    continue;
+                }
+
+                const value1 = store1.get(entity);
+
+                if (value1 === undefined) {
+                    continue;
+                }
+
+                yield [entity, value0, value1] as unknown as QueryRow<TComponents>;
+            }
+
+            return;
+        }
+
+        if (plan.stores.length === 3) {
+            const store0 = plan.stores[0]!;
+            const store1 = plan.stores[1]!;
+            const store2 = plan.stores[2]!;
+
+            for (const entity of plan.baseStore.entities) {
+                if (!this.isAlive(entity)) {
+                    continue;
+                }
+
+                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                    continue;
+                }
+
+                const value0 = store0.get(entity);
+
+                if (value0 === undefined) {
+                    continue;
+                }
+
+                const value1 = store1.get(entity);
+
+                if (value1 === undefined) {
+                    continue;
+                }
+
+                const value2 = store2.get(entity);
+
+                if (value2 === undefined) {
+                    continue;
+                }
+
+                yield [entity, value0, value1, value2] as unknown as QueryRow<TComponents>;
+            }
+
+            return;
+        }
+
+        const components: unknown[] = new Array(plan.stores.length);
+
+        for (const entity of plan.baseStore.entities) {
             if (!this.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesFilter(entity, filterStores, changeDetection)) {
+            if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
                 continue;
             }
 
-            if (!this.fillComponents(entity, stores, components)) {
+            if (!this.fillComponents(entity, plan.stores, components)) {
                 continue;
             }
 
@@ -1257,34 +1340,128 @@ export class World {
         changeDetection: ChangeDetectionRange,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        const cache = this.resolveQueryStateCache(state);
+        const plan = this.resolveQueryStateCache(state);
 
-        if (cache === undefined) {
+        if (plan === undefined) {
             return;
         }
 
-        this.eachResolvedQuery(cache.stores, cache.filterStores, changeDetection, visitor);
+        this.eachResolvedQuery(plan, changeDetection, visitor);
     }
 
     private eachResolvedQuery<const TComponents extends readonly AnyComponentType[]>(
-        stores: readonly SparseSet<unknown>[],
-        filterStores: ResolvedQueryFilter,
+        plan: ResolvedQueryPlan,
         changeDetection: ChangeDetectionRange,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        const baseStore = chooseSmallestStore([...stores, ...filterStores.with]);
-        const components: unknown[] = new Array(stores.length);
+        const callVisitor = visitor as (entity: Entity, ...components: unknown[]) => void;
 
-        for (const entity of baseStore.entities) {
+        // Mirror iterateResolvedQuery fast paths so each() can call the visitor directly.
+        if (plan.stores.length === 1) {
+            const store0 = plan.stores[0]!;
+
+            for (const entity of plan.baseStore.entities) {
+                if (!this.isAlive(entity)) {
+                    continue;
+                }
+
+                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                    continue;
+                }
+
+                const value0 = store0.get(entity);
+
+                if (value0 === undefined) {
+                    continue;
+                }
+
+                callVisitor(entity, value0);
+            }
+
+            return;
+        }
+
+        if (plan.stores.length === 2) {
+            const store0 = plan.stores[0]!;
+            const store1 = plan.stores[1]!;
+
+            for (const entity of plan.baseStore.entities) {
+                if (!this.isAlive(entity)) {
+                    continue;
+                }
+
+                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                    continue;
+                }
+
+                const value0 = store0.get(entity);
+
+                if (value0 === undefined) {
+                    continue;
+                }
+
+                const value1 = store1.get(entity);
+
+                if (value1 === undefined) {
+                    continue;
+                }
+
+                callVisitor(entity, value0, value1);
+            }
+
+            return;
+        }
+
+        if (plan.stores.length === 3) {
+            const store0 = plan.stores[0]!;
+            const store1 = plan.stores[1]!;
+            const store2 = plan.stores[2]!;
+
+            for (const entity of plan.baseStore.entities) {
+                if (!this.isAlive(entity)) {
+                    continue;
+                }
+
+                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                    continue;
+                }
+
+                const value0 = store0.get(entity);
+
+                if (value0 === undefined) {
+                    continue;
+                }
+
+                const value1 = store1.get(entity);
+
+                if (value1 === undefined) {
+                    continue;
+                }
+
+                const value2 = store2.get(entity);
+
+                if (value2 === undefined) {
+                    continue;
+                }
+
+                callVisitor(entity, value0, value1, value2);
+            }
+
+            return;
+        }
+
+        const components: unknown[] = new Array(plan.stores.length);
+
+        for (const entity of plan.baseStore.entities) {
             if (!this.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesFilter(entity, filterStores, changeDetection)) {
+            if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
                 continue;
             }
 
-            if (!this.fillComponents(entity, stores, components)) {
+            if (!this.fillComponents(entity, plan.stores, components)) {
                 continue;
             }
 
@@ -1293,24 +1470,22 @@ export class World {
     }
 
     private countResolvedQueryMatches(
-        stores: readonly SparseSet<unknown>[],
-        filterStores: ResolvedQueryFilter,
+        plan: ResolvedQueryPlan,
         changeDetection: ChangeDetectionRange,
         limit: number
     ): number {
-        const baseStore = chooseSmallestStore([...stores, ...filterStores.with]);
         let matches = 0;
 
-        for (const entity of baseStore.entities) {
+        for (const entity of plan.baseStore.entities) {
             if (!this.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesFilter(entity, filterStores, changeDetection)) {
+            if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
                 continue;
             }
 
-            if (!this.hasComponents(entity, stores)) {
+            if (!this.hasComponents(entity, plan.stores)) {
                 continue;
             }
 
@@ -1348,9 +1523,13 @@ export class World {
         const optionalStores = this.resolveOptionalStores(optional);
 
         yield* this.iterateResolvedOptionalQuery<TRequiredComponents, TOptionalComponents>(
-            requiredStores,
-            optionalStores,
-            filterStores,
+            {
+                requiredStores,
+                optionalStores,
+                filterStores,
+                baseStore: chooseSmallestStore(requiredStores, filterStores.with),
+                filterMode: this.resolveFilterMode(filterStores),
+            },
             changeDetection
         );
     }
@@ -1362,16 +1541,14 @@ export class World {
         state: OptionalQueryState<TRequiredComponents, TOptionalComponents>,
         changeDetection: ChangeDetectionRange
     ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
-        const cache = this.resolveOptionalQueryStateCache(state);
+        const plan = this.resolveOptionalQueryStateCache(state);
 
-        if (cache === undefined) {
+        if (plan === undefined) {
             return;
         }
 
         yield* this.iterateResolvedOptionalQuery<TRequiredComponents, TOptionalComponents>(
-            cache.requiredStores,
-            cache.optionalStores,
-            cache.filterStores,
+            plan,
             changeDetection
         );
     }
@@ -1380,28 +1557,61 @@ export class World {
         const TRequiredComponents extends readonly AnyComponentType[],
         const TOptionalComponents extends readonly AnyComponentType[],
     >(
-        requiredStores: readonly SparseSet<unknown>[],
-        optionalStores: readonly (SparseSet<unknown> | undefined)[],
-        filterStores: ResolvedQueryFilter,
+        plan: ResolvedOptionalQueryPlan,
         changeDetection: ChangeDetectionRange
     ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
-        const baseStore = chooseSmallestStore([...requiredStores, ...filterStores.with]);
-        const components: unknown[] = new Array(requiredStores.length + optionalStores.length);
+        if (plan.requiredStores.length === 1 && plan.optionalStores.length === 1) {
+            const requiredStore0 = plan.requiredStores[0]!;
+            const optionalStore0 = plan.optionalStores[0];
 
-        for (const entity of baseStore.entities) {
+            for (const entity of plan.baseStore.entities) {
+                if (!this.isAlive(entity)) {
+                    continue;
+                }
+
+                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                    continue;
+                }
+
+                const requiredValue0 = requiredStore0.get(entity);
+
+                if (requiredValue0 === undefined) {
+                    continue;
+                }
+
+                yield [
+                    entity,
+                    requiredValue0,
+                    optionalStore0?.get(entity),
+                ] as unknown as OptionalQueryRow<TRequiredComponents, TOptionalComponents>;
+            }
+
+            return;
+        }
+
+        const components: unknown[] = new Array(
+            plan.requiredStores.length + plan.optionalStores.length
+        );
+
+        for (const entity of plan.baseStore.entities) {
             if (!this.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesFilter(entity, filterStores, changeDetection)) {
+            if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
                 continue;
             }
 
-            if (!this.fillComponents(entity, requiredStores, components)) {
+            if (!this.fillComponents(entity, plan.requiredStores, components)) {
                 continue;
             }
 
-            this.fillOptionalComponents(entity, optionalStores, components, requiredStores.length);
+            this.fillOptionalComponents(
+                entity,
+                plan.optionalStores,
+                components,
+                plan.requiredStores.length
+            );
 
             yield [entity, ...components] as unknown as OptionalQueryRow<
                 TRequiredComponents,
@@ -1424,28 +1634,20 @@ export class World {
             ]
         ) => void
     ): void {
-        const cache = this.resolveOptionalQueryStateCache(state);
+        const plan = this.resolveOptionalQueryStateCache(state);
 
-        if (cache === undefined) {
+        if (plan === undefined) {
             return;
         }
 
-        this.eachResolvedOptionalQuery(
-            cache.requiredStores,
-            cache.optionalStores,
-            cache.filterStores,
-            changeDetection,
-            visitor
-        );
+        this.eachResolvedOptionalQuery(plan, changeDetection, visitor);
     }
 
     private eachResolvedOptionalQuery<
         const TRequiredComponents extends readonly AnyComponentType[],
         const TOptionalComponents extends readonly AnyComponentType[],
     >(
-        requiredStores: readonly SparseSet<unknown>[],
-        optionalStores: readonly (SparseSet<unknown> | undefined)[],
-        filterStores: ResolvedQueryFilter,
+        plan: ResolvedOptionalQueryPlan,
         changeDetection: ChangeDetectionRange,
         visitor: (
             entity: Entity,
@@ -1455,23 +1657,56 @@ export class World {
             ]
         ) => void
     ): void {
-        const baseStore = chooseSmallestStore([...requiredStores, ...filterStores.with]);
-        const components: unknown[] = new Array(requiredStores.length + optionalStores.length);
+        const callVisitor = visitor as (entity: Entity, ...components: unknown[]) => void;
 
-        for (const entity of baseStore.entities) {
+        if (plan.requiredStores.length === 1 && plan.optionalStores.length === 1) {
+            const requiredStore0 = plan.requiredStores[0]!;
+            const optionalStore0 = plan.optionalStores[0];
+
+            for (const entity of plan.baseStore.entities) {
+                if (!this.isAlive(entity)) {
+                    continue;
+                }
+
+                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                    continue;
+                }
+
+                const requiredValue0 = requiredStore0.get(entity);
+
+                if (requiredValue0 === undefined) {
+                    continue;
+                }
+
+                callVisitor(entity, requiredValue0, optionalStore0?.get(entity));
+            }
+
+            return;
+        }
+
+        const components: unknown[] = new Array(
+            plan.requiredStores.length + plan.optionalStores.length
+        );
+
+        for (const entity of plan.baseStore.entities) {
             if (!this.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesFilter(entity, filterStores, changeDetection)) {
+            if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
                 continue;
             }
 
-            if (!this.fillComponents(entity, requiredStores, components)) {
+            if (!this.fillComponents(entity, plan.requiredStores, components)) {
                 continue;
             }
 
-            this.fillOptionalComponents(entity, optionalStores, components, requiredStores.length);
+            this.fillOptionalComponents(
+                entity,
+                plan.optionalStores,
+                components,
+                plan.requiredStores.length
+            );
 
             visitor(
                 entity,
@@ -1484,24 +1719,22 @@ export class World {
     }
 
     private countResolvedOptionalQueryMatches(
-        requiredStores: readonly SparseSet<unknown>[],
-        filterStores: ResolvedQueryFilter,
+        plan: ResolvedOptionalQueryPlan,
         changeDetection: ChangeDetectionRange,
         limit: number
     ): number {
-        const baseStore = chooseSmallestStore([...requiredStores, ...filterStores.with]);
         let matches = 0;
 
-        for (const entity of baseStore.entities) {
+        for (const entity of plan.baseStore.entities) {
             if (!this.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesFilter(entity, filterStores, changeDetection)) {
+            if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
                 continue;
             }
 
-            if (!this.hasComponents(entity, requiredStores)) {
+            if (!this.hasComponents(entity, plan.requiredStores)) {
                 continue;
             }
 
@@ -1515,6 +1748,118 @@ export class World {
         return matches;
     }
 
+    private matchesFilter(
+        entity: Entity,
+        filter: ResolvedQueryFilter,
+        changeDetection: ChangeDetectionRange
+    ): boolean {
+        if (!this.matchesStructuralFilter(entity, filter)) {
+            return false;
+        }
+
+        if (!this.matchesAddedStores(entity, filter.added, changeDetection)) {
+            return false;
+        }
+
+        if (!this.matchesChangedStores(entity, filter.changed, changeDetection)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private matchesPlanFilter(
+        entity: Entity,
+        plan: {
+            readonly filterMode: QueryFilterMode;
+            readonly filterStores: ResolvedQueryFilter;
+        },
+        changeDetection: ChangeDetectionRange
+    ): boolean {
+        if (plan.filterMode === "none") {
+            return true;
+        }
+
+        // Structural-only filters can skip change-tick lookups entirely.
+        if (plan.filterMode === "structural") {
+            return this.matchesStructuralFilter(entity, plan.filterStores);
+        }
+
+        return this.matchesFilter(entity, plan.filterStores, changeDetection);
+    }
+
+    private matchesStructuralFilter(entity: Entity, filter: ResolvedQueryFilter): boolean {
+        for (const store of filter.with) {
+            if (!store.has(entity)) {
+                return false;
+            }
+        }
+
+        for (const store of filter.without) {
+            if (store.has(entity)) {
+                return false;
+            }
+        }
+
+        for (const store of filter.none) {
+            if (store.has(entity)) {
+                return false;
+            }
+        }
+
+        if (filter.or.length === 0) {
+            return true;
+        }
+
+        for (const store of filter.or) {
+            if (store.has(entity)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private matchesAddedStores(
+        entity: Entity,
+        stores: readonly SparseSet<unknown>[],
+        changeDetection: ChangeDetectionRange
+    ): boolean {
+        if (stores.length === 0) {
+            return true;
+        }
+
+        for (const store of stores) {
+            const tick = store.getAddedTick(entity);
+
+            if (tick !== undefined && isTickInRange(tick, changeDetection)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private matchesChangedStores(
+        entity: Entity,
+        stores: readonly SparseSet<unknown>[],
+        changeDetection: ChangeDetectionRange
+    ): boolean {
+        if (stores.length === 0) {
+            return true;
+        }
+
+        for (const store of stores) {
+            const tick = store.getChangedTick(entity);
+
+            if (tick !== undefined && isTickInRange(tick, changeDetection)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private fillComponents(
         entity: Entity,
         stores: readonly SparseSet<unknown>[],
@@ -1522,12 +1867,14 @@ export class World {
     ): boolean {
         for (let index = 0; index < stores.length; index++) {
             const store = stores[index]!;
+            const value = store.get(entity);
 
-            if (!store.has(entity)) {
+            // A single get() doubles as both presence check and value fetch on the hot path.
+            if (value === undefined) {
                 return false;
             }
 
-            output[index] = store.get(entity);
+            output[index] = value;
         }
 
         return true;
@@ -1609,6 +1956,7 @@ export class World {
         for (const type of filter.without ?? []) {
             const store = this.stores.get(type.id);
 
+            // Missing stores satisfy negative filters, so only track stores that actually exist.
             if (store !== undefined) {
                 withoutStores.push(store);
             }
@@ -1664,9 +2012,23 @@ export class World {
         };
     }
 
+    private resolveFilterMode(filter: ResolvedQueryFilter): QueryFilterMode {
+        // Preclassifying the filter lets query execution skip branches inside the inner loop.
+        if (
+            filter.with.length === 0 &&
+            filter.without.length === 0 &&
+            filter.or.length === 0 &&
+            filter.none.length === 0
+        ) {
+            return filter.added.length === 0 && filter.changed.length === 0 ? "none" : "change";
+        }
+
+        return filter.added.length === 0 && filter.changed.length === 0 ? "structural" : "change";
+    }
+
     private resolveQueryStateCache<const TComponents extends readonly AnyComponentType[]>(
         state: QueryState<TComponents>
-    ): Required<QueryStateCache> | undefined {
+    ): ResolvedQueryPlan | undefined {
         const key = state as QueryState<readonly AnyComponentType[]>;
         const existing = this.queryStateCaches.get(key);
 
@@ -1677,10 +2039,18 @@ export class World {
         const stores = this.resolveQueryStores(state.types);
         const filterStores =
             stores === undefined ? undefined : this.resolveFilterStores(state.filter);
+        const plan =
+            stores === undefined || filterStores === undefined
+                ? undefined
+                : {
+                      stores,
+                      filterStores,
+                      baseStore: chooseSmallestStore(stores, filterStores.with),
+                      filterMode: this.resolveFilterMode(filterStores),
+                  };
         const cache = {
             storeVersion: this.componentStoreVersion,
-            stores,
-            filterStores,
+            plan,
         } satisfies QueryStateCache;
 
         this.queryStateCaches.set(key, cache);
@@ -1693,7 +2063,7 @@ export class World {
         const TOptionalComponents extends readonly AnyComponentType[],
     >(
         state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
-    ): Required<OptionalQueryStateCache> | undefined {
+    ): ResolvedOptionalQueryPlan | undefined {
         const key = state as OptionalQueryState<
             readonly AnyComponentType[],
             readonly AnyComponentType[]
@@ -1709,11 +2079,21 @@ export class World {
             requiredStores === undefined ? undefined : this.resolveFilterStores(state.filter);
         const optionalStores =
             filterStores === undefined ? undefined : this.resolveOptionalStores(state.optional);
+        const plan =
+            requiredStores === undefined ||
+            optionalStores === undefined ||
+            filterStores === undefined
+                ? undefined
+                : {
+                      requiredStores,
+                      optionalStores,
+                      filterStores,
+                      baseStore: chooseSmallestStore(requiredStores, filterStores.with),
+                      filterMode: this.resolveFilterMode(filterStores),
+                  };
         const cache = {
             storeVersion: this.componentStoreVersion,
-            requiredStores,
-            optionalStores,
-            filterStores,
+            plan,
         } satisfies OptionalQueryStateCache;
 
         this.optionalQueryStateCaches.set(key, cache);

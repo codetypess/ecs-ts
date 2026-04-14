@@ -53,6 +53,7 @@ interface BenchmarkReport {
 interface BenchmarkOptions {
     readonly json: boolean;
     readonly config: BenchmarkConfig;
+    readonly only: readonly string[];
 }
 
 const DEFAULT_BENCHMARK_CONFIG: BenchmarkConfig = {
@@ -267,6 +268,7 @@ function createReport(results: readonly BenchmarkResult[]): BenchmarkReport {
 function parseOptions(args: readonly string[]): BenchmarkOptions {
     let json = false;
     let profile = "default";
+    const only: string[] = [];
 
     for (let index = 0; index < args.length; index++) {
         const arg = args[index]!;
@@ -293,6 +295,23 @@ function parseOptions(args: readonly string[]): BenchmarkOptions {
             continue;
         }
 
+        if (arg === "--only") {
+            const value = args[index + 1];
+
+            if (value === undefined) {
+                throw new Error("Missing value for --only.");
+            }
+
+            only.push(...parseOnlyPatterns(value));
+            index++;
+            continue;
+        }
+
+        if (arg.startsWith("--only=")) {
+            only.push(...parseOnlyPatterns(arg.slice("--only=".length)));
+            continue;
+        }
+
         if (arg === "--help" || arg === "-h") {
             printUsage();
             process.exit(0);
@@ -304,7 +323,33 @@ function parseOptions(args: readonly string[]): BenchmarkOptions {
     return {
         json,
         config: resolveConfig(profile),
+        only,
     };
+}
+
+function parseOnlyPatterns(value: string): string[] {
+    return value
+        .split(",")
+        .map((pattern) => pattern.trim().toLowerCase())
+        .filter((pattern) => pattern.length > 0);
+}
+
+function shouldRunBenchmark(name: string): boolean {
+    if (options.only.length === 0) {
+        return true;
+    }
+
+    const normalizedName = name.toLowerCase();
+
+    return options.only.some((pattern) => normalizedName.includes(pattern));
+}
+
+function pushBenchmark(results: BenchmarkResult[], name: string, run: () => number): void {
+    if (!shouldRunBenchmark(name)) {
+        return;
+    }
+
+    results.push(measure(name, run));
 }
 
 function resolveConfig(profile: string): BenchmarkConfig {
@@ -320,204 +365,184 @@ function resolveConfig(profile: string): BenchmarkConfig {
 }
 
 function printUsage(): void {
-    console.log("Usage: tsx benchmarks/ecs-benchmark.ts [--json] [--profile default|smoke]");
+    console.log(
+        "Usage: tsx benchmarks/ecs-benchmark.ts [--json] [--profile default|smoke] [--only pattern[,pattern...]]"
+    );
 }
 
 const movement = createMovementWorld(ENTITY_COUNT);
 const movingQuery = queryState([Position, Velocity]);
 const results: BenchmarkResult[] = [];
 
-results.push(
-    measure("spawn position+velocity", () => {
-        createMovementWorld(ENTITY_COUNT);
-        checksum += ENTITY_COUNT;
+pushBenchmark(results, "spawn position+velocity", () => {
+    createMovementWorld(ENTITY_COUNT);
+    checksum += ENTITY_COUNT;
 
-        return ENTITY_COUNT;
-    })
-);
+    return ENTITY_COUNT;
+});
 
-results.push(
-    measure("direct get(Position)", () => {
-        let operations = 0;
+pushBenchmark(results, "direct get(Position)", () => {
+    let operations = 0;
 
-        for (let loop = 0; loop < DIRECT_GET_LOOPS; loop++) {
-            for (const entity of movement.entities) {
-                checksum += movement.world.get(entity, Position)?.x ?? 0;
-                operations++;
-            }
+    for (let loop = 0; loop < DIRECT_GET_LOOPS; loop++) {
+        for (const entity of movement.entities) {
+            checksum += movement.world.get(entity, Position)?.x ?? 0;
+            operations++;
         }
+    }
 
-        return operations;
-    })
-);
+    return operations;
+});
 
-results.push(
-    measure("query Position+Velocity", () => {
-        let operations = 0;
+pushBenchmark(results, "query Position+Velocity", () => {
+    let operations = 0;
 
-        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-            for (const [, position, velocity] of movement.world.query(Position, Velocity)) {
-                position.x += velocity.x * 0.001;
-                checksum += position.y;
-                operations++;
-            }
+    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+        for (const [, position, velocity] of movement.world.query(Position, Velocity)) {
+            position.x += velocity.x * 0.001;
+            checksum += position.y;
+            operations++;
         }
+    }
 
-        return operations;
-    })
-);
+    return operations;
+});
 
-results.push(
-    measure("queryState.iter Position+Velocity", () => {
-        let operations = 0;
+pushBenchmark(results, "queryState.iter Position+Velocity", () => {
+    let operations = 0;
 
-        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-            for (const [, position, velocity] of movingQuery.iter(movement.world)) {
-                position.x += velocity.x * 0.001;
-                checksum += position.y;
-                operations++;
-            }
+    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+        for (const [, position, velocity] of movingQuery.iter(movement.world)) {
+            position.x += velocity.x * 0.001;
+            checksum += position.y;
+            operations++;
         }
+    }
 
-        return operations;
-    })
-);
+    return operations;
+});
 
-results.push(
-    measure("queryState.each Position+Velocity", () => {
-        let operations = 0;
+pushBenchmark(results, "queryState.each Position+Velocity", () => {
+    let operations = 0;
 
-        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-            movingQuery.each(movement.world, (entity, position, velocity) => {
-                position.x += velocity.x * 0.001;
-                checksum += position.y + (entity % 2);
-                operations++;
-            });
-        }
-
-        return operations;
-    })
-);
-
-results.push(
-    measure("filtered query Player not Sleeping", () => {
-        let operations = 0;
-
-        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-            for (const [, position] of movement.world.queryWhere([Position], {
-                with: [Player],
-                without: [Sleeping],
-            })) {
-                checksum += position.x;
-                operations++;
-            }
-        }
-
-        return operations;
-    })
-);
-
-results.push(
-    measure("optional query Velocity", () => {
-        let operations = 0;
-
-        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-            for (const [, position, velocity] of movement.world.queryOptional(
-                [Position],
-                [Velocity],
-                { none: [Sleeping] }
-            )) {
-                checksum += position.x + (velocity?.x ?? 0);
-                operations++;
-            }
-        }
-
-        return operations;
-    })
-);
-
-results.push(
-    measure("message write+read", () => {
-        const world = new World();
-        const target = world.spawn(withComponent(Health, { value: 100 }));
-        const reader = messageReader(DamageMessage);
-
-        world.addMessage(DamageMessage);
-
-        for (let index = 0; index < EVENT_COUNT; index++) {
-            world.writeMessage(DamageMessage, { target, amount: 1 });
-        }
-
-        checksum += reader.read(world).length;
-
-        return EVENT_COUNT;
-    })
-);
-
-results.push(
-    measure("observer trigger", () => {
-        const world = new World();
-        const target = world.spawn(withComponent(Health, { value: 100 }));
-
-        world.observe(DamageEvent, (damage, currentWorld) => {
-            checksum += currentWorld.mustGet(damage.target, Health).value;
+    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+        movingQuery.each(movement.world, (entity, position, velocity) => {
+            position.x += velocity.x * 0.001;
+            checksum += position.y + (entity % 2);
+            operations++;
         });
+    }
 
-        for (let index = 0; index < EVENT_COUNT; index++) {
-            world.trigger(DamageEvent, { target, amount: 1 });
+    return operations;
+});
+
+pushBenchmark(results, "filtered query Player not Sleeping", () => {
+    let operations = 0;
+
+    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+        for (const [, position] of movement.world.queryWhere([Position], {
+            with: [Player],
+            without: [Sleeping],
+        })) {
+            checksum += position.x;
+            operations++;
         }
+    }
 
-        return EVENT_COUNT;
-    })
-);
+    return operations;
+});
 
-results.push(
-    measure("scheduler runIf composed (pass)", () => {
-        const world = createSchedulerWorld(true);
+pushBenchmark(results, "optional query Velocity", () => {
+    let operations = 0;
 
-        for (let index = 0; index < SCHEDULER_UPDATES; index++) {
-            world.update(0);
+    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+        for (const [, position, velocity] of movement.world.queryOptional(
+            [Position],
+            [Velocity],
+            { none: [Sleeping] }
+        )) {
+            checksum += position.x + (velocity?.x ?? 0);
+            operations++;
         }
+    }
 
-        return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
-    })
-);
+    return operations;
+});
 
-results.push(
-    measure("scheduler runIf composed (skip)", () => {
-        const world = createSchedulerWorld(false);
+pushBenchmark(results, "message write+read", () => {
+    const world = new World();
+    const target = world.spawn(withComponent(Health, { value: 100 }));
+    const reader = messageReader(DamageMessage);
 
-        for (let index = 0; index < SCHEDULER_UPDATES; index++) {
-            world.update(0);
-        }
+    world.addMessage(DamageMessage);
 
-        return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
-    })
-);
+    for (let index = 0; index < EVENT_COUNT; index++) {
+        world.writeMessage(DamageMessage, { target, amount: 1 });
+    }
 
-results.push(
-    measure("scheduler runIf anyMatch query (pass)", () => {
-        const world = createQueryRunIfSchedulerWorld(true);
+    checksum += reader.read(world).length;
 
-        for (let index = 0; index < SCHEDULER_UPDATES; index++) {
-            world.update(0);
-        }
+    return EVENT_COUNT;
+});
 
-        return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
-    })
-);
+pushBenchmark(results, "observer trigger", () => {
+    const world = new World();
+    const target = world.spawn(withComponent(Health, { value: 100 }));
 
-results.push(
-    measure("scheduler runIf anyMatch query (skip)", () => {
-        const world = createQueryRunIfSchedulerWorld(false);
+    world.observe(DamageEvent, (damage, currentWorld) => {
+        checksum += currentWorld.mustGet(damage.target, Health).value;
+    });
 
-        for (let index = 0; index < SCHEDULER_UPDATES; index++) {
-            world.update(0);
-        }
+    for (let index = 0; index < EVENT_COUNT; index++) {
+        world.trigger(DamageEvent, { target, amount: 1 });
+    }
 
-        return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
-    })
-);
+    return EVENT_COUNT;
+});
+
+pushBenchmark(results, "scheduler runIf composed (pass)", () => {
+    const world = createSchedulerWorld(true);
+
+    for (let index = 0; index < SCHEDULER_UPDATES; index++) {
+        world.update(0);
+    }
+
+    return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+});
+
+pushBenchmark(results, "scheduler runIf composed (skip)", () => {
+    const world = createSchedulerWorld(false);
+
+    for (let index = 0; index < SCHEDULER_UPDATES; index++) {
+        world.update(0);
+    }
+
+    return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+});
+
+pushBenchmark(results, "scheduler runIf anyMatch query (pass)", () => {
+    const world = createQueryRunIfSchedulerWorld(true);
+
+    for (let index = 0; index < SCHEDULER_UPDATES; index++) {
+        world.update(0);
+    }
+
+    return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+});
+
+pushBenchmark(results, "scheduler runIf anyMatch query (skip)", () => {
+    const world = createQueryRunIfSchedulerWorld(false);
+
+    for (let index = 0; index < SCHEDULER_UPDATES; index++) {
+        world.update(0);
+    }
+
+    return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+});
+
+if (results.length === 0) {
+    throw new Error(`No benchmark matched --only filters: ${options.only.join(", ")}`);
+}
 
 const report = createReport(results);
 

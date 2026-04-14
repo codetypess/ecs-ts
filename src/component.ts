@@ -1,5 +1,4 @@
 import type { Entity } from "./entity";
-import { assertComponentValue } from "./internal/component-value";
 import type { World } from "./world";
 
 let nextComponentId = 0;
@@ -95,4 +94,10 @@ export function bundle(...entries: ComponentEntry<unknown>[]): Bundle {
 
 export function requireComponent<T>(type: ComponentType<T>, create: () => T): RequiredComponent<T> {
     return Object.freeze({ type, create });
+}
+
+export function assertComponentValue<T>(type: ComponentType<T>, value: T): void {
+    if (value === null || value === undefined) {
+        throw new TypeError(`Component ${type.name} value cannot be ${String(value)}`);
+    }
 }
