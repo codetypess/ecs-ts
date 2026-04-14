@@ -40,6 +40,88 @@ test("bundles insert and remove reusable component groups", () => {
     assert.equal(world.hasAny(entity, [Player, Health]), false);
 });
 
+test("commands flush queued structural edits in order", () => {
+    const Position = defineComponent<{ x: number; y: number }>("CommandPosition");
+    const Velocity = defineComponent<{ x: number; y: number }>("CommandVelocity");
+    const world = new World();
+    const commands = world.commands();
+    const entity = commands.spawn(withComponent(Position, { x: 1, y: 2 }));
+
+    commands.add(entity, Velocity, { x: 3, y: 4 });
+    commands.remove(entity, Position);
+
+    assert.equal(commands.pending, 3);
+    assert.equal(world.isAlive(entity), true);
+    assert.equal(world.hasAny(entity, [Position, Velocity]), false);
+
+    commands.flush();
+
+    assert.equal(commands.pending, 0);
+    assert.equal(world.has(entity, Position), false);
+    assert.deepEqual(world.mustGet(entity, Velocity), { x: 3, y: 4 });
+});
+
+test("component lifecycle hooks fire in order and can be unsubscribed", () => {
+    const events: string[] = [];
+    const Position = defineComponent<{ x: number }>("LifecycleHookPosition", {
+        onAdd: (_entity, position) => events.push(`type:add:${position.x}`),
+        onInsert: (_entity, position) => events.push(`type:insert:${position.x}`),
+        onReplace: (_entity, position) => events.push(`type:replace:${position.x}`),
+        onRemove: (_entity, position) => events.push(`type:remove:${position.x}`),
+        onDespawn: (_entity, position) => events.push(`type:despawn:${position.x}`),
+    });
+    const world = new World();
+    const offAdd = world.onAdd(Position, (_entity, position) =>
+        events.push(`world:add:${position.x}`)
+    );
+    const offInsert = world.onInsert(Position, (_entity, position) =>
+        events.push(`world:insert:${position.x}`)
+    );
+    const offReplace = world.onReplace(Position, (_entity, position) =>
+        events.push(`world:replace:${position.x}`)
+    );
+    const offRemove = world.onRemove(Position, (_entity, position) =>
+        events.push(`world:remove:${position.x}`)
+    );
+    const offDespawn = world.onDespawn(Position, (_entity, position) =>
+        events.push(`world:despawn:${position.x}`)
+    );
+
+    const entity = world.spawn(withComponent(Position, { x: 1 }));
+
+    world.add(entity, Position, { x: 2 });
+    world.remove(entity, Position);
+
+    offAdd();
+    offInsert();
+    offReplace();
+    offRemove();
+    offDespawn();
+
+    world.add(entity, Position, { x: 3 });
+    world.despawn(entity);
+
+    assert.deepEqual(events, [
+        "type:add:1",
+        "world:add:1",
+        "type:insert:1",
+        "world:insert:1",
+        "type:replace:1",
+        "world:replace:1",
+        "type:insert:2",
+        "world:insert:2",
+        "type:replace:2",
+        "world:replace:2",
+        "type:remove:2",
+        "world:remove:2",
+        "type:add:3",
+        "type:insert:3",
+        "type:replace:3",
+        "type:remove:3",
+        "type:despawn:3",
+    ]);
+});
+
 test("component values reject null and undefined at runtime", () => {
     const Position = defineComponent<{ x: number; y: number }>("InvalidValuePosition");
     const RequiredPosition = defineComponent("InvalidValueRequiredPosition", {

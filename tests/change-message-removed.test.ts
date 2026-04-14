@@ -83,6 +83,23 @@ test("message readers keep independent cursors", () => {
     assert.equal(unread[0]?.amount, 5);
 });
 
+test("messages expire after the next message update window", () => {
+    const Damage = defineMessage<{ amount: number }>("ExpiringDamage");
+    const world = new World();
+    const timelyReader = messageReader(Damage);
+    const lateReader = messageReader(Damage);
+
+    world.addMessage(Damage);
+    world.writeMessage(Damage, { amount: 1 });
+    world.update(0);
+
+    assert.deepEqual(timelyReader.read(world), [{ amount: 1 }]);
+
+    world.update(0);
+
+    assert.deepEqual(lateReader.read(world), []);
+});
+
 test("removed readers can inspect records without draining them", () => {
     const Position = defineComponent<{ x: number; y: number }>("RemovedPosition");
     const world = new World();
