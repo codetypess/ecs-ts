@@ -32,30 +32,50 @@ interface MovementWorld {
     readonly entities: readonly Entity[];
 }
 
+interface BenchmarkConfig {
+    readonly entityCount: number;
+    readonly queryLoops: number;
+    readonly directGetLoops: number;
+    readonly eventCount: number;
+    readonly schedulerUpdates: number;
+    readonly schedulerSystems: number;
+    readonly warmupRounds: number;
+    readonly sampleRounds: number;
+}
+
 interface BenchmarkReport {
     readonly formatVersion: 1;
-    readonly config: {
-        readonly entityCount: number;
-        readonly queryLoops: number;
-        readonly directGetLoops: number;
-        readonly eventCount: number;
-        readonly schedulerUpdates: number;
-        readonly schedulerSystems: number;
-        readonly warmupRounds: number;
-        readonly sampleRounds: number;
-    };
+    readonly config: BenchmarkConfig;
     readonly checksum: number;
     readonly results: readonly BenchmarkResult[];
 }
 
-const ENTITY_COUNT = 50_000;
-const QUERY_LOOPS = 20;
-const DIRECT_GET_LOOPS = 20;
-const EVENT_COUNT = 100_000;
-const SCHEDULER_UPDATES = 5_000;
-const SCHEDULER_SYSTEMS = 16;
-const WARMUP_ROUNDS = 1;
-const SAMPLE_ROUNDS = 5;
+interface BenchmarkOptions {
+    readonly json: boolean;
+    readonly config: BenchmarkConfig;
+}
+
+const DEFAULT_BENCHMARK_CONFIG: BenchmarkConfig = {
+    entityCount: 50_000,
+    queryLoops: 20,
+    directGetLoops: 20,
+    eventCount: 100_000,
+    schedulerUpdates: 5_000,
+    schedulerSystems: 16,
+    warmupRounds: 1,
+    sampleRounds: 5,
+};
+
+const SMOKE_BENCHMARK_CONFIG: BenchmarkConfig = {
+    entityCount: 2_000,
+    queryLoops: 4,
+    directGetLoops: 4,
+    eventCount: 5_000,
+    schedulerUpdates: 250,
+    schedulerSystems: 6,
+    warmupRounds: 0,
+    sampleRounds: 2,
+};
 
 const Position = defineComponent<{ x: number; y: number }>("BenchPosition");
 const Velocity = defineComponent<{ x: number; y: number }>("BenchVelocity");
@@ -70,6 +90,14 @@ const QueryRunIf = queryState([Position, Velocity], { none: [Sleeping] });
 
 let checksum = 0;
 const options = parseOptions(process.argv.slice(2));
+const ENTITY_COUNT = options.config.entityCount;
+const QUERY_LOOPS = options.config.queryLoops;
+const DIRECT_GET_LOOPS = options.config.directGetLoops;
+const EVENT_COUNT = options.config.eventCount;
+const SCHEDULER_UPDATES = options.config.schedulerUpdates;
+const SCHEDULER_SYSTEMS = options.config.schedulerSystems;
+const WARMUP_ROUNDS = options.config.warmupRounds;
+const SAMPLE_ROUNDS = options.config.sampleRounds;
 
 function measure(name: string, run: () => number): BenchmarkResult {
     for (let warmup = 0; warmup < WARMUP_ROUNDS; warmup++) {
@@ -230,31 +258,69 @@ function printResults(results: readonly BenchmarkResult[]): void {
 function createReport(results: readonly BenchmarkResult[]): BenchmarkReport {
     return {
         formatVersion: 1,
-        config: {
-            entityCount: ENTITY_COUNT,
-            queryLoops: QUERY_LOOPS,
-            directGetLoops: DIRECT_GET_LOOPS,
-            eventCount: EVENT_COUNT,
-            schedulerUpdates: SCHEDULER_UPDATES,
-            schedulerSystems: SCHEDULER_SYSTEMS,
-            warmupRounds: WARMUP_ROUNDS,
-            sampleRounds: SAMPLE_ROUNDS,
-        },
+        config: options.config,
         checksum: Math.round(checksum),
         results,
     };
 }
 
-function parseOptions(args: readonly string[]): { readonly json: boolean } {
+function parseOptions(args: readonly string[]): BenchmarkOptions {
     let json = false;
+    let profile = "default";
 
-    for (const arg of args) {
+    for (let index = 0; index < args.length; index++) {
+        const arg = args[index]!;
+
         if (arg === "--json") {
             json = true;
+            continue;
         }
+
+        if (arg === "--profile") {
+            const value = args[index + 1];
+
+            if (value === undefined) {
+                throw new Error("Missing value for --profile.");
+            }
+
+            profile = value;
+            index++;
+            continue;
+        }
+
+        if (arg.startsWith("--profile=")) {
+            profile = arg.slice("--profile=".length);
+            continue;
+        }
+
+        if (arg === "--help" || arg === "-h") {
+            printUsage();
+            process.exit(0);
+        }
+
+        throw new Error(`Unknown option: ${arg}`);
     }
 
-    return { json };
+    return {
+        json,
+        config: resolveConfig(profile),
+    };
+}
+
+function resolveConfig(profile: string): BenchmarkConfig {
+    if (profile === "default") {
+        return DEFAULT_BENCHMARK_CONFIG;
+    }
+
+    if (profile === "smoke") {
+        return SMOKE_BENCHMARK_CONFIG;
+    }
+
+    throw new Error(`Unknown benchmark profile: ${profile}`);
+}
+
+function printUsage(): void {
+    console.log("Usage: tsx benchmarks/ecs-benchmark.ts [--json] [--profile default|smoke]");
 }
 
 const movement = createMovementWorld(ENTITY_COUNT);

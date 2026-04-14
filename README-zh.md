@@ -70,6 +70,7 @@ console.log(position);
 ## 示例
 
 ```sh
+npm run examples:check
 npm run example:bundle
 npm run example:lifecycle
 npm run example:scheduler
@@ -94,12 +95,14 @@ npm run example:ui
 
 ```sh
 npm test
+npm run examples:check
+npm run benchmark:smoke
 npm run benchmark
 npm run benchmark:json
 npm run benchmark:compare -- --baseline /tmp/ecs-baseline.json --current /tmp/ecs-current.json
 ```
 
-测试通过 `tsx` 使用 Node 内置的 `node:test` runner。Benchmark 是带多轮采样的轻量微基准，覆盖 spawn、按 entity 直接取组件、query 迭代、query state、filtered query、optional query、buffered messages、immediate observers 以及 scheduler `runIf` 开销。需要机器可读输出时可以用 `npm --silent run benchmark:json > /tmp/ecs-baseline.json`，然后用 `npm run benchmark:compare -- --baseline <baseline.json> --current <current.json> --threshold 15%` 对比同一台机器上的报告。
+测试通过 `tsx` 使用 Node 内置的 `node:test` runner。`npm run examples:check` 会对所有 example 入口做 smoke test。`npm run benchmark:smoke` 使用适合 CI 的精简 benchmark 配置，而 `npm run benchmark` 保留完整的多轮采样负载。需要机器可读输出时可以用 `npm --silent run benchmark:json > /tmp/ecs-baseline.json`，然后用 `npm run benchmark:compare -- --baseline <baseline.json> --current <current.json> --threshold 15%` 对比同一台机器上的报告。
 
 ## 后续可做
 

@@ -70,6 +70,7 @@ console.log(position);
 ## Examples
 
 ```sh
+npm run examples:check
 npm run example:bundle
 npm run example:lifecycle
 npm run example:scheduler
@@ -94,12 +95,14 @@ npm run example:ui
 
 ```sh
 npm test
+npm run examples:check
+npm run benchmark:smoke
 npm run benchmark
 npm run benchmark:json
 npm run benchmark:compare -- --baseline /tmp/ecs-baseline.json --current /tmp/ecs-current.json
 ```
 
-Tests use Node's built-in `node:test` runner through `tsx`. The benchmark is a lightweight multi-sample micro-benchmark covering spawn, direct component get, query iteration, query state, filtered queries, optional queries, buffered messages, immediate observers, and scheduler `runIf` overhead. Use `npm --silent run benchmark:json > /tmp/ecs-baseline.json` for machine-readable output, then compare same-machine reports with `npm run benchmark:compare -- --baseline <baseline.json> --current <current.json> --threshold 15%`.
+Tests use Node's built-in `node:test` runner through `tsx`. `npm run examples:check` smoke-tests every example entrypoint. `npm run benchmark:smoke` runs a reduced benchmark profile suitable for CI, while `npm run benchmark` keeps the full multi-sample workload. Use `npm --silent run benchmark:json > /tmp/ecs-baseline.json` for machine-readable output, then compare same-machine reports with `npm run benchmark:compare -- --baseline <baseline.json> --current <current.json> --threshold 15%`.
 
 ## Future Work
 
