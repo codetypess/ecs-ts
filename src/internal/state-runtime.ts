@@ -1,7 +1,8 @@
 import { createSystemRunner } from "../scheduler";
 import type { SystemCallback, SystemRunner } from "../scheduler";
+import type { Commands } from "../commands";
 import type { StateType, StateValue } from "../state";
-import type { Commands, World } from "../world";
+import type { World } from "../world";
 
 export interface StateRecord<T extends StateValue> {
     readonly type: StateType<T>;

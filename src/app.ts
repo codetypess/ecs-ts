@@ -1,17 +1,15 @@
 import type { EventObserver, EventType } from "./event";
 import type { MessageType } from "./message";
 import type { ResourceType } from "./resource";
-import type { StateType, StateValue } from "./state";
 import type {
-    Commands,
     ScheduleStage,
-    StateSystem,
-    System,
     SystemOptions,
     SystemSetLabel,
     SystemSetOptions,
-    TransitionSystem,
-} from "./world";
+} from "./scheduler";
+import type { StateType, StateValue } from "./state";
+import type { StateSystem, System, TransitionSystem } from "./system";
+import type { Commands } from "./commands";
 import { World } from "./world";
 
 export interface Plugin {

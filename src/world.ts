@@ -7,6 +7,7 @@ import type {
     ComponentType,
 } from "./component";
 import { assertComponentValue } from "./component";
+import { Commands } from "./commands";
 import { Entity, EntityManager, formatEntity } from "./entity";
 import type { EventObserver, EventType } from "./event";
 import type {
@@ -52,12 +53,14 @@ import {
     createSchedules,
     createSystemRunner,
     createSystemSetStageConfigs,
-    scheduleStages,
+    scheduleStageDefinitions,
 } from "./scheduler";
 import { SparseSet } from "./sparse-set";
 import type { StateType, StateValue } from "./state";
+import type { StateSystem, System, TransitionSystem } from "./system";
 
 export { OptionalQueryState, optionalQueryState, QueryState, queryState } from "./query";
+export { Commands } from "./commands";
 export type {
     ComponentTuple,
     OptionalComponentTuple,
@@ -74,174 +77,7 @@ export type {
     SystemSetLabel,
     SystemSetOptions,
 } from "./scheduler";
-
-export interface System {
-    onPreStartup?(world: World, dt: number, commands: Commands): void;
-    onStartup?(world: World, dt: number, commands: Commands): void;
-    onPostStartup?(world: World, dt: number, commands: Commands): void;
-    onFirst?(world: World, dt: number, commands: Commands): void;
-    onPreUpdate?(world: World, dt: number, commands: Commands): void;
-    onFixedUpdate?(world: World, dt: number, commands: Commands): void;
-    onUpdate?(world: World, dt: number, commands: Commands): void;
-    onPostUpdate?(world: World, dt: number, commands: Commands): void;
-    onLast?(world: World, dt: number, commands: Commands): void;
-    onShutdown?(world: World, dt: number, commands: Commands): void;
-}
-
-type CommandRunner = (world: World) => void;
-
-export interface StateSystem<T extends StateValue> {
-    onEnter?(world: World, dt: number, commands: Commands, value: T): void;
-    onExit?(world: World, dt: number, commands: Commands, value: T): void;
-}
-
-export interface TransitionSystem<T extends StateValue> {
-    onTransition?(world: World, dt: number, commands: Commands, from: T, to: T): void;
-}
-
-const lifecycleSystemMethods = {
-    preStartup: "onPreStartup",
-    startup: "onStartup",
-    postStartup: "onPostStartup",
-    first: "onFirst",
-    preUpdate: "onPreUpdate",
-    fixedUpdate: "onFixedUpdate",
-    update: "onUpdate",
-    postUpdate: "onPostUpdate",
-    last: "onLast",
-    shutdown: "onShutdown",
-} as const satisfies Record<ScheduleStage, keyof System>;
-
-export class Commands {
-    private readonly queue: CommandRunner[] = [];
-
-    constructor(private readonly world: World) {}
-
-    get pending(): number {
-        return this.queue.length;
-    }
-
-    spawn(...entries: ComponentEntry<unknown>[]): Entity {
-        return this.spawnBundle({ entries });
-    }
-
-    spawnBundle(bundle: Bundle): Entity {
-        const entity = this.world.spawn();
-        this.insertBundle(entity, bundle);
-
-        return entity;
-    }
-
-    add<T>(entity: Entity, type: ComponentType<T>, value: T): this {
-        this.queue.push((world) => {
-            world.add(entity, type, value);
-        });
-
-        return this;
-    }
-
-    remove<T>(entity: Entity, type: ComponentType<T>): this {
-        this.queue.push((world) => {
-            world.remove(entity, type);
-        });
-
-        return this;
-    }
-
-    insertBundle(entity: Entity, bundle: Bundle): this {
-        this.queue.push((world) => {
-            world.insertBundle(entity, bundle);
-        });
-
-        return this;
-    }
-
-    removeBundle(entity: Entity, bundle: Bundle): this {
-        this.queue.push((world) => {
-            world.removeBundle(entity, bundle);
-        });
-
-        return this;
-    }
-
-    despawn(entity: Entity): this {
-        this.queue.push((world) => {
-            world.despawn(entity);
-        });
-
-        return this;
-    }
-
-    setState<T extends StateValue>(type: StateType<T>, next: T): this {
-        this.queue.push((world) => {
-            world.setState(type, next);
-        });
-
-        return this;
-    }
-
-    setResource<T>(type: ResourceType<T>, value: T): this {
-        this.queue.push((world) => {
-            world.setResource(type, value);
-        });
-
-        return this;
-    }
-
-    removeResource<T>(type: ResourceType<T>): this {
-        this.queue.push((world) => {
-            world.removeResource(type);
-        });
-
-        return this;
-    }
-
-    markResourceChanged<T>(type: ResourceType<T>): this {
-        this.queue.push((world) => {
-            world.markResourceChanged(type);
-        });
-
-        return this;
-    }
-
-    markChanged<T>(entity: Entity, type: ComponentType<T>): this {
-        this.queue.push((world) => {
-            world.markChanged(entity, type);
-        });
-
-        return this;
-    }
-
-    writeMessage<T>(type: MessageType<T>, value: T): this {
-        this.queue.push((world) => {
-            world.writeMessage(type, value);
-        });
-
-        return this;
-    }
-
-    trigger<T>(type: EventType<T>, value: T): this {
-        this.queue.push((world) => {
-            world.trigger(type, value);
-        });
-
-        return this;
-    }
-
-    run(command: (world: World) => void): this {
-        this.queue.push(command);
-
-        return this;
-    }
-
-    flush(): void {
-        const commands = this.queue.splice(0);
-
-        for (const command of commands) {
-            command(this.world);
-        }
-    }
-}
+export type { StateSystem, System, TransitionSystem } from "./system";
 
 export class World {
     private readonly runScheduledSystems = (
@@ -1105,9 +941,8 @@ export class World {
     }
 
     private registerSystem(system: System, options: SystemOptions): void {
-        for (const stage of scheduleStages) {
-            const methodName = lifecycleSystemMethods[stage];
-            const method = system[methodName];
+        for (const { stage, systemMethod } of scheduleStageDefinitions) {
+            const method = system[systemMethod];
 
             if (method !== undefined) {
                 this.scheduleRuntime.addSystemRunner(

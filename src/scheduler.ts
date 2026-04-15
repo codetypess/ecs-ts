@@ -1,19 +1,25 @@
-import type { Commands, World } from "./world";
+import type { Commands } from "./commands";
+import type { World } from "./world";
 
-export const scheduleStages = [
-    "preStartup",
-    "startup",
-    "postStartup",
-    "first",
-    "preUpdate",
-    "fixedUpdate",
-    "update",
-    "postUpdate",
-    "last",
-    "shutdown",
+export const scheduleStageDefinitions = [
+    { stage: "preStartup", systemMethod: "onPreStartup" },
+    { stage: "startup", systemMethod: "onStartup" },
+    { stage: "postStartup", systemMethod: "onPostStartup" },
+    { stage: "first", systemMethod: "onFirst" },
+    { stage: "preUpdate", systemMethod: "onPreUpdate" },
+    { stage: "fixedUpdate", systemMethod: "onFixedUpdate" },
+    { stage: "update", systemMethod: "onUpdate" },
+    { stage: "postUpdate", systemMethod: "onPostUpdate" },
+    { stage: "last", systemMethod: "onLast" },
+    { stage: "shutdown", systemMethod: "onShutdown" },
 ] as const;
 
-export type ScheduleStage = (typeof scheduleStages)[number];
+export type ScheduleStage = (typeof scheduleStageDefinitions)[number]["stage"];
+export type ScheduleSystemMethod = (typeof scheduleStageDefinitions)[number]["systemMethod"];
+
+export const scheduleStages = Object.freeze(
+    scheduleStageDefinitions.map((definition) => definition.stage)
+) as readonly ScheduleStage[];
 
 export type SystemLabel = string | symbol;
 export type SystemSetLabel = SystemLabel;

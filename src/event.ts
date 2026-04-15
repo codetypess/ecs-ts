@@ -1,4 +1,5 @@
-import type { Commands, World } from "./world";
+import type { Commands } from "./commands";
+import type { World } from "./world";
 
 let nextEventTypeId = 0;
 
