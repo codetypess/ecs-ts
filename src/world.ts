@@ -12,6 +12,7 @@ import { Entity, EntityManager, formatEntity } from "./entity";
 import type { EventObserver, EventType } from "./event";
 import { ComponentStoreRuntime } from "./internal/component-store-runtime";
 import { ComponentHookRuntime } from "./internal/component-hook-runtime";
+import { runSystemWithCommands } from "./internal/command-runtime";
 import { EventRuntime } from "./internal/event-runtime";
 import { MessageRuntime } from "./internal/message-runtime";
 import { QueryPlanRuntime } from "./internal/query-plan-runtime";
@@ -872,9 +873,7 @@ export class World {
                     continue;
                 }
 
-                const commands = new Commands(this);
-                system.run(this, dt, commands);
-                commands.flush();
+                runSystemWithCommands(this, system, dt);
                 system.lastRunTick = thisRunTick;
                 this.changeTick++;
             } finally {

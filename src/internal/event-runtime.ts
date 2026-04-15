@@ -1,6 +1,6 @@
-import { Commands } from "../commands";
 import type { EventObserver } from "../event";
 import type { World } from "../world";
+import { runEventObserverWithCommands } from "./command-runtime";
 
 export class EventRuntime {
     private readonly observers = new Map<number, EventObserver<unknown>[]>();
@@ -32,10 +32,7 @@ export class EventRuntime {
         }
 
         for (const observer of [...observers]) {
-            const commands = new Commands(world);
-
-            observer(value, world, commands);
-            commands.flush();
+            runEventObserverWithCommands(world, observer, value);
         }
     }
 }
