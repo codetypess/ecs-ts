@@ -1,9 +1,7 @@
 import type { AnyComponentType } from "../component";
 import type { Entity } from "../entity";
 import type {
-    QueryFilterMode,
     ResolvedOptionalQueryPlan,
-    ResolvedQueryFilter,
     ResolvedQueryPlan,
 } from "./query-plan";
 import type {
@@ -16,8 +14,8 @@ import type {
     QueryRow,
     QueryState,
 } from "../query";
-import { isTickInRange } from "../query";
 import { SparseSet } from "../sparse-set";
+import { matchesPlanFilter } from "./query-filter-runtime";
 import type { QueryPlanRuntime } from "./query-plan-runtime";
 
 interface QueryRuntimeOptions {
@@ -228,7 +226,7 @@ export class QueryRuntime {
                     continue;
                 }
 
-                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                if (!matchesPlanFilter(entity, plan, changeDetection)) {
                     continue;
                 }
 
@@ -253,7 +251,7 @@ export class QueryRuntime {
                     continue;
                 }
 
-                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                if (!matchesPlanFilter(entity, plan, changeDetection)) {
                     continue;
                 }
 
@@ -285,7 +283,7 @@ export class QueryRuntime {
                     continue;
                 }
 
-                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                if (!matchesPlanFilter(entity, plan, changeDetection)) {
                     continue;
                 }
 
@@ -320,7 +318,7 @@ export class QueryRuntime {
                 continue;
             }
 
-            if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+            if (!matchesPlanFilter(entity, plan, changeDetection)) {
                 continue;
             }
 
@@ -362,7 +360,7 @@ export class QueryRuntime {
                     continue;
                 }
 
-                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                if (!matchesPlanFilter(entity, plan, changeDetection)) {
                     continue;
                 }
 
@@ -387,7 +385,7 @@ export class QueryRuntime {
                     continue;
                 }
 
-                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                if (!matchesPlanFilter(entity, plan, changeDetection)) {
                     continue;
                 }
 
@@ -419,7 +417,7 @@ export class QueryRuntime {
                     continue;
                 }
 
-                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                if (!matchesPlanFilter(entity, plan, changeDetection)) {
                     continue;
                 }
 
@@ -454,7 +452,7 @@ export class QueryRuntime {
                 continue;
             }
 
-            if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+            if (!matchesPlanFilter(entity, plan, changeDetection)) {
                 continue;
             }
 
@@ -478,7 +476,7 @@ export class QueryRuntime {
                 continue;
             }
 
-            if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+            if (!matchesPlanFilter(entity, plan, changeDetection)) {
                 continue;
             }
 
@@ -552,7 +550,7 @@ export class QueryRuntime {
                     continue;
                 }
 
-                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                if (!matchesPlanFilter(entity, plan, changeDetection)) {
                     continue;
                 }
 
@@ -581,7 +579,7 @@ export class QueryRuntime {
                 continue;
             }
 
-            if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+            if (!matchesPlanFilter(entity, plan, changeDetection)) {
                 continue;
             }
 
@@ -651,7 +649,7 @@ export class QueryRuntime {
                     continue;
                 }
 
-                if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+                if (!matchesPlanFilter(entity, plan, changeDetection)) {
                     continue;
                 }
 
@@ -676,7 +674,7 @@ export class QueryRuntime {
                 continue;
             }
 
-            if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+            if (!matchesPlanFilter(entity, plan, changeDetection)) {
                 continue;
             }
 
@@ -713,7 +711,7 @@ export class QueryRuntime {
                 continue;
             }
 
-            if (!this.matchesPlanFilter(entity, plan, changeDetection)) {
+            if (!matchesPlanFilter(entity, plan, changeDetection)) {
                 continue;
             }
 
@@ -729,112 +727,6 @@ export class QueryRuntime {
         }
 
         return matches;
-    }
-
-    private matchesFilter(
-        entity: Entity,
-        filter: ResolvedQueryFilter,
-        changeDetection: ChangeDetectionRange
-    ): boolean {
-        if (!this.matchesStructuralFilter(entity, filter)) {
-            return false;
-        }
-
-        if (!this.matchesAddedStores(entity, filter.added, changeDetection)) {
-            return false;
-        }
-
-        if (!this.matchesChangedStores(entity, filter.changed, changeDetection)) {
-            return false;
-        }
-
-        return true;
-    }
-
-    private matchesPlanFilter(
-        entity: Entity,
-        plan: {
-            readonly filterMode: QueryFilterMode;
-            readonly filterStores: ResolvedQueryFilter;
-        },
-        changeDetection: ChangeDetectionRange
-    ): boolean {
-        if (plan.filterMode === "unfiltered") {
-            return true;
-        }
-
-        // Structural-only filters can skip change-tick lookups entirely.
-        if (plan.filterMode === "structural") {
-            return this.matchesStructuralFilter(entity, plan.filterStores);
-        }
-
-        return this.matchesFilter(entity, plan.filterStores, changeDetection);
-    }
-
-    private matchesStructuralFilter(entity: Entity, filter: ResolvedQueryFilter): boolean {
-        for (const store of filter.with) {
-            if (!store.has(entity)) {
-                return false;
-            }
-        }
-
-        for (const store of filter.without) {
-            if (store.has(entity)) {
-                return false;
-            }
-        }
-
-        if (filter.or.length === 0) {
-            return true;
-        }
-
-        for (const store of filter.or) {
-            if (store.has(entity)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private matchesAddedStores(
-        entity: Entity,
-        stores: readonly SparseSet<unknown>[],
-        changeDetection: ChangeDetectionRange
-    ): boolean {
-        if (stores.length === 0) {
-            return true;
-        }
-
-        for (const store of stores) {
-            const tick = store.getAddedTick(entity);
-
-            if (tick !== undefined && isTickInRange(tick, changeDetection)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private matchesChangedStores(
-        entity: Entity,
-        stores: readonly SparseSet<unknown>[],
-        changeDetection: ChangeDetectionRange
-    ): boolean {
-        if (stores.length === 0) {
-            return true;
-        }
-
-        for (const store of stores) {
-            const tick = store.getChangedTick(entity);
-
-            if (tick !== undefined && isTickInRange(tick, changeDetection)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     private fillComponents(
