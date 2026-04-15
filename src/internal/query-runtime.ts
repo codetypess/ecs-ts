@@ -1,20 +1,22 @@
 import type { AnyComponentType } from "../component";
 import type { Entity } from "../entity";
 import type {
+    OptionalQueryStateCache,
+    QueryFilterMode,
+    QueryStateCache,
+    ResolvedOptionalQueryPlan,
+    ResolvedQueryFilter,
+    ResolvedQueryPlan,
+} from "./query-plan";
+import type {
     ChangeDetectionRange,
     ComponentTuple,
     OptionalComponentTuple,
     OptionalQueryRow,
     OptionalQueryState,
-    OptionalQueryStateCache,
     QueryFilter,
-    QueryFilterMode,
     QueryRow,
     QueryState,
-    QueryStateCache,
-    ResolvedOptionalQueryPlan,
-    ResolvedQueryFilter,
-    ResolvedQueryPlan,
 } from "../query";
 import { chooseSmallestStore, isTickInRange } from "../query";
 import { SparseSet } from "../sparse-set";

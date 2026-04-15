@@ -9,16 +9,20 @@ import type {
 import { assertComponentValue } from "./component";
 import { Entity, EntityManager, formatEntity } from "./entity";
 import type { EventObserver, EventType } from "./event";
+import type {
+    OptionalQueryStateCache,
+    QueryStateCache,
+} from "./internal/query-plan";
+import { ComponentHookRuntime } from "./internal/component-hook-runtime";
+import { EventRuntime } from "./internal/event-runtime";
 import { QueryRuntime } from "./internal/query-runtime";
+import { RemovedRuntime } from "./internal/removed-runtime";
+import { ResourceRuntime } from "./internal/resource-runtime";
 import { ScheduleRuntime } from "./internal/schedule-runtime";
-import type { ComponentHookRegistry, ResourceEntry, StateRecord } from "./internal/world-support";
-import {
-    ComponentHookRuntime,
-    EventRuntime,
-    RemovedRuntime,
-    ResourceRuntime,
-    StateRuntime,
-} from "./internal/world-support";
+import type { ComponentHookRegistry } from "./internal/component-hook-runtime";
+import type { ResourceEntry } from "./internal/resource-runtime";
+import type { StateRecord } from "./internal/state-runtime";
+import { StateRuntime } from "./internal/state-runtime";
 import type { MessageId, MessageReader, MessageType } from "./message";
 import { Messages } from "./message";
 import type {
@@ -27,11 +31,9 @@ import type {
     OptionalComponentTuple,
     OptionalQueryRow,
     OptionalQueryState,
-    OptionalQueryStateCache,
     QueryFilter,
     QueryRow,
     QueryState,
-    QueryStateCache,
 } from "./query";
 import { isTickInRange, optionalQueryState, queryState } from "./query";
 import type { RemovedComponent, RemovedComponents, RemovedReader } from "./removed";
