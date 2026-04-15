@@ -1,6 +1,7 @@
 import type { ChangeDetectionRange } from "../query";
 import { isTickInRange } from "../query";
 import type { ResourceType } from "../resource";
+import type { World } from "../world";
 
 export interface ResourceEntry<T> {
     value: T;
@@ -39,6 +40,16 @@ export class ResourceRuntime {
 
     get<T>(type: ResourceType<T>): T | undefined {
         return this.getEntry(type)?.value;
+    }
+
+    matches<T>(
+        type: ResourceType<T>,
+        predicate: (value: T, world: World) => boolean,
+        world: World
+    ): boolean {
+        const entry = this.getEntry(type);
+
+        return entry !== undefined && predicate(entry.value, world);
     }
 
     remove<T>(type: ResourceType<T>): T | undefined {

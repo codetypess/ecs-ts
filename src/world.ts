@@ -16,6 +16,7 @@ import type {
 } from "./internal/query-plan";
 import { ComponentHookRuntime } from "./internal/component-hook-runtime";
 import { EventRuntime } from "./internal/event-runtime";
+import { MessageRuntime } from "./internal/message-runtime";
 import { QueryRuntime } from "./internal/query-runtime";
 import { RemovedRuntime } from "./internal/removed-runtime";
 import { ResourceRuntime } from "./internal/resource-runtime";
@@ -124,6 +125,9 @@ export class World {
         states: this.states,
     });
     private readonly eventRuntime = new EventRuntime(this.eventObservers);
+    private readonly messageRuntime = new MessageRuntime({
+        messageStores: this.messageStores,
+    });
     private readonly queryRuntime = new QueryRuntime({
         stores: this.stores,
         queryStateCaches: this.queryStateCaches,
@@ -684,35 +688,25 @@ export class World {
     }
 
     addMessage<T>(type: MessageType<T>): this {
-        this.ensureMessages(type);
+        this.messageRuntime.add(type);
 
         return this;
     }
 
     writeMessage<T>(type: MessageType<T>, value: T): MessageId<T> {
-        const existing = this.messageStores[type.id] as Messages<T> | undefined;
-
-        if (existing !== undefined) {
-            return existing.write(value);
-        }
-
-        return this.ensureMessages(type).write(value);
+        return this.messageRuntime.write(type, value);
     }
 
     readMessages<T>(reader: MessageReader<T>): readonly T[] {
-        const messages = this.messageStores[reader.type.id] as Messages<T> | undefined;
-
-        return messages?.read(reader) ?? [];
+        return this.messageRuntime.read(reader);
     }
 
     drainMessages<T>(type: MessageType<T>): T[] {
-        const messages = this.messageStores[type.id] as Messages<T> | undefined;
-
-        return messages?.drain() ?? [];
+        return this.messageRuntime.drain(type);
     }
 
     clearMessages<T>(type: MessageType<T>): this {
-        (this.messageStores[type.id] as Messages<T> | undefined)?.clear();
+        this.messageRuntime.clear(type);
 
         return this;
     }
@@ -784,9 +778,7 @@ export class World {
         type: StateType<T>,
         predicate: (value: T, world: World) => boolean
     ): boolean {
-        const state = this.states.get(type.id) as StateRecord<T> | undefined;
-
-        return state !== undefined && predicate(state.current, this);
+        return this.stateRuntime.matches(type, predicate, this);
     }
 
     setState<T extends StateValue>(type: StateType<T>, next: T): this {
@@ -857,9 +849,7 @@ export class World {
         type: ResourceType<T>,
         predicate: (value: T, world: World) => boolean
     ): boolean {
-        const entry = this.resources.get(type.id) as ResourceEntry<T> | undefined;
-
-        return entry !== undefined && predicate(entry.value, this);
+        return this.resourceRuntime.matches(type, predicate, this);
     }
 
     resource<T>(type: ResourceType<T>): T {
@@ -917,23 +907,8 @@ export class World {
         );
     }
 
-    private ensureMessages<T>(type: MessageType<T>): Messages<T> {
-        const existing = this.messageStores[type.id];
-
-        if (existing !== undefined) {
-            return existing as Messages<T>;
-        }
-
-        const messages = new Messages<T>();
-        this.messageStores[type.id] = messages as Messages<unknown>;
-
-        return messages;
-    }
-
     private updateMessages(): void {
-        for (const messages of this.messageStores) {
-            messages?.update();
-        }
+        this.messageRuntime.update();
     }
 
     private recordRemoved<T>(type: ComponentType<T>, entity: Entity, component: T): void {

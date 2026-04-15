@@ -38,6 +38,16 @@ export class StateRuntime {
         return this.require(type).current;
     }
 
+    matches<T extends StateValue>(
+        type: StateType<T>,
+        predicate: (value: T, world: World) => boolean,
+        world: World
+    ): boolean {
+        const state = this.options.states.get(type.id);
+
+        return state !== undefined && predicate((state as StateRecord<T>).current, world);
+    }
+
     set<T extends StateValue>(type: StateType<T>, next: T): void {
         const state = this.ensure(type);
         state.next = next;
