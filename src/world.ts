@@ -10,6 +10,7 @@ import { assertComponentValue } from "./component";
 import { Commands } from "./commands";
 import { Entity, EntityManager, formatEntity } from "./entity";
 import type { EventObserver, EventType } from "./event";
+import { ComponentStoreRuntime } from "./internal/component-store-runtime";
 import type {
     OptionalQueryStateCache,
     QueryStateCache,
@@ -21,12 +22,8 @@ import { QueryRuntime } from "./internal/query-runtime";
 import { RemovedRuntime } from "./internal/removed-runtime";
 import { ResourceRuntime } from "./internal/resource-runtime";
 import { ScheduleRuntime } from "./internal/schedule-runtime";
-import type { ComponentHookRegistry } from "./internal/component-hook-runtime";
-import type { ResourceEntry } from "./internal/resource-runtime";
-import type { StateRecord } from "./internal/state-runtime";
 import { StateRuntime } from "./internal/state-runtime";
 import type { MessageId, MessageReader, MessageType } from "./message";
-import { Messages } from "./message";
 import type {
     ChangeDetectionRange,
     ComponentTuple,
@@ -38,7 +35,7 @@ import type {
     QueryState,
 } from "./query";
 import { isTickInRange, optionalQueryState, queryState } from "./query";
-import type { RemovedComponent, RemovedComponents, RemovedReader } from "./removed";
+import type { RemovedComponent, RemovedReader } from "./removed";
 import type { ResourceType } from "./resource";
 import type {
     ScheduleStage,
@@ -56,7 +53,6 @@ import {
     createSystemSetStageConfigs,
     scheduleStageDefinitions,
 } from "./scheduler";
-import { SparseSet } from "./sparse-set";
 import type { StateType, StateValue } from "./state";
 import type { StateSystem, System, TransitionSystem } from "./system";
 
@@ -89,14 +85,7 @@ export class World {
         this.runSystems(systems, stage, dt);
     };
     private readonly entities = new EntityManager();
-    private readonly stores = new Map<number, SparseSet<unknown>>();
-    private readonly componentTypes = new Map<number, AnyComponentType>();
-    private readonly resources = new Map<number, ResourceEntry<unknown>>();
-    private readonly states = new Map<number, StateRecord<StateValue>>();
-    private readonly componentHooks = new Map<number, ComponentHookRegistry>();
-    private readonly removedComponents = new Map<number, RemovedComponents<unknown>>();
-    private readonly messageStores: (Messages<unknown> | undefined)[] = [];
-    private readonly eventObservers = new Map<number, EventObserver<unknown>[]>();
+    private readonly componentStoreRuntime = new ComponentStoreRuntime();
     private readonly queryStateCaches = new WeakMap<
         QueryState<readonly AnyComponentType[]>,
         QueryStateCache
@@ -110,30 +99,22 @@ export class World {
     private readonly schedules = createSchedules();
     private readonly sortedSchedules = createScheduleCacheEntries();
     private readonly resourceRuntime = new ResourceRuntime({
-        resources: this.resources,
         getChangeTick: () => this.changeTick,
         getChangeDetectionRange: () => this.changeDetectionRange(),
     });
     private readonly removedRuntime = new RemovedRuntime({
-        removedComponents: this.removedComponents,
         getChangeTick: () => this.changeTick,
     });
-    private readonly componentHookRuntime = new ComponentHookRuntime({
-        hooks: this.componentHooks,
-    });
-    private readonly stateRuntime = new StateRuntime({
-        states: this.states,
-    });
-    private readonly eventRuntime = new EventRuntime(this.eventObservers);
-    private readonly messageRuntime = new MessageRuntime({
-        messageStores: this.messageStores,
-    });
+    private readonly componentHookRuntime = new ComponentHookRuntime();
+    private readonly stateRuntime = new StateRuntime();
+    private readonly eventRuntime = new EventRuntime();
+    private readonly messageRuntime = new MessageRuntime();
     private readonly queryRuntime = new QueryRuntime({
-        stores: this.stores,
+        stores: this.componentStoreRuntime.stores,
         queryStateCaches: this.queryStateCaches,
         optionalQueryStateCaches: this.optionalQueryStateCaches,
         isAlive: (entity) => this.entities.isAlive(entity),
-        getStoreVersion: () => this.componentStoreVersion,
+        getStoreVersion: () => this.componentStoreRuntime.version,
     });
     private readonly scheduleRuntime = new ScheduleRuntime({
         systemSets: this.systemSets,
@@ -142,7 +123,6 @@ export class World {
         sortedSchedules: this.sortedSchedules,
     });
     private activeChangeDetection: ChangeDetectionRange | undefined;
-    private componentStoreVersion = 0;
     private changeTick = 1;
     private didStartup = false;
     private didShutdown = false;
@@ -231,7 +211,7 @@ export class World {
 
     private insertComponentOnly<T>(entity: Entity, type: ComponentType<T>, value: T): void {
         assertComponentValue(type, value);
-        const store = this.ensureStore(type);
+        const store = this.componentStoreRuntime.ensureStore(type);
         const hadComponent = store.has(entity);
 
         if (hadComponent) {
@@ -252,11 +232,11 @@ export class World {
             return false;
         }
 
-        return this.getStore(type)?.markChanged(entity, this.changeTick) ?? false;
+        return this.componentStoreRuntime.getStore(type)?.markChanged(entity, this.changeTick) ?? false;
     }
 
     has<T>(entity: Entity, type: ComponentType<T>): boolean {
-        return this.isAlive(entity) && (this.getStore(type)?.has(entity) ?? false);
+        return this.isAlive(entity) && (this.componentStoreRuntime.getStore(type)?.has(entity) ?? false);
     }
 
     hasAll(entity: Entity, types: readonly AnyComponentType[]): boolean {
@@ -265,7 +245,7 @@ export class World {
         }
 
         for (const type of types) {
-            if (!this.getStore(type)?.has(entity)) {
+            if (!this.componentStoreRuntime.getStore(type)?.has(entity)) {
                 return false;
             }
         }
@@ -279,7 +259,7 @@ export class World {
         }
 
         for (const type of types) {
-            if (this.getStore(type)?.has(entity)) {
+            if (this.componentStoreRuntime.getStore(type)?.has(entity)) {
                 return true;
             }
         }
@@ -292,7 +272,7 @@ export class World {
             return undefined;
         }
 
-        return this.getStore(type)?.get(entity);
+        return this.componentStoreRuntime.getStore(type)?.get(entity);
     }
 
     mustGet<T>(entity: Entity, type: ComponentType<T>): T {
@@ -317,7 +297,7 @@ export class World {
 
         for (let index = 0; index < types.length; index++) {
             const type = types[index]!;
-            const store = this.getStore(type);
+            const store = this.componentStoreRuntime.getStore(type);
 
             if (!store?.has(entity)) {
                 return undefined;
@@ -334,7 +314,7 @@ export class World {
             return false;
         }
 
-        const tick = this.getStore(type)?.getAddedTick(entity);
+        const tick = this.componentStoreRuntime.getStore(type)?.getAddedTick(entity);
 
         return tick !== undefined && isTickInRange(tick, this.changeDetectionRange());
     }
@@ -344,13 +324,13 @@ export class World {
             return false;
         }
 
-        const tick = this.getStore(type)?.getChangedTick(entity);
+        const tick = this.componentStoreRuntime.getStore(type)?.getChangedTick(entity);
 
         return tick !== undefined && isTickInRange(tick, this.changeDetectionRange());
     }
 
     remove<T>(entity: Entity, type: ComponentType<T>): boolean {
-        const store = this.getStore(type);
+        const store = this.componentStoreRuntime.getStore(type);
 
         if (!this.isAlive(entity) || !store?.has(entity)) {
             return false;
@@ -370,12 +350,12 @@ export class World {
             return false;
         }
 
-        for (const [componentId, store] of this.stores) {
+        for (const [componentId, store] of this.componentStoreRuntime.entries()) {
             if (!store.has(entity)) {
                 continue;
             }
 
-            const type = this.componentTypes.get(componentId);
+            const type = this.componentStoreRuntime.getType(componentId);
             const component = store.get(entity);
 
             if (type !== undefined) {
@@ -876,26 +856,6 @@ export class World {
 
     isResourceChanged<T>(type: ResourceType<T>): boolean {
         return this.resourceRuntime.isChanged(type);
-    }
-
-    private ensureStore<T>(type: ComponentType<T>): SparseSet<T> {
-        this.componentTypes.set(type.id, type);
-
-        const existing = this.stores.get(type.id);
-
-        if (existing !== undefined) {
-            return existing as SparseSet<T>;
-        }
-
-        const store = new SparseSet<T>();
-        this.stores.set(type.id, store as SparseSet<unknown>);
-        this.componentStoreVersion++;
-
-        return store;
-    }
-
-    private getStore<T>(type: ComponentType<T>): SparseSet<T> | undefined {
-        return this.stores.get(type.id) as SparseSet<T> | undefined;
     }
 
     private changeDetectionRange(): ChangeDetectionRange {

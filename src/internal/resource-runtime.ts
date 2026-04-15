@@ -10,12 +10,13 @@ export interface ResourceEntry<T> {
 }
 
 interface ResourceRuntimeOptions {
-    readonly resources: Map<number, ResourceEntry<unknown>>;
     readonly getChangeTick: () => number;
     readonly getChangeDetectionRange: () => ChangeDetectionRange;
 }
 
 export class ResourceRuntime {
+    private readonly resources = new Map<number, ResourceEntry<unknown>>();
+
     constructor(private readonly options: ResourceRuntimeOptions) {}
 
     set<T>(type: ResourceType<T>, value: T): void {
@@ -27,7 +28,7 @@ export class ResourceRuntime {
             return;
         }
 
-        this.options.resources.set(type.id, {
+        this.resources.set(type.id, {
             value,
             addedTick: this.options.getChangeTick(),
             changedTick: this.options.getChangeTick(),
@@ -35,7 +36,7 @@ export class ResourceRuntime {
     }
 
     has<T>(type: ResourceType<T>): boolean {
-        return this.options.resources.has(type.id);
+        return this.resources.has(type.id);
     }
 
     get<T>(type: ResourceType<T>): T | undefined {
@@ -54,7 +55,7 @@ export class ResourceRuntime {
 
     remove<T>(type: ResourceType<T>): T | undefined {
         const value = this.getEntry(type)?.value;
-        this.options.resources.delete(type.id);
+        this.resources.delete(type.id);
 
         return value;
     }
@@ -90,6 +91,6 @@ export class ResourceRuntime {
     }
 
     private getEntry<T>(type: ResourceType<T>): ResourceEntry<T> | undefined {
-        return this.options.resources.get(type.id) as ResourceEntry<T> | undefined;
+        return this.resources.get(type.id) as ResourceEntry<T> | undefined;
     }
 }

@@ -10,24 +10,20 @@ export type ComponentHookRegistry = {
     [TStage in ComponentLifecycleStage]?: ComponentHook<unknown>[];
 };
 
-interface ComponentHookRuntimeOptions {
-    readonly hooks: Map<number, ComponentHookRegistry>;
-}
-
 export class ComponentHookRuntime {
-    constructor(private readonly options: ComponentHookRuntimeOptions) {}
+    private readonly hooks = new Map<number, ComponentHookRegistry>();
 
     add<T>(
         type: ComponentType<T>,
         stage: ComponentLifecycleStage,
         hook: ComponentHook<T>
     ): () => void {
-        const registry = this.options.hooks.get(type.id) ?? {};
+        const registry = this.hooks.get(type.id) ?? {};
         const hooks = registry[stage] ?? [];
 
         hooks.push(hook);
         registry[stage] = hooks;
-        this.options.hooks.set(type.id, registry);
+        this.hooks.set(type.id, registry);
 
         return () => {
             const index = hooks.indexOf(hook);
@@ -47,7 +43,7 @@ export class ComponentHookRuntime {
     ): void {
         type.lifecycle[stage]?.(entity, component, world);
 
-        const registeredHooks = this.options.hooks.get(type.id)?.[stage] ?? [];
+        const registeredHooks = this.hooks.get(type.id)?.[stage] ?? [];
 
         for (const hook of registeredHooks) {
             hook(entity, component, world);

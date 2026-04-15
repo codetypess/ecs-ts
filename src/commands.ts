@@ -29,102 +29,82 @@ export class Commands {
     }
 
     add<T>(entity: Entity, type: ComponentType<T>, value: T): this {
-        this.queue.push((world) => {
+        return this.enqueue((world) => {
             world.add(entity, type, value);
         });
-
-        return this;
     }
 
     remove<T>(entity: Entity, type: ComponentType<T>): this {
-        this.queue.push((world) => {
+        return this.enqueue((world) => {
             world.remove(entity, type);
         });
-
-        return this;
     }
 
     insertBundle(entity: Entity, bundle: Bundle): this {
-        this.queue.push((world) => {
+        return this.enqueue((world) => {
             world.insertBundle(entity, bundle);
         });
-
-        return this;
     }
 
     removeBundle(entity: Entity, bundle: Bundle): this {
-        this.queue.push((world) => {
+        return this.enqueue((world) => {
             world.removeBundle(entity, bundle);
         });
-
-        return this;
     }
 
     despawn(entity: Entity): this {
-        this.queue.push((world) => {
+        return this.enqueue((world) => {
             world.despawn(entity);
         });
-
-        return this;
     }
 
     setState<T extends StateValue>(type: StateType<T>, next: T): this {
-        this.queue.push((world) => {
+        return this.enqueue((world) => {
             world.setState(type, next);
         });
-
-        return this;
     }
 
     setResource<T>(type: ResourceType<T>, value: T): this {
-        this.queue.push((world) => {
+        return this.enqueue((world) => {
             world.setResource(type, value);
         });
-
-        return this;
     }
 
     removeResource<T>(type: ResourceType<T>): this {
-        this.queue.push((world) => {
+        return this.enqueue((world) => {
             world.removeResource(type);
         });
-
-        return this;
     }
 
     markResourceChanged<T>(type: ResourceType<T>): this {
-        this.queue.push((world) => {
+        return this.enqueue((world) => {
             world.markResourceChanged(type);
         });
-
-        return this;
     }
 
     markChanged<T>(entity: Entity, type: ComponentType<T>): this {
-        this.queue.push((world) => {
+        return this.enqueue((world) => {
             world.markChanged(entity, type);
         });
-
-        return this;
     }
 
     writeMessage<T>(type: MessageType<T>, value: T): this {
-        this.queue.push((world) => {
+        return this.enqueue((world) => {
             world.writeMessage(type, value);
         });
-
-        return this;
     }
 
     trigger<T>(type: EventType<T>, value: T): this {
-        this.queue.push((world) => {
+        return this.enqueue((world) => {
             world.trigger(type, value);
         });
-
-        return this;
     }
 
     run(command: (world: World) => void): this {
+        return this.enqueue(command);
+    }
+
+    private enqueue(command: CommandRunner): this {
         this.queue.push(command);
 
         return this;

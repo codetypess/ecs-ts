@@ -4,11 +4,12 @@ import type { RemovedComponent, RemovedReader } from "../removed";
 import { RemovedComponents } from "../removed";
 
 interface RemovedRuntimeOptions {
-    readonly removedComponents: Map<number, RemovedComponents<unknown>>;
     readonly getChangeTick: () => number;
 }
 
 export class RemovedRuntime {
+    private readonly removedComponents = new Map<number, RemovedComponents<unknown>>();
+
     constructor(private readonly options: RemovedRuntimeOptions) {}
 
     read<T>(reader: RemovedReader<T>): readonly RemovedComponent<T>[] {
@@ -24,19 +25,19 @@ export class RemovedRuntime {
     }
 
     private ensure<T>(type: ComponentType<T>): RemovedComponents<T> {
-        const existing = this.options.removedComponents.get(type.id);
+        const existing = this.removedComponents.get(type.id);
 
         if (existing !== undefined) {
             return existing as RemovedComponents<T>;
         }
 
         const removed = new RemovedComponents<T>();
-        this.options.removedComponents.set(type.id, removed as RemovedComponents<unknown>);
+        this.removedComponents.set(type.id, removed as RemovedComponents<unknown>);
 
         return removed;
     }
 
     private get<T>(type: ComponentType<T>): RemovedComponents<T> | undefined {
-        return this.options.removedComponents.get(type.id) as RemovedComponents<T> | undefined;
+        return this.removedComponents.get(type.id) as RemovedComponents<T> | undefined;
     }
 }

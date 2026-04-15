@@ -1,6 +1,7 @@
 import type { ResourceType } from "./resource";
+import type { SystemRunCondition } from "./scheduler";
 import type { StateType, StateValue } from "./state";
-import type { SystemRunCondition, World } from "./world";
+import type { World } from "./world";
 
 export type RunIfPredicate<T> = (value: T, world: World) => boolean;
 export interface QueryRunIfSource {

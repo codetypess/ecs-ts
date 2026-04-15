@@ -1,7 +1,7 @@
 import type { EventObserver } from "../event";
 
 export class EventRuntime {
-    constructor(private readonly observers: Map<number, EventObserver<unknown>[]>) {}
+    private readonly observers = new Map<number, EventObserver<unknown>[]>();
 
     observe<T>(typeId: number, observer: EventObserver<T>): () => void {
         const observers = this.observers.get(typeId) ?? [];

@@ -7,31 +7,26 @@ import type { World } from "../world";
 export interface StateRecord<T extends StateValue> {
     readonly type: StateType<T>;
     current: T;
-    next: T | undefined;
-    hasNext: boolean;
+    pending: T | undefined;
     didEnterInitial: boolean;
     readonly onEnter: Map<T, SystemRunner[]>;
     readonly onExit: Map<T, SystemRunner[]>;
     readonly onTransition: Map<T, Map<T, SystemRunner[]>>;
 }
 
-interface StateRuntimeOptions {
-    readonly states: Map<number, StateRecord<StateValue>>;
-}
-
 export class StateRuntime {
-    constructor(private readonly options: StateRuntimeOptions) {}
+    private readonly states = new Map<number, StateRecord<StateValue>>();
 
     init<T extends StateValue>(type: StateType<T>, initial = type.initial): void {
-        if (this.options.states.has(type.id)) {
+        if (this.states.has(type.id)) {
             throw new Error(`State is already initialized: ${type.name}`);
         }
 
-        this.options.states.set(type.id, createStateRecord(type, initial));
+        this.states.set(type.id, createStateRecord(type, initial));
     }
 
     has<T extends StateValue>(type: StateType<T>): boolean {
-        return this.options.states.has(type.id);
+        return this.states.has(type.id);
     }
 
     current<T extends StateValue>(type: StateType<T>): T {
@@ -43,15 +38,14 @@ export class StateRuntime {
         predicate: (value: T, world: World) => boolean,
         world: World
     ): boolean {
-        const state = this.options.states.get(type.id);
+        const state = this.states.get(type.id);
 
         return state !== undefined && predicate((state as StateRecord<T>).current, world);
     }
 
     set<T extends StateValue>(type: StateType<T>, next: T): void {
         const state = this.ensure(type);
-        state.next = next;
-        state.hasNext = true;
+        state.pending = next;
     }
 
     onEnter<T extends StateValue>(type: StateType<T>, value: T, system: SystemCallback): void {
@@ -117,7 +111,7 @@ export class StateRuntime {
         dt: number,
         runSystems: (systems: readonly SystemRunner[], dt: number) => void
     ): void {
-        for (const state of this.options.states.values()) {
+        for (const state of this.states.values()) {
             if (state.didEnterInitial) {
                 continue;
             }
@@ -131,16 +125,15 @@ export class StateRuntime {
         dt: number,
         runSystems: (systems: readonly SystemRunner[], dt: number) => void
     ): void {
-        for (const state of this.options.states.values()) {
-            if (!state.hasNext) {
+        for (const state of this.states.values()) {
+            if (state.pending === undefined) {
                 continue;
             }
 
             const from = state.current;
-            const to = state.next as typeof state.current;
+            const to = state.pending;
 
-            state.next = undefined;
-            state.hasNext = false;
+            state.pending = undefined;
 
             if (Object.is(from, to)) {
                 continue;
@@ -172,20 +165,20 @@ export class StateRuntime {
     }
 
     private ensure<T extends StateValue>(type: StateType<T>): StateRecord<T> {
-        const state = this.options.states.get(type.id);
+        const state = this.states.get(type.id);
 
         if (state !== undefined) {
             return state as StateRecord<T>;
         }
 
         const created = createStateRecord(type, type.initial);
-        this.options.states.set(type.id, created);
+        this.states.set(type.id, created);
 
         return created;
     }
 
     private require<T extends StateValue>(type: StateType<T>): StateRecord<T> {
-        const state = this.options.states.get(type.id);
+        const state = this.states.get(type.id);
 
         if (state === undefined) {
             throw new Error(`State is not initialized: ${type.name}`);
@@ -199,8 +192,7 @@ function createStateRecord<T extends StateValue>(type: StateType<T>, initial: T)
     return {
         type,
         current: initial,
-        next: undefined,
-        hasNext: false,
+        pending: undefined,
         didEnterInitial: false,
         onEnter: new Map(),
         onExit: new Map(),
