@@ -14,7 +14,11 @@ import type {
     QueryRow,
     QueryState,
 } from "../query";
-import { SparseSet } from "../sparse-set";
+import {
+    fillComponents,
+    fillOptionalComponents,
+    hasComponents,
+} from "./query-component-runtime";
 import { matchesPlanFilter } from "./query-filter-runtime";
 import type { QueryPlanRuntime } from "./query-plan-runtime";
 
@@ -322,7 +326,7 @@ export class QueryRuntime {
                 continue;
             }
 
-            if (!this.fillComponents(entity, plan.stores, components)) {
+            if (!fillComponents(entity, plan.stores, components)) {
                 continue;
             }
 
@@ -456,7 +460,7 @@ export class QueryRuntime {
                 continue;
             }
 
-            if (!this.fillComponents(entity, plan.stores, components)) {
+            if (!fillComponents(entity, plan.stores, components)) {
                 continue;
             }
 
@@ -480,7 +484,7 @@ export class QueryRuntime {
                 continue;
             }
 
-            if (!this.hasComponents(entity, plan.stores)) {
+            if (!hasComponents(entity, plan.stores)) {
                 continue;
             }
 
@@ -583,11 +587,11 @@ export class QueryRuntime {
                 continue;
             }
 
-            if (!this.fillComponents(entity, plan.requiredStores, components)) {
+            if (!fillComponents(entity, plan.requiredStores, components)) {
                 continue;
             }
 
-            this.fillOptionalComponents(
+            fillOptionalComponents(
                 entity,
                 plan.optionalStores,
                 components,
@@ -678,11 +682,11 @@ export class QueryRuntime {
                 continue;
             }
 
-            if (!this.fillComponents(entity, plan.requiredStores, components)) {
+            if (!fillComponents(entity, plan.requiredStores, components)) {
                 continue;
             }
 
-            this.fillOptionalComponents(
+            fillOptionalComponents(
                 entity,
                 plan.optionalStores,
                 components,
@@ -715,7 +719,7 @@ export class QueryRuntime {
                 continue;
             }
 
-            if (!this.hasComponents(entity, plan.requiredStores)) {
+            if (!hasComponents(entity, plan.requiredStores)) {
                 continue;
             }
 
@@ -727,47 +731,6 @@ export class QueryRuntime {
         }
 
         return matches;
-    }
-
-    private fillComponents(
-        entity: Entity,
-        stores: readonly SparseSet<unknown>[],
-        output: unknown[]
-    ): boolean {
-        for (let index = 0; index < stores.length; index++) {
-            const store = stores[index]!;
-            const value = store.get(entity);
-
-            // A single get() doubles as both presence check and value fetch on the hot path.
-            if (value === undefined) {
-                return false;
-            }
-
-            output[index] = value;
-        }
-
-        return true;
-    }
-
-    private hasComponents(entity: Entity, stores: readonly SparseSet<unknown>[]): boolean {
-        for (const store of stores) {
-            if (!store.has(entity)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private fillOptionalComponents(
-        entity: Entity,
-        stores: readonly (SparseSet<unknown> | undefined)[],
-        output: unknown[],
-        offset = 0
-    ): void {
-        for (let index = 0; index < stores.length; index++) {
-            output[offset + index] = stores[index]?.get(entity);
-        }
     }
 
 }
