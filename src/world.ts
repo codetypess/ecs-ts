@@ -669,19 +669,7 @@ export class World {
     }
 
     trigger<T>(type: EventType<T>, value: T): this {
-        const observers = this.eventRuntime.get<T>(type.id);
-
-        if (observers === undefined || observers.length === 0) {
-            return this;
-        }
-
-        for (const observer of [...observers]) {
-            const commands = new Commands(this);
-
-            observer(value, this, commands);
-            commands.flush();
-        }
-
+        this.eventRuntime.trigger(type.id, value, this);
         return this;
     }
 
