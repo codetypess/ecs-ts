@@ -11,13 +11,10 @@ import { Commands } from "./commands";
 import { Entity, EntityManager, formatEntity } from "./entity";
 import type { EventObserver, EventType } from "./event";
 import { ComponentStoreRuntime } from "./internal/component-store-runtime";
-import type {
-    OptionalQueryStateCache,
-    QueryStateCache,
-} from "./internal/query-plan";
 import { ComponentHookRuntime } from "./internal/component-hook-runtime";
 import { EventRuntime } from "./internal/event-runtime";
 import { MessageRuntime } from "./internal/message-runtime";
+import { QueryPlanRuntime } from "./internal/query-plan-runtime";
 import { QueryRuntime } from "./internal/query-runtime";
 import { RemovedRuntime } from "./internal/removed-runtime";
 import { ResourceRuntime } from "./internal/resource-runtime";
@@ -79,14 +76,6 @@ export class World {
     };
     private readonly entities = new EntityManager();
     private readonly componentStoreRuntime = new ComponentStoreRuntime();
-    private readonly queryStateCaches = new WeakMap<
-        QueryState<readonly AnyComponentType[]>,
-        QueryStateCache
-    >();
-    private readonly optionalQueryStateCaches = new WeakMap<
-        OptionalQueryState<readonly AnyComponentType[], readonly AnyComponentType[]>,
-        OptionalQueryStateCache
-    >();
     private readonly resourceRuntime = new ResourceRuntime({
         getChangeTick: () => this.changeTick,
         getChangeDetectionRange: () => this.changeDetectionRange(),
@@ -99,11 +88,11 @@ export class World {
     private readonly eventRuntime = new EventRuntime();
     private readonly messageRuntime = new MessageRuntime();
     private readonly queryRuntime = new QueryRuntime({
-        stores: this.componentStoreRuntime.stores,
-        queryStateCaches: this.queryStateCaches,
-        optionalQueryStateCaches: this.optionalQueryStateCaches,
+        planRuntime: new QueryPlanRuntime({
+            stores: this.componentStoreRuntime.stores,
+            getStoreVersion: () => this.componentStoreRuntime.version,
+        }),
         isAlive: (entity) => this.entities.isAlive(entity),
-        getStoreVersion: () => this.componentStoreRuntime.version,
     });
     private readonly scheduleRuntime = new ScheduleRuntime();
     private activeChangeDetection: ChangeDetectionRange | undefined;
