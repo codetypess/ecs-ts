@@ -75,6 +75,9 @@ export class World {
     ): void => {
         this.runSystems(systems, stage, dt);
     };
+    private readonly runUpdateStageSystems = (systems: readonly SystemRunner[], dt: number): void => {
+        this.runSystems(systems, "update", dt);
+    };
     private readonly entities = new EntityManager();
     private readonly componentStoreRuntime = new ComponentStoreRuntime();
     private readonly resourceRuntime = new ResourceRuntime({
@@ -605,26 +608,11 @@ export class World {
 
     update(dt: number): void {
         if (!this.didStartup) {
-            for (const stage of ["preStartup", "startup", "postStartup"] as const) {
-                this.runSchedule(stage, 0);
-            }
-
-            this.didStartup = true;
+            this.runStartupSchedules();
         }
 
         this.updateMessages();
-        this.stateRuntime.runInitialEnters(dt, (systems, systemDt) => {
-            this.runSystems(systems, "update", systemDt);
-        });
-        this.runSchedule("first", dt);
-        this.runSchedule("preUpdate", dt);
-        this.runFixedUpdate(dt);
-        this.stateRuntime.applyTransitions(dt, (systems, systemDt) => {
-            this.runSystems(systems, "update", systemDt);
-        });
-        this.runSchedule("update", dt);
-        this.runSchedule("postUpdate", dt);
-        this.runSchedule("last", dt);
+        this.runUpdateSchedules(dt);
         this.changeTick++;
     }
 
@@ -856,6 +844,25 @@ export class World {
 
     private runFixedUpdate(dt: number): void {
         this.scheduleRuntime.runFixedUpdate(dt, this.runScheduledSystems);
+    }
+
+    private runStartupSchedules(): void {
+        for (const stage of ["preStartup", "startup", "postStartup"] as const) {
+            this.runSchedule(stage, 0);
+        }
+
+        this.didStartup = true;
+    }
+
+    private runUpdateSchedules(dt: number): void {
+        this.stateRuntime.runInitialEnters(dt, this.runUpdateStageSystems);
+        this.runSchedule("first", dt);
+        this.runSchedule("preUpdate", dt);
+        this.runFixedUpdate(dt);
+        this.stateRuntime.applyTransitions(dt, this.runUpdateStageSystems);
+        this.runSchedule("update", dt);
+        this.runSchedule("postUpdate", dt);
+        this.runSchedule("last", dt);
     }
 
     private runSystems(systems: readonly SystemRunner[], stage: ScheduleStage, dt: number): void {
