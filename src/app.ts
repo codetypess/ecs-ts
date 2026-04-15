@@ -46,15 +46,11 @@ export class App {
     }
 
     addSystem(system: System, options: SystemOptions = {}): this {
-        this.world.addSystem(system, options);
-
-        return this;
+        return this.useWorld((world) => world.addSystem(system, options));
     }
 
     configureSet(set: SystemSetLabel, options: SystemSetOptions): this {
-        this.world.configureSet(set, options);
-
-        return this;
+        return this.useWorld((world) => world.configureSet(set, options));
     }
 
     configureSetForStage(
@@ -62,39 +58,27 @@ export class App {
         set: SystemSetLabel,
         options: SystemSetOptions
     ): this {
-        this.world.configureSetForStage(stage, set, options);
-
-        return this;
+        return this.useWorld((world) => world.configureSetForStage(stage, set, options));
     }
 
     setFixedTimeStep(seconds: number): this {
-        this.world.setFixedTimeStep(seconds);
-
-        return this;
+        return this.useWorld((world) => world.setFixedTimeStep(seconds));
     }
 
     addMessage<T>(type: MessageType<T>): this {
-        this.world.addMessage(type);
-
-        return this;
+        return this.useWorld((world) => world.addMessage(type));
     }
 
     setResource<T>(type: ResourceType<T>, value: T): this {
-        this.world.setResource(type, value);
-
-        return this;
+        return this.useWorld((world) => world.setResource(type, value));
     }
 
     removeResource<T>(type: ResourceType<T>): this {
-        this.world.removeResource(type);
-
-        return this;
+        return this.useWorld((world) => world.removeResource(type));
     }
 
     initState<T extends StateValue>(type: StateType<T>, initial = type.initial): this {
-        this.world.initState(type, initial);
-
-        return this;
+        return this.useWorld((world) => world.initState(type, initial));
     }
 
     addStateSystem<T extends StateValue>(
@@ -102,9 +86,7 @@ export class App {
         value: T,
         system: StateSystem<T>
     ): this {
-        this.world.addStateSystem(type, value, system);
-
-        return this;
+        return this.useWorld((world) => world.addStateSystem(type, value, system));
     }
 
     addTransitionSystem<T extends StateValue>(
@@ -113,21 +95,15 @@ export class App {
         to: T,
         system: TransitionSystem<T>
     ): this {
-        this.world.addTransitionSystem(type, from, to, system);
-
-        return this;
+        return this.useWorld((world) => world.addTransitionSystem(type, from, to, system));
     }
 
     onEnter<T extends StateValue>(type: StateType<T>, value: T, system: AppSystemCallback): this {
-        this.world.onEnter(type, value, system);
-
-        return this;
+        return this.useWorld((world) => world.onEnter(type, value, system));
     }
 
     onExit<T extends StateValue>(type: StateType<T>, value: T, system: AppSystemCallback): this {
-        this.world.onExit(type, value, system);
-
-        return this;
+        return this.useWorld((world) => world.onExit(type, value, system));
     }
 
     onTransition<T extends StateValue>(
@@ -136,9 +112,7 @@ export class App {
         to: T,
         system: AppSystemCallback
     ): this {
-        this.world.onTransition(type, from, to, system);
-
-        return this;
+        return this.useWorld((world) => world.onTransition(type, from, to, system));
     }
 
     observe<T>(type: EventType<T>, observer: EventObserver<T>): () => void {
@@ -150,14 +124,15 @@ export class App {
     }
 
     update(dt: number): this {
-        this.world.update(dt);
-
-        return this;
+        return this.useWorld((world) => world.update(dt));
     }
 
     shutdown(): this {
-        this.world.shutdown();
+        return this.useWorld((world) => world.shutdown());
+    }
 
+    private useWorld(visitor: (world: World) => void): this {
+        visitor(this.world);
         return this;
     }
 }
