@@ -42,17 +42,10 @@ import type {
     SystemCallback,
     SystemOptions,
     SystemRunner,
-    SystemSetConfig,
     SystemSetLabel,
     SystemSetOptions,
 } from "./scheduler";
-import {
-    createScheduleCacheEntries,
-    createSchedules,
-    createSystemRunner,
-    createSystemSetStageConfigs,
-    scheduleStageDefinitions,
-} from "./scheduler";
+import { createSystemRunner, scheduleStageDefinitions } from "./scheduler";
 import type { StateType, StateValue } from "./state";
 import type { StateSystem, System, TransitionSystem } from "./system";
 
@@ -94,10 +87,6 @@ export class World {
         OptionalQueryState<readonly AnyComponentType[], readonly AnyComponentType[]>,
         OptionalQueryStateCache
     >();
-    private readonly systemSets = new Map<SystemSetLabel, SystemSetConfig>();
-    private readonly systemSetsByStage = createSystemSetStageConfigs();
-    private readonly schedules = createSchedules();
-    private readonly sortedSchedules = createScheduleCacheEntries();
     private readonly resourceRuntime = new ResourceRuntime({
         getChangeTick: () => this.changeTick,
         getChangeDetectionRange: () => this.changeDetectionRange(),
@@ -116,12 +105,7 @@ export class World {
         isAlive: (entity) => this.entities.isAlive(entity),
         getStoreVersion: () => this.componentStoreRuntime.version,
     });
-    private readonly scheduleRuntime = new ScheduleRuntime({
-        systemSets: this.systemSets,
-        systemSetsByStage: this.systemSetsByStage,
-        schedules: this.schedules,
-        sortedSchedules: this.sortedSchedules,
-    });
+    private readonly scheduleRuntime = new ScheduleRuntime();
     private activeChangeDetection: ChangeDetectionRange | undefined;
     private changeTick = 1;
     private didStartup = false;
@@ -907,7 +891,7 @@ export class World {
             };
 
             try {
-                if (!this.shouldRunSystem(system, stage)) {
+                if (!this.scheduleRuntime.shouldRunSystem(system, stage, this)) {
                     continue;
                 }
 
@@ -920,20 +904,6 @@ export class World {
                 this.activeChangeDetection = previousChangeDetection;
             }
         }
-    }
-
-    private shouldRunSystem(system: SystemRunner, stage: ScheduleStage): boolean {
-        for (const set of system.sets) {
-            if (this.systemSets.get(set)?.runIf?.(this) === false) {
-                return false;
-            }
-
-            if (this.systemSetsByStage[stage].get(set)?.runIf?.(this) === false) {
-                return false;
-            }
-        }
-
-        return system.runIf?.(this) !== false;
     }
 
     private runComponentHooks<T>(

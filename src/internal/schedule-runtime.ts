@@ -2,35 +2,36 @@ import type {
     ScheduleStage,
     SystemRunner,
     SystemSetConfig,
+    SystemRunCondition,
     SystemSetLabel,
     SystemSetOptions,
 } from "../scheduler";
 import {
+    createScheduleCacheEntries,
+    createSchedules,
     createSystemSetConfig,
+    createSystemSetStageConfigs,
     scheduleStages,
     sortSystemRunners,
 } from "../scheduler";
+import type { World } from "../world";
 
 interface ScheduleCacheEntry {
     dirty: boolean;
     systems: readonly SystemRunner[] | undefined;
 }
 
-interface ScheduleRuntimeOptions {
-    readonly systemSets: Map<SystemSetLabel, SystemSetConfig>;
-    readonly systemSetsByStage: Record<ScheduleStage, Map<SystemSetLabel, SystemSetConfig>>;
-    readonly schedules: Record<ScheduleStage, SystemRunner[]>;
-    readonly sortedSchedules: Record<ScheduleStage, ScheduleCacheEntry>;
-}
-
 export class ScheduleRuntime {
     private fixedTimeStep = 1 / 60;
     private fixedUpdateAccumulator = 0;
-
-    constructor(private readonly options: ScheduleRuntimeOptions) {}
+    private readonly systemSets = new Map<SystemSetLabel, SystemSetConfig>();
+    private readonly systemSetsByStage = createSystemSetStageConfigs();
+    private readonly schedules = createSchedules();
+    private readonly sortedSchedules: Record<ScheduleStage, ScheduleCacheEntry> =
+        createScheduleCacheEntries();
 
     configureSet(set: SystemSetLabel, options: SystemSetOptions): void {
-        this.options.systemSets.set(set, createSystemSetConfig(options));
+        this.systemSets.set(set, createSystemSetConfig(options));
         this.invalidateAllScheduleCaches();
     }
 
@@ -39,7 +40,7 @@ export class ScheduleRuntime {
         set: SystemSetLabel,
         options: SystemSetOptions
     ): void {
-        this.options.systemSetsByStage[stage].set(set, createSystemSetConfig(options));
+        this.systemSetsByStage[stage].set(set, createSystemSetConfig(options));
         this.invalidateScheduleCache(stage);
     }
 
@@ -52,8 +53,22 @@ export class ScheduleRuntime {
     }
 
     addSystemRunner(stage: ScheduleStage, runner: SystemRunner): void {
-        this.options.schedules[stage].push(runner);
+        this.schedules[stage].push(runner);
         this.invalidateScheduleCache(stage);
+    }
+
+    shouldRunSystem(system: SystemRunner, stage: ScheduleStage, world: World): boolean {
+        for (const set of system.sets) {
+            if (!this.matchesRunCondition(this.systemSets.get(set)?.runIf, world)) {
+                return false;
+            }
+
+            if (!this.matchesRunCondition(this.systemSetsByStage[stage].get(set)?.runIf, world)) {
+                return false;
+            }
+        }
+
+        return this.matchesRunCondition(system.runIf, world);
     }
 
     runSchedule(
@@ -77,14 +92,14 @@ export class ScheduleRuntime {
     }
 
     private resolveSortedSchedule(stage: ScheduleStage): readonly SystemRunner[] {
-        const cache = this.options.sortedSchedules[stage];
+        const cache = this.sortedSchedules[stage];
 
         if (cache.dirty || cache.systems === undefined) {
             cache.systems = sortSystemRunners(
-                this.options.schedules[stage],
+                this.schedules[stage],
                 stage,
-                this.options.systemSets,
-                this.options.systemSetsByStage[stage]
+                this.systemSets,
+                this.systemSetsByStage[stage]
             );
             cache.dirty = false;
         }
@@ -93,7 +108,7 @@ export class ScheduleRuntime {
     }
 
     private invalidateScheduleCache(stage: ScheduleStage): void {
-        const cache = this.options.sortedSchedules[stage];
+        const cache = this.sortedSchedules[stage];
         cache.dirty = true;
         cache.systems = undefined;
     }
@@ -102,5 +117,12 @@ export class ScheduleRuntime {
         for (const stage of scheduleStages) {
             this.invalidateScheduleCache(stage);
         }
+    }
+
+    private matchesRunCondition(
+        runIf: SystemRunCondition | undefined,
+        world: World
+    ): boolean {
+        return runIf?.(world) !== false;
     }
 }
