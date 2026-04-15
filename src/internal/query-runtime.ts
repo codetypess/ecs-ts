@@ -1,9 +1,6 @@
 import type { AnyComponentType } from "../component";
 import type { Entity } from "../entity";
-import type {
-    ResolvedOptionalQueryPlan,
-    ResolvedQueryPlan,
-} from "./query-plan";
+import type { ResolvedOptionalQueryPlan, ResolvedQueryPlan } from "./query-plan";
 import type {
     ChangeDetectionRange,
     ComponentTuple,
@@ -14,11 +11,7 @@ import type {
     QueryRow,
     QueryState,
 } from "../query";
-import {
-    fillComponents,
-    fillOptionalComponents,
-    hasComponents,
-} from "./query-component-runtime";
+import { fillComponents, fillOptionalComponents, hasComponents } from "./query-component-runtime";
 import { matchesPlanFilter } from "./query-filter-runtime";
 import type { QueryPlanRuntime } from "./query-plan-runtime";
 
@@ -732,5 +725,4 @@ export class QueryRuntime {
 
         return matches;
     }
-
 }

@@ -21,10 +21,7 @@ export function fillComponents(
     return true;
 }
 
-export function hasComponents(
-    entity: Entity,
-    stores: readonly SparseSet<unknown>[]
-): boolean {
+export function hasComponents(entity: Entity, stores: readonly SparseSet<unknown>[]): boolean {
     for (const store of stores) {
         if (!store.has(entity)) {
             return false;

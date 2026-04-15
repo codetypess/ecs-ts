@@ -108,11 +108,7 @@ export class QueryPlanRuntime {
             return existing.plan;
         }
 
-        const plan = this.resolveOptionalQueryPlan(
-            state.required,
-            state.optional,
-            state.filter
-        );
+        const plan = this.resolveOptionalQueryPlan(state.required, state.optional, state.filter);
         const cache = {
             storeVersion: this.options.getStoreVersion(),
             plan,
@@ -225,11 +221,7 @@ export class QueryPlanRuntime {
     }
 
     private resolveFilterMode(filter: ResolvedQueryFilter): QueryFilterMode {
-        if (
-            filter.with.length === 0 &&
-            filter.without.length === 0 &&
-            filter.or.length === 0
-        ) {
+        if (filter.with.length === 0 && filter.without.length === 0 && filter.or.length === 0) {
             return filter.added.length === 0 && filter.changed.length === 0
                 ? "unfiltered"
                 : "change";

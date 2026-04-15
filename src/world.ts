@@ -75,7 +75,10 @@ export class World {
     ): void => {
         this.runSystems(systems, stage, dt);
     };
-    private readonly runUpdateStageSystems = (systems: readonly SystemRunner[], dt: number): void => {
+    private readonly runUpdateStageSystems = (
+        systems: readonly SystemRunner[],
+        dt: number
+    ): void => {
         this.runSystems(systems, "update", dt);
     };
     private readonly entities = new EntityManager();
@@ -209,11 +212,16 @@ export class World {
             return false;
         }
 
-        return this.componentStoreRuntime.getStore(type)?.markChanged(entity, this.changeTick) ?? false;
+        return (
+            this.componentStoreRuntime.getStore(type)?.markChanged(entity, this.changeTick) ?? false
+        );
     }
 
     has<T>(entity: Entity, type: ComponentType<T>): boolean {
-        return this.isAlive(entity) && (this.componentStoreRuntime.getStore(type)?.has(entity) ?? false);
+        return (
+            this.isAlive(entity) &&
+            (this.componentStoreRuntime.getStore(type)?.has(entity) ?? false)
+        );
     }
 
     hasAll(entity: Entity, types: readonly AnyComponentType[]): boolean {

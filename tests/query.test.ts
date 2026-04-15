@@ -196,13 +196,9 @@ test("query state tracks structural filter changes through cached plans", () => 
         withMarker(Excluded)
     );
 
-    world.spawn(
-        withComponent(Position, { x: 5, y: 6 }),
-        withMarker(Required),
-        withMarker(Banned)
-    );
+    world.spawn(withComponent(Position, { x: 5, y: 6 }), withMarker(Required), withMarker(Banned));
 
-    const matchedEntities = (): typeof active[] =>
+    const matchedEntities = (): (typeof active)[] =>
         Array.from(filtered.iter(world), ([entity]) => entity);
 
     assert.deepEqual(matchedEntities(), [active]);

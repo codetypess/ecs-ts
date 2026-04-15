@@ -1,8 +1,4 @@
-import type {
-    ComponentHook,
-    ComponentLifecycleStage,
-    ComponentType,
-} from "../component";
+import type { ComponentHook, ComponentLifecycleStage, ComponentType } from "../component";
 import type { Entity } from "../entity";
 import type { World } from "../world";
 

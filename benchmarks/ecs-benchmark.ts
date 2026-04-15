@@ -456,11 +456,9 @@ pushBenchmark(results, "optional query Velocity", () => {
     let operations = 0;
 
     for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-        for (const [, position, velocity] of movement.world.queryOptional(
-            [Position],
-            [Velocity],
-            { without: [Sleeping] }
-        )) {
+        for (const [, position, velocity] of movement.world.queryOptional([Position], [Velocity], {
+            without: [Sleeping],
+        })) {
             checksum += position.x + (velocity?.x ?? 0);
             operations++;
         }

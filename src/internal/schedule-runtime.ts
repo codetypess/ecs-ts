@@ -119,10 +119,7 @@ export class ScheduleRuntime {
         }
     }
 
-    private matchesRunCondition(
-        runIf: SystemRunCondition | undefined,
-        world: World
-    ): boolean {
+    private matchesRunCondition(runIf: SystemRunCondition | undefined, world: World): boolean {
         return runIf?.(world) !== false;
     }
 }

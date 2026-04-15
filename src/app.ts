@@ -1,12 +1,7 @@
 import type { EventObserver, EventType } from "./event";
 import type { MessageType } from "./message";
 import type { ResourceType } from "./resource";
-import type {
-    ScheduleStage,
-    SystemOptions,
-    SystemSetLabel,
-    SystemSetOptions,
-} from "./scheduler";
+import type { ScheduleStage, SystemOptions, SystemSetLabel, SystemSetOptions } from "./scheduler";
 import type { StateType, StateValue } from "./state";
 import type { StateSystem, System, TransitionSystem } from "./system";
 import type { Commands } from "./commands";
