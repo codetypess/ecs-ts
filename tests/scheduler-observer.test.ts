@@ -292,7 +292,7 @@ test("scheduler supports query-backed runIf helpers", () => {
     const Velocity = defineComponent<{ x: number; y: number }>("RunIfQueryVelocity");
     const Player = defineComponent("RunIfQueryPlayer");
     const Sleeping = defineComponent("RunIfQuerySleeping");
-    const moving = queryState([Position, Velocity], { none: [Sleeping] });
+    const moving = queryState([Position, Velocity], { without: [Sleeping] });
     const players = queryState([Player]);
     const calls: string[] = [];
 

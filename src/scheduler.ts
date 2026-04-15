@@ -90,22 +90,17 @@ export function createSystemSetConfig(options: SystemSetOptions): SystemSetConfi
     };
 }
 
+function createStageRecord<T>(createValue: () => T): Record<ScheduleStage, T> {
+    return Object.fromEntries(
+        scheduleStages.map((stage) => [stage, createValue()] as const)
+    ) as Record<ScheduleStage, T>;
+}
+
 export function createSystemSetStageConfigs(): Record<
     ScheduleStage,
     Map<SystemSetLabel, SystemSetConfig>
 > {
-    return {
-        preStartup: new Map(),
-        startup: new Map(),
-        postStartup: new Map(),
-        first: new Map(),
-        preUpdate: new Map(),
-        fixedUpdate: new Map(),
-        update: new Map(),
-        postUpdate: new Map(),
-        last: new Map(),
-        shutdown: new Map(),
-    };
+    return createStageRecord(() => new Map<SystemSetLabel, SystemSetConfig>());
 }
 
 export function sortSystemRunners(
@@ -327,31 +322,9 @@ function formatSystemRunner(system: SystemRunner): string {
 }
 
 export function createSchedules(): Record<ScheduleStage, SystemRunner[]> {
-    return {
-        preStartup: [],
-        startup: [],
-        postStartup: [],
-        first: [],
-        preUpdate: [],
-        fixedUpdate: [],
-        update: [],
-        postUpdate: [],
-        last: [],
-        shutdown: [],
-    };
+    return createStageRecord<SystemRunner[]>(() => []);
 }
 
 export function createScheduleCacheEntries(): Record<ScheduleStage, ScheduleCacheEntry> {
-    return {
-        preStartup: { dirty: true, systems: undefined },
-        startup: { dirty: true, systems: undefined },
-        postStartup: { dirty: true, systems: undefined },
-        first: { dirty: true, systems: undefined },
-        preUpdate: { dirty: true, systems: undefined },
-        fixedUpdate: { dirty: true, systems: undefined },
-        update: { dirty: true, systems: undefined },
-        postUpdate: { dirty: true, systems: undefined },
-        last: { dirty: true, systems: undefined },
-        shutdown: { dirty: true, systems: undefined },
-    };
+    return createStageRecord(() => ({ dirty: true, systems: undefined }));
 }

@@ -22,7 +22,6 @@ world.each([Position, Velocity], (_entity, position, velocity) => {
 - `with`：entity 必须拥有列出的全部 component。
 - `without`：entity 不能拥有列出的任何 component。
 - `or`：entity 必须至少拥有列出的一个 component。空 `or` 会匹配所有 entity。
-- `none`：entity 必须不拥有列出的任何 component。
 - `added`：列出的至少一个 component 必须在当前活跃的变更检测范围内被添加过。
 - `changed`：列出的至少一个 component 必须在当前活跃的变更检测范围内发生过变化。
 
@@ -51,7 +50,7 @@ npm run example:query-advanced
 ```ts
 for (const [entity, position, velocity, name] of world.queryOptional([Position], [Velocity, Name], {
     or: [Player, Npc],
-    none: [Sleeping, Frozen],
+    without: [Sleeping, Frozen],
 })) {
     if (velocity !== undefined) {
         position.x += velocity.x;
@@ -77,7 +76,7 @@ const enemyWithVelocity = world.trySingle([Position, Velocity], { with: [Enemy] 
 
 ```ts
 const activeBodies = queryState([Transform, Velocity, RigidBody], {
-    none: [Sleeping],
+    without: [Sleeping],
 });
 
 class PhysicsSystem {

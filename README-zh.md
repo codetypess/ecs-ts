@@ -9,7 +9,7 @@ English README: [README.md](README.md).
 - Bundle 用来把多个 component entry 组合起来，供 spawn、insert、remove 调用复用。
 - Component 存储使用 `SparseSet`：`get/has/add/remove` 接近 O(1)，迭代走 dense 数组，删除使用 swap-remove。
 - Query 会选择最小的组件存储作为基础循环，再按 entity 检查其它组件存储。
-- Query 支持 `with`、`without`、`or`、`none`、`added` 和 `changed` 过滤。
+- Query 支持 `with`、`without`、`or`、`added` 和 `changed` 过滤。
 - Optional query 可以为匹配到的 entity 返回可能不存在的组件，此时组件值是 `undefined`。
 - Query 易用 API 包括 `hasAll`、`hasAny`、`single` 和 `trySingle`。
 - `QueryState` 会缓存 query 的 store 解析结果，适合 system 反复运行同一个 query。

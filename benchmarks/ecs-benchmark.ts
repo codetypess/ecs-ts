@@ -87,7 +87,7 @@ const DamageMessage = defineMessage<{ target: Entity; amount: number }>("BenchDa
 const DamageEvent = defineEvent<{ target: Entity; amount: number }>("BenchDamageEvent");
 const FeatureFlags = defineResource<{ enabled: boolean; paused: boolean }>("BenchFeatureFlags");
 const Mode = defineState<"running" | "paused">("BenchMode", "running");
-const QueryRunIf = queryState([Position, Velocity], { none: [Sleeping] });
+const QueryRunIf = queryState([Position, Velocity], { without: [Sleeping] });
 
 let checksum = 0;
 const options = parseOptions(process.argv.slice(2));
@@ -459,7 +459,7 @@ pushBenchmark(results, "optional query Velocity", () => {
         for (const [, position, velocity] of movement.world.queryOptional(
             [Position],
             [Velocity],
-            { none: [Sleeping] }
+            { without: [Sleeping] }
         )) {
             checksum += position.x + (velocity?.x ?? 0);
             operations++;

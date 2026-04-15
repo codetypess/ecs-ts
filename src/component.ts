@@ -10,6 +10,7 @@ export type ComponentHook<T> = {
 export interface ComponentLifecycle<T> {
     readonly onAdd?: ComponentHook<T>;
     readonly onInsert?: ComponentHook<T>;
+    // Runs with the previous value before replacement, removal, or despawn.
     readonly onReplace?: ComponentHook<T>;
     readonly onRemove?: ComponentHook<T>;
     readonly onDespawn?: ComponentHook<T>;

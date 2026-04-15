@@ -29,7 +29,6 @@ export interface QueryFilter {
     readonly with?: readonly AnyComponentType[];
     readonly without?: readonly AnyComponentType[];
     readonly or?: readonly AnyComponentType[];
-    readonly none?: readonly AnyComponentType[];
     readonly added?: readonly AnyComponentType[];
     readonly changed?: readonly AnyComponentType[];
 }
@@ -39,13 +38,12 @@ export interface ChangeDetectionRange {
     readonly thisRunTick: number;
 }
 
-export type QueryFilterMode = "none" | "structural" | "change";
+export type QueryFilterMode = "unfiltered" | "structural" | "change";
 
 export interface ResolvedQueryFilter {
     readonly with: readonly SparseSet<unknown>[];
     readonly without: readonly SparseSet<unknown>[];
     readonly or: readonly SparseSet<unknown>[];
-    readonly none: readonly SparseSet<unknown>[];
     readonly added: readonly SparseSet<unknown>[];
     readonly changed: readonly SparseSet<unknown>[];
 }
@@ -187,7 +185,6 @@ function cloneQueryFilter(filter: QueryFilter): QueryFilter {
         with: cloneFilterTypes(filter.with),
         without: cloneFilterTypes(filter.without),
         or: cloneFilterTypes(filter.or),
-        none: cloneFilterTypes(filter.none),
         added: cloneFilterTypes(filter.added),
         changed: cloneFilterTypes(filter.changed),
     });
@@ -197,110 +194,6 @@ function cloneFilterTypes(
     types: readonly AnyComponentType[] | undefined
 ): readonly AnyComponentType[] | undefined {
     return types === undefined ? undefined : Object.freeze([...types]);
-}
-
-export function resolvedQueryStateCache(
-    cache: QueryStateCache
-): ResolvedQueryPlan | undefined {
-    return cache.plan;
-}
-
-export function resolvedOptionalQueryStateCache(
-    cache: OptionalQueryStateCache
-): ResolvedOptionalQueryPlan | undefined {
-    return cache.plan;
-}
-
-export function matchesFilter(
-    entity: Entity,
-    filter: ResolvedQueryFilter,
-    changeDetection: ChangeDetectionRange
-): boolean {
-    for (const store of filter.with) {
-        if (!store.has(entity)) {
-            return false;
-        }
-    }
-
-    for (const store of filter.without) {
-        if (store.has(entity)) {
-            return false;
-        }
-    }
-
-    for (const store of filter.none) {
-        if (store.has(entity)) {
-            return false;
-        }
-    }
-
-    if (!matchesOrStore(entity, filter.or)) {
-        return false;
-    }
-
-    if (!matchesAddedStore(entity, filter.added, changeDetection)) {
-        return false;
-    }
-
-    if (!matchesChangedStore(entity, filter.changed, changeDetection)) {
-        return false;
-    }
-
-    return true;
-}
-
-function matchesOrStore(entity: Entity, stores: readonly SparseSet<unknown>[]): boolean {
-    if (stores.length === 0) {
-        return true;
-    }
-
-    for (const store of stores) {
-        if (store.has(entity)) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-function matchesChangedStore(
-    entity: Entity,
-    stores: readonly SparseSet<unknown>[],
-    changeDetection: ChangeDetectionRange
-): boolean {
-    if (stores.length === 0) {
-        return true;
-    }
-
-    for (const store of stores) {
-        const tick = store.getChangedTick(entity);
-
-        if (tick !== undefined && isTickInRange(tick, changeDetection)) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-function matchesAddedStore(
-    entity: Entity,
-    stores: readonly SparseSet<unknown>[],
-    changeDetection: ChangeDetectionRange
-): boolean {
-    if (stores.length === 0) {
-        return true;
-    }
-
-    for (const store of stores) {
-        const tick = store.getAddedTick(entity);
-
-        if (tick !== undefined && isTickInRange(tick, changeDetection)) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 export function isTickInRange(tick: number, changeDetection: ChangeDetectionRange): boolean {

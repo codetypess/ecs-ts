@@ -13,7 +13,7 @@ const Sleeping = defineComponent("Sleeping");
 
 class MovementSystem {
     private readonly moving = queryState([Position, Velocity], {
-        none: [Sleeping],
+        without: [Sleeping],
     });
 
     onUpdate(world: World): void {

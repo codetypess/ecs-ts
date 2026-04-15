@@ -9,7 +9,7 @@ A small TypeScript ECS prototype based on the design discussion:
 - Bundles group multiple component entries for spawn/insert/remove calls.
 - Component storage uses `SparseSet`: O(1)-ish `get/has/add/remove`, dense iteration, and swap-remove deletion.
 - Queries choose the smallest component store as the base loop, then check other component stores by entity.
-- Queries can filter with `with`, `without`, `or`, `none`, `added`, and `changed`.
+- Queries can filter with `with`, `without`, `or`, `added`, and `changed`.
 - Optional queries can return `undefined` for components that may or may not exist on a matched entity.
 - Query ergonomics include `hasAll`, `hasAny`, `single`, and `trySingle`.
 - `QueryState` caches query store resolution for systems that run the same query repeatedly.

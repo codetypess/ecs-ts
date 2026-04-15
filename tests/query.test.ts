@@ -9,7 +9,7 @@ import {
     withMarker,
 } from "../src";
 
-test("advanced query filters support or, none, and optional components", () => {
+test("advanced query filters support or and optional components", () => {
     const Position = defineComponent<{ x: number; y: number }>("QueryPosition");
     const Velocity = defineComponent<{ x: number; y: number }>("QueryVelocity");
     const Player = defineComponent("QueryPlayer");
@@ -49,7 +49,7 @@ test("advanced query filters support or, none, and optional components", () => {
     const rows = Array.from(
         world.queryOptional([Position], [Velocity, Name], {
             or: [Player, Npc],
-            none: [Sleeping, Frozen],
+            without: [Sleeping, Frozen],
         })
     );
 
@@ -100,7 +100,7 @@ test("query state caches resolved stores and invalidates when stores are created
     const world = new World();
     const movingPlayers = queryState([Position, Velocity], {
         or: [Player],
-        none: [Sleeping],
+        without: [Sleeping],
     });
 
     assert.equal(Array.from(movingPlayers.iter(world)).length, 0);
@@ -181,8 +181,7 @@ test("query state tracks structural filter changes through cached plans", () => 
     const filtered = queryState([Position], {
         with: [Required],
         or: [OrMatch, Banned],
-        without: [Banned],
-        none: [Excluded],
+        without: [Banned, Excluded],
     });
     const active = world.spawn(
         withComponent(Position, { x: 1, y: 2 }),

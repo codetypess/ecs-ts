@@ -22,7 +22,6 @@ Use `world.query(...)` when you want iterator rows, or `world.each(...)` on hot 
 - `with`: entity must have all listed components.
 - `without`: entity must not have any listed components.
 - `or`: entity must have at least one listed component. Empty `or` matches everything.
-- `none`: entity must have none of the listed components.
 - `added`: at least one listed component must have been added in the active change-detection range.
 - `changed`: at least one listed component must have changed in the active change-detection range.
 
@@ -51,7 +50,7 @@ Use `queryOptional(...)` when matching should require one set of components whil
 ```ts
 for (const [entity, position, velocity, name] of world.queryOptional([Position], [Velocity, Name], {
     or: [Player, Npc],
-    none: [Sleeping, Frozen],
+    without: [Sleeping, Frozen],
 })) {
     if (velocity !== undefined) {
         position.x += velocity.x;
@@ -77,7 +76,7 @@ const enemyWithVelocity = world.trySingle([Position, Velocity], { with: [Enemy] 
 
 ```ts
 const activeBodies = queryState([Transform, Velocity, RigidBody], {
-    none: [Sleeping],
+    without: [Sleeping],
 });
 
 class PhysicsSystem {

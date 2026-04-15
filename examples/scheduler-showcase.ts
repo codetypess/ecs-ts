@@ -28,7 +28,7 @@ const RigidBody = defineComponent("SchedulerShowcaseRigidBody");
 const Sleeping = defineComponent("SchedulerShowcaseSleeping");
 
 const activeBodies = queryState([Transform, Velocity, RigidBody], {
-    none: [Sleeping],
+    without: [Sleeping],
 });
 
 function appendLog(world: World, message: string): void {

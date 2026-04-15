@@ -79,28 +79,16 @@ export function resourceMatches<T>(
     type: ResourceType<T>,
     predicate: RunIfPredicate<T>
 ): SystemRunCondition {
-    return (world) => {
-        if (!world.hasResource(type)) {
-            return false;
-        }
-
-        return predicate(world.resource(type), world);
-    };
+    return (world) => world.resourceMatches(type, predicate);
 }
 
 export function stateIs<T extends StateValue>(type: StateType<T>, value: T): SystemRunCondition {
-    return (world) => world.hasState(type) && Object.is(world.state(type), value);
+    return (world) => world.stateMatches(type, (current) => Object.is(current, value));
 }
 
 export function stateMatches<T extends StateValue>(
     type: StateType<T>,
     predicate: RunIfPredicate<T>
 ): SystemRunCondition {
-    return (world) => {
-        if (!world.hasState(type)) {
-            return false;
-        }
-
-        return predicate(world.state(type), world);
-    };
+    return (world) => world.stateMatches(type, predicate);
 }
