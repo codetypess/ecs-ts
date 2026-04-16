@@ -1,6 +1,7 @@
 import {
     Entity,
     QueryState,
+    RemovedReader,
     World,
     anyMatch,
     defineComponent,
@@ -10,7 +11,6 @@ import {
     defineState,
     messageReader,
     queryState,
-    removedReader,
     resourceMatches,
     runIfAll,
     runIfNot,
@@ -42,7 +42,12 @@ interface SkewedQueryStateWorld {
 
 interface RemovedReaderWorld {
     readonly world: World;
-    readonly reader: ReturnType<typeof removedReader>;
+    readonly reader: RemovedReader<{ value: number }>;
+}
+
+interface RemovedSteadyStateWorld {
+    readonly world: World;
+    readonly reader: RemovedReader<{ value: number }>;
 }
 
 interface BenchmarkConfig {
@@ -199,14 +204,23 @@ function createSchedulerWorld(enabled: boolean): World {
 
 function createRemovedReaderWorld(removalCount: number): RemovedReaderWorld {
     const world = new World();
-    const reader = removedReader(Health);
+    const reader = world.removedReader(Health);
 
     for (let index = 0; index < removalCount; index++) {
         const entity = world.spawn(withComponent(Health, { value: index }));
         world.remove(entity, Health);
     }
 
-    reader.read(world);
+    reader.read();
+
+    return { world, reader };
+}
+
+function createRemovedSteadyStateWorld(): RemovedSteadyStateWorld {
+    const world = new World();
+    const reader = world.removedReader(Health);
+
+    reader.read();
 
     return { world, reader };
 }
@@ -427,6 +441,7 @@ function printUsage(): void {
 const movement = createMovementWorld(ENTITY_COUNT);
 const movingQuery = queryState([Position, Velocity]);
 const removedReaderWorld = createRemovedReaderWorld(EVENT_COUNT);
+const removedSteadyStateWorld = createRemovedSteadyStateWorld();
 const skewedQueryStateWorld = createSkewedQueryStateWorld(ENTITY_COUNT);
 const results: BenchmarkResult[] = [];
 
@@ -560,8 +575,26 @@ pushBenchmark(results, "removed reader empty read", () => {
     let operations = 0;
 
     for (let index = 0; index < DIRECT_GET_LOOPS * 10; index++) {
-        checksum += removedReaderWorld.reader.read(removedReaderWorld.world).length;
+        checksum += removedReaderWorld.reader.read().length;
         operations++;
+    }
+
+    return operations;
+});
+
+pushBenchmark(results, "removed reader steady-state remove+read", () => {
+    let operations = 0;
+
+    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+        for (let index = 0; index < ENTITY_COUNT; index++) {
+            const entity = removedSteadyStateWorld.world.spawn(
+                withComponent(Health, { value: index + loop })
+            );
+
+            removedSteadyStateWorld.world.remove(entity, Health);
+            checksum += removedSteadyStateWorld.reader.read().length;
+            operations++;
+        }
     }
 
     return operations;

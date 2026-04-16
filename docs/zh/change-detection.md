@@ -31,11 +31,11 @@ Removed component 记录同时支持直接 drain 和独立 reader：
 
 ```ts
 const removed = world.drainRemoved(Position);
-const reader = removedReader(Position);
-const records = reader.read(world);
+const reader = world.removedReader(Position);
+const records = reader.read();
 ```
 
-当多个 system 需要查看同一个 removal stream，并且不能互相消费记录时，使用 `RemovedReader`。
+当多个 system 需要查看同一个 removal stream，并且不能互相消费记录时，使用 `RemovedReader`。当不再需要它时，调用 `reader.close()`，这样已经完全消费的历史可以更快压缩掉。
 
 ```sh
 npm run example:removed

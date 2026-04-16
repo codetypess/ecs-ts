@@ -31,11 +31,11 @@ Removed component records support both direct draining and independent readers:
 
 ```ts
 const removed = world.drainRemoved(Position);
-const reader = removedReader(Position);
-const records = reader.read(world);
+const reader = world.removedReader(Position);
+const records = reader.read();
 ```
 
-Use `RemovedReader` when multiple systems need to inspect the same removal stream without consuming each other's records.
+Use `RemovedReader` when multiple systems need to inspect the same removal stream without consuming each other's records. Call `reader.close()` when you no longer need it so fully consumed history can compact promptly.
 
 ```sh
 npm run example:removed

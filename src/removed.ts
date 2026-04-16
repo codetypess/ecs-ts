@@ -14,22 +14,24 @@ export interface RemovedComponent<T> {
     readonly tick: number;
 }
 
-/** Minimal world surface needed by removed-component readers. */
-export interface RemovedWorld {
-    readRemoved<T>(reader: RemovedReader<T>): readonly RemovedComponent<T>[];
-}
-
 /** Options for constructing a reader that starts from a custom cursor. */
 export interface RemovedReaderOptions {
     readonly startAt?: number;
 }
 
+interface RemovedReaderBinding<T> {
+    readonly read: (reader: RemovedReader<T>) => readonly RemovedComponent<T>[];
+    readonly release: (reader: RemovedReader<T>) => void;
+}
+
 /** Cursor-based reader for removed-component streams. */
 export class RemovedReader<T> {
     private nextRemovedId: number;
+    private closed = false;
 
     constructor(
         readonly type: ComponentType<T>,
+        private readonly binding: RemovedReaderBinding<T>,
         options: RemovedReaderOptions = {}
     ) {
         this.nextRemovedId = options.startAt ?? 0;
@@ -41,19 +43,39 @@ export class RemovedReader<T> {
     }
 
     /** Reads unread removals and advances the cursor. */
-    read(world: RemovedWorld): readonly RemovedComponent<T>[] {
-        return world.readRemoved(this);
+    read(): readonly RemovedComponent<T>[] {
+        this.assertOpen();
+
+        return this.binding.read(this);
+    }
+
+    /** Releases this reader so it no longer retains removed-component history. */
+    close(): void {
+        if (this.closed) {
+            return;
+        }
+
+        this.closed = true;
+        this.binding.release(this);
     }
 
     /** Manually rewinds or fast-forwards the reader cursor. */
     advanceTo(nextRemovedId: number): void {
+        this.assertOpen();
         this.nextRemovedId = nextRemovedId;
+    }
+
+    private assertOpen(): void {
+        if (this.closed) {
+            throw new Error("RemovedReader is closed.");
+        }
     }
 }
 
 /** Append-only storage for removed-component records. */
 export class RemovedComponents<T> {
     private readonly removed: RemovedComponent<T>[] = [];
+    private readonly activeReaders = new Set<RemovedReader<T>>();
     private firstRemovedId = 0;
     private nextRemovedId = 0;
 
@@ -65,6 +87,15 @@ export class RemovedComponents<T> {
     /** Number of buffered removal records. */
     get length(): number {
         return this.removed.length;
+    }
+
+    /** Starts tracking a reader so consumed prefixes can be compacted safely. */
+    register(reader: RemovedReader<T>): void {
+        if (this.activeReaders.has(reader)) {
+            return;
+        }
+
+        this.activeReaders.add(reader);
     }
 
     /** Records a removed component together with entity and tick metadata. */
@@ -83,12 +114,32 @@ export class RemovedComponents<T> {
 
     /** Reads unread removals and advances the reader cursor. */
     read(reader: RemovedReader<T>): readonly RemovedComponent<T>[] {
+        if (reader.cursor === this.nextRemovedId) {
+            return [];
+        }
+
         // Removed ids are contiguous, so the unread slice can be computed directly
         // instead of scanning the entire append-only buffer every read.
         const startIndex = Math.max(0, reader.cursor - this.firstRemovedId);
+        const unread =
+            startIndex >= this.removed.length ? [] : this.removed.slice(startIndex);
+
         reader.advanceTo(this.nextRemovedId);
 
-        return startIndex >= this.removed.length ? [] : this.removed.slice(startIndex);
+        if (this.removed.length > 0) {
+            this.compactAfterRead(reader);
+        }
+
+        return unread;
+    }
+
+    /** Stops tracking the reader and compacts any newly unpinned history. */
+    release(reader: RemovedReader<T>): void {
+        if (!this.activeReaders.delete(reader)) {
+            return;
+        }
+
+        this.compactToMinimumLiveCursor();
     }
 
     /** Returns all removal records and clears the internal buffer. */
@@ -98,9 +149,58 @@ export class RemovedComponents<T> {
 
         return drained;
     }
-}
 
-/** Creates a removed-component reader for the given component type. */
-export function removedReader<T>(type: ComponentType<T>): RemovedReader<T> {
-    return new RemovedReader(type);
+    private compactToMinimumLiveCursor(): void {
+        const minimum = this.minimumLiveCursor();
+
+        if (minimum === undefined) {
+            return;
+        }
+
+        this.dropBufferedPrefix(minimum);
+    }
+
+    private compactAfterRead(reader: RemovedReader<T>): void {
+        if (this.activeReaders.size === 1 && this.activeReaders.has(reader)) {
+            this.removed.length = 0;
+            this.firstRemovedId = this.nextRemovedId;
+
+            return;
+        }
+
+        this.compactToMinimumLiveCursor();
+    }
+
+    private minimumLiveCursor(): number | undefined {
+        if (this.activeReaders.size === 0) {
+            return undefined;
+        }
+
+        let minimum = this.nextRemovedId;
+
+        for (const reader of this.activeReaders) {
+            minimum = Math.min(minimum, reader.cursor);
+
+            if (minimum === 0) {
+                break;
+            }
+        }
+
+        return minimum;
+    }
+
+    private dropBufferedPrefix(nextLiveId: number): void {
+        if (this.removed.length === 0 || nextLiveId <= this.firstRemovedId) {
+            return;
+        }
+
+        const compacted = Math.min(this.removed.length, nextLiveId - this.firstRemovedId);
+
+        if (compacted <= 0) {
+            return;
+        }
+
+        this.removed.splice(0, compacted);
+        this.firstRemovedId += compacted;
+    }
 }

@@ -53,9 +53,9 @@ import {
     type QueryExecutorContext,
 } from "./internal/query-executor";
 import {
+    createRemovedReader as createBoundRemovedReader,
     createRemovedStoreContext,
     drainRemoved as drainRemovedComponents,
-    readRemoved as readRemovedComponents,
     recordRemoved as recordRemovedComponent,
 } from "./internal/removed-store";
 import {
@@ -109,6 +109,7 @@ import type {
 } from "./query";
 import { isTickInRange, optionalQueryState, queryState } from "./query";
 import type { RemovedComponent, RemovedReader } from "./removed";
+import type { RemovedReaderOptions } from "./removed";
 import type { ResourceType } from "./resource";
 import type {
     ScheduleStage,
@@ -628,9 +629,22 @@ export class World {
         return drainRemovedComponents(this.removedContext, type);
     }
 
+    /** Creates a removed-component reader bound to this world. */
+    removedReader<T>(
+        type: ComponentType<T>,
+        options: RemovedReaderOptions = {}
+    ): RemovedReader<T> {
+        return createBoundRemovedReader(this.removedContext, type, options);
+    }
+
     /** Reads removed components with an independent cursor-based reader. */
     readRemoved<T>(reader: RemovedReader<T>): readonly RemovedComponent<T>[] {
-        return readRemovedComponents(this.removedContext, reader);
+        return reader.read();
+    }
+
+    /** Releases a removed reader so its cursor no longer retains buffered history. */
+    releaseRemovedReader<T>(reader: RemovedReader<T>): void {
+        reader.close();
     }
 
     /** Registers every implemented lifecycle method from an object-style system. */

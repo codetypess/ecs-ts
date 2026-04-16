@@ -1,7 +1,7 @@
 import type { ComponentType } from "../component";
 import type { Entity } from "../entity";
-import type { RemovedComponent, RemovedReader } from "../removed";
-import { RemovedComponents } from "../removed";
+import type { RemovedComponent, RemovedReader, RemovedReaderOptions } from "../removed";
+import { RemovedComponents, RemovedReader as BoundRemovedReader } from "../removed";
 
 interface RemovedStoreOptions {
     readonly getChangeTick: () => number;
@@ -20,12 +20,25 @@ export function createRemovedStoreContext(options: RemovedStoreOptions): Removed
     };
 }
 
-/** Reads unread removed-component records for the provided reader. */
-export function readRemoved<T>(
+/** Creates a world-bound removed-component reader for the component type. */
+export function createRemovedReader<T>(
     context: RemovedStoreContext,
-    reader: RemovedReader<T>
-): readonly RemovedComponent<T>[] {
-    return getRemovedComponents(context, reader.type)?.read(reader) ?? [];
+    type: ComponentType<T>,
+    options: RemovedReaderOptions = {}
+): RemovedReader<T> {
+    const removed = ensureRemovedComponents(context, type);
+    const reader = new BoundRemovedReader(
+        type,
+        {
+            read: (current) => removed.read(current),
+            release: (current) => removed.release(current),
+        },
+        options
+    );
+
+    removed.register(reader);
+
+    return reader;
 }
 
 /** Returns and clears all removed-component records for the component type. */

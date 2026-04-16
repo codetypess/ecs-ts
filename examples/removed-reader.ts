@@ -1,10 +1,10 @@
 import {
     Commands,
     Entity,
+    RemovedReader,
     World,
     defineComponent,
     formatEntity,
-    removedReader,
     withComponent,
 } from "../src";
 
@@ -26,10 +26,12 @@ class RemovePositionSystem {
 }
 
 class RemovedLogSystem {
-    private readonly removedPositions = removedReader(Position);
+    constructor(
+        private readonly removedPositions: RemovedReader<{ x: number; y: number }>
+    ) {}
 
-    onPostUpdate(world: World): void {
-        for (const removed of this.removedPositions.read(world)) {
+    onPostUpdate(): void {
+        for (const removed of this.removedPositions.read()) {
             console.log(
                 `log removed ${formatEntity(removed.entity)} at (${removed.component.x}, ${removed.component.y})`
             );
@@ -38,10 +40,12 @@ class RemovedLogSystem {
 }
 
 class RemovedCleanupSystem {
-    private readonly removedPositions = removedReader(Position);
+    constructor(
+        private readonly removedPositions: RemovedReader<{ x: number; y: number }>
+    ) {}
 
-    onPostUpdate(world: World): void {
-        for (const removed of this.removedPositions.read(world)) {
+    onPostUpdate(): void {
+        for (const removed of this.removedPositions.read()) {
             console.log(`cleanup removed ${formatEntity(removed.entity)}`);
         }
     }
@@ -49,8 +53,8 @@ class RemovedCleanupSystem {
 
 const world = new World();
 world.addSystem(new RemovePositionSystem());
-world.addSystem(new RemovedLogSystem());
-world.addSystem(new RemovedCleanupSystem());
+world.addSystem(new RemovedLogSystem(world.removedReader(Position)));
+world.addSystem(new RemovedCleanupSystem(world.removedReader(Position)));
 
 world.update(0);
 world.update(0);
