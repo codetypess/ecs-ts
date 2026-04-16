@@ -9,8 +9,25 @@ import type {
 import { Commands } from "./commands";
 import { Entity, EntityManager } from "./entity";
 import type { EventObserver, EventType } from "./event";
-import { ComponentStoreRuntime } from "./internal/component-store-runtime";
-import { ComponentRuntime } from "./internal/component-runtime";
+import {
+    add as addComponent,
+    createComponentRuntimeContext,
+    despawn as despawnEntity,
+    get as getComponent,
+    getMany as getManyComponents,
+    has as hasComponent,
+    hasAll as hasAllComponents,
+    hasAny as hasAnyComponents,
+    insertBundle as insertComponentBundle,
+    isAdded as isComponentAdded,
+    isChanged as isComponentChanged,
+    markChanged as markComponentChanged,
+    mustGet as mustGetComponent,
+    remove as removeComponent,
+    removeBundle as removeComponentBundle,
+    type ComponentRuntimeContext,
+} from "./internal/component-runtime";
+import { createComponentStoreRuntimeContext } from "./internal/component-store-runtime";
 import {
     addComponentHook as registerComponentHook,
     createComponentHookRuntimeContext,
@@ -123,7 +140,7 @@ export class World {
         this.runSystems(systems, "update", dt);
     };
     private readonly entities = new EntityManager();
-    private readonly componentStoreRuntime = new ComponentStoreRuntime();
+    private readonly componentStoreContext = createComponentStoreRuntimeContext();
     private readonly resourceContext = createResourceRuntimeContext({
         getChangeTick: () => this.changeTick,
         getChangeDetectionRange: () => this.changeDetectionRange(),
@@ -132,9 +149,9 @@ export class World {
         getChangeTick: () => this.changeTick,
     });
     private readonly componentHookContext = createComponentHookRuntimeContext();
-    private readonly componentRuntime = new ComponentRuntime({
+    private readonly componentContext: ComponentRuntimeContext = createComponentRuntimeContext({
         entities: this.entities,
-        componentStores: this.componentStoreRuntime,
+        componentStores: this.componentStoreContext,
         getChangeTick: () => this.changeTick,
         getChangeDetectionRange: () => this.changeDetectionRange(),
         runComponentHooks: (type, stage, entity, component) => {
@@ -149,8 +166,8 @@ export class World {
     private readonly messageContext = createMessageRuntimeContext();
     private readonly queryContext: QueryRuntimeContext = {
         planRuntime: new QueryPlanRuntime({
-            stores: this.componentStoreRuntime.stores,
-            getStoreVersion: () => this.componentStoreRuntime.version,
+            stores: this.componentStoreContext.stores,
+            getStoreVersion: () => this.componentStoreContext.storeVersion,
         }),
         isAlive: (entity) => this.entities.isAlive(entity),
     };
@@ -172,13 +189,13 @@ export class World {
     }
 
     insertBundle(entity: Entity, bundle: Bundle): this {
-        this.componentRuntime.insertBundle(entity, bundle);
+        insertComponentBundle(this.componentContext, entity, bundle);
 
         return this;
     }
 
     removeBundle(entity: Entity, bundle: Bundle): boolean {
-        return this.componentRuntime.removeBundle(entity, bundle);
+        return removeComponentBundle(this.componentContext, entity, bundle);
     }
 
     isAlive(entity: Entity): boolean {
@@ -186,56 +203,56 @@ export class World {
     }
 
     add<T>(entity: Entity, type: ComponentType<T>, value: T): this {
-        this.componentRuntime.add(entity, type, value);
+        addComponent(this.componentContext, entity, type, value);
 
         return this;
     }
 
     markChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
-        return this.componentRuntime.markChanged(entity, type);
+        return markComponentChanged(this.componentContext, entity, type);
     }
 
     has<T>(entity: Entity, type: ComponentType<T>): boolean {
-        return this.componentRuntime.has(entity, type);
+        return hasComponent(this.componentContext, entity, type);
     }
 
     hasAll(entity: Entity, types: readonly AnyComponentType[]): boolean {
-        return this.componentRuntime.hasAll(entity, types);
+        return hasAllComponents(this.componentContext, entity, types);
     }
 
     hasAny(entity: Entity, types: readonly AnyComponentType[]): boolean {
-        return this.componentRuntime.hasAny(entity, types);
+        return hasAnyComponents(this.componentContext, entity, types);
     }
 
     get<T>(entity: Entity, type: ComponentType<T>): T | undefined {
-        return this.componentRuntime.get(entity, type);
+        return getComponent(this.componentContext, entity, type);
     }
 
     mustGet<T>(entity: Entity, type: ComponentType<T>): T {
-        return this.componentRuntime.mustGet(entity, type);
+        return mustGetComponent(this.componentContext, entity, type);
     }
 
     getMany<const TComponents extends readonly AnyComponentType[]>(
         entity: Entity,
         ...types: TComponents
     ): ComponentTuple<TComponents> | undefined {
-        return this.componentRuntime.getMany(entity, ...types);
+        return getManyComponents(this.componentContext, entity, ...types);
     }
 
     isAdded<T>(entity: Entity, type: ComponentType<T>): boolean {
-        return this.componentRuntime.isAdded(entity, type);
+        return isComponentAdded(this.componentContext, entity, type);
     }
 
     isChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
-        return this.componentRuntime.isChanged(entity, type);
+        return isComponentChanged(this.componentContext, entity, type);
     }
 
     remove<T>(entity: Entity, type: ComponentType<T>): boolean {
-        return this.componentRuntime.remove(entity, type);
+        return removeComponent(this.componentContext, entity, type);
     }
 
     despawn(entity: Entity): boolean {
-        return this.componentRuntime.despawn(entity);
+        return despawnEntity(this.componentContext, entity);
     }
 
     query<const TComponents extends readonly AnyComponentType[]>(

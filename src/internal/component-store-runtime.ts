@@ -1,44 +1,55 @@
 import type { AnyComponentType, ComponentType } from "../component";
 import { SparseSet } from "../sparse-set";
 
-export class ComponentStoreRuntime {
-    private readonly storesById = new Map<number, SparseSet<unknown>>();
-    private readonly componentTypesById = new Map<number, AnyComponentType>();
-    private storeVersion = 0;
+export interface ComponentStoreRuntimeContext {
+    readonly stores: Map<number, SparseSet<unknown>>;
+    readonly componentTypes: Map<number, AnyComponentType>;
+    storeVersion: number;
+}
 
-    get stores(): ReadonlyMap<number, SparseSet<unknown>> {
-        return this.storesById;
+export function createComponentStoreRuntimeContext(): ComponentStoreRuntimeContext {
+    return {
+        stores: new Map(),
+        componentTypes: new Map(),
+        storeVersion: 0,
+    };
+}
+
+export function ensureComponentStore<T>(
+    context: ComponentStoreRuntimeContext,
+    type: ComponentType<T>
+): SparseSet<T> {
+    context.componentTypes.set(type.id, type);
+
+    const existing = context.stores.get(type.id);
+
+    if (existing !== undefined) {
+        return existing as SparseSet<T>;
     }
 
-    get version(): number {
-        return this.storeVersion;
-    }
+    const store = new SparseSet<T>();
+    context.stores.set(type.id, store as SparseSet<unknown>);
+    context.storeVersion++;
 
-    ensureStore<T>(type: ComponentType<T>): SparseSet<T> {
-        this.componentTypesById.set(type.id, type);
+    return store;
+}
 
-        const existing = this.storesById.get(type.id);
+export function getComponentStore<T>(
+    context: ComponentStoreRuntimeContext,
+    type: ComponentType<T>
+): SparseSet<T> | undefined {
+    return context.stores.get(type.id) as SparseSet<T> | undefined;
+}
 
-        if (existing !== undefined) {
-            return existing as SparseSet<T>;
-        }
+export function getComponentType(
+    context: ComponentStoreRuntimeContext,
+    componentId: number
+): AnyComponentType | undefined {
+    return context.componentTypes.get(componentId);
+}
 
-        const store = new SparseSet<T>();
-        this.storesById.set(type.id, store as SparseSet<unknown>);
-        this.storeVersion++;
-
-        return store;
-    }
-
-    getStore<T>(type: ComponentType<T>): SparseSet<T> | undefined {
-        return this.storesById.get(type.id) as SparseSet<T> | undefined;
-    }
-
-    getType(componentId: number): AnyComponentType | undefined {
-        return this.componentTypesById.get(componentId);
-    }
-
-    entries(): IterableIterator<[number, SparseSet<unknown>]> {
-        return this.storesById.entries();
-    }
+export function getComponentStoreEntries(
+    context: ComponentStoreRuntimeContext
+): IterableIterator<[number, SparseSet<unknown>]> {
+    return context.stores.entries();
 }
