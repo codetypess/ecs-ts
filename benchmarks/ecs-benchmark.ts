@@ -10,6 +10,7 @@ import {
     defineState,
     messageReader,
     queryState,
+    removedReader,
     resourceMatches,
     runIfAll,
     runIfNot,
@@ -37,6 +38,11 @@ interface SkewedQueryStateWorld {
     readonly world: World;
     readonly query: QueryState<readonly [typeof Position, typeof Velocity]>;
     readonly matches: number;
+}
+
+interface RemovedReaderWorld {
+    readonly world: World;
+    readonly reader: ReturnType<typeof removedReader>;
 }
 
 interface BenchmarkConfig {
@@ -189,6 +195,20 @@ function createSchedulerWorld(enabled: boolean): World {
     }
 
     return world;
+}
+
+function createRemovedReaderWorld(removalCount: number): RemovedReaderWorld {
+    const world = new World();
+    const reader = removedReader(Health);
+
+    for (let index = 0; index < removalCount; index++) {
+        const entity = world.spawn(withComponent(Health, { value: index }));
+        world.remove(entity, Health);
+    }
+
+    reader.read(world);
+
+    return { world, reader };
 }
 
 function createSkewedQueryStateWorld(count: number): SkewedQueryStateWorld {
@@ -406,6 +426,7 @@ function printUsage(): void {
 
 const movement = createMovementWorld(ENTITY_COUNT);
 const movingQuery = queryState([Position, Velocity]);
+const removedReaderWorld = createRemovedReaderWorld(EVENT_COUNT);
 const skewedQueryStateWorld = createSkewedQueryStateWorld(ENTITY_COUNT);
 const results: BenchmarkResult[] = [];
 
@@ -533,6 +554,17 @@ pushBenchmark(results, "message write+read", () => {
     checksum += reader.read(world).length;
 
     return EVENT_COUNT;
+});
+
+pushBenchmark(results, "removed reader empty read", () => {
+    let operations = 0;
+
+    for (let index = 0; index < DIRECT_GET_LOOPS * 10; index++) {
+        checksum += removedReaderWorld.reader.read(removedReaderWorld.world).length;
+        operations++;
+    }
+
+    return operations;
 });
 
 pushBenchmark(results, "observer trigger", () => {

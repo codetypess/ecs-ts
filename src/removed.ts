@@ -54,6 +54,7 @@ export class RemovedReader<T> {
 /** Append-only storage for removed-component records. */
 export class RemovedComponents<T> {
     private readonly removed: RemovedComponent<T>[] = [];
+    private firstRemovedId = 0;
     private nextRemovedId = 0;
 
     /** Id that will be assigned to the next removal record. */
@@ -69,6 +70,11 @@ export class RemovedComponents<T> {
     /** Records a removed component together with entity and tick metadata. */
     push(entity: Entity, component: T, tick: number): RemovedComponentId<T> {
         const id = this.nextRemovedId as RemovedComponentId<T>;
+
+        if (this.removed.length === 0) {
+            this.firstRemovedId = id;
+        }
+
         this.nextRemovedId++;
         this.removed.push({ id, entity, component, tick });
 
@@ -77,23 +83,20 @@ export class RemovedComponents<T> {
 
     /** Reads unread removals and advances the reader cursor. */
     read(reader: RemovedReader<T>): readonly RemovedComponent<T>[] {
-        const cursor = reader.cursor;
-        const output: RemovedComponent<T>[] = [];
-
-        for (const removed of this.removed) {
-            if (removed.id >= cursor) {
-                output.push(removed);
-            }
-        }
-
+        // Removed ids are contiguous, so the unread slice can be computed directly
+        // instead of scanning the entire append-only buffer every read.
+        const startIndex = Math.max(0, reader.cursor - this.firstRemovedId);
         reader.advanceTo(this.nextRemovedId);
 
-        return output;
+        return startIndex >= this.removed.length ? [] : this.removed.slice(startIndex);
     }
 
     /** Returns all removal records and clears the internal buffer. */
     drain(): RemovedComponent<T>[] {
-        return this.removed.splice(0);
+        const drained = this.removed.splice(0);
+        this.firstRemovedId = this.nextRemovedId;
+
+        return drained;
     }
 }
 

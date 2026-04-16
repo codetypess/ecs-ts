@@ -119,3 +119,23 @@ test("removed readers can inspect records without draining them", () => {
     assert.equal(world.drainRemoved(Position).length, 1);
     assert.equal(world.drainRemoved(Position).length, 0);
 });
+
+test("removed readers only see removals still buffered after drain", () => {
+    const Position = defineComponent<{ x: number; y: number }>("RemovedAfterDrainPosition");
+    const world = new World();
+    const reader = removedReader(Position);
+    const first = world.spawn(withComponent(Position, { x: 1, y: 2 }));
+
+    world.remove(first, Position);
+    assert.equal(world.drainRemoved(Position).length, 1);
+
+    const second = world.spawn(withComponent(Position, { x: 3, y: 4 }));
+
+    world.remove(second, Position);
+
+    const removed = reader.read(world);
+
+    assert.equal(removed.length, 1);
+    assert.equal(removed[0]?.entity, second);
+    assert.deepEqual(removed[0]?.component, { x: 3, y: 4 });
+});

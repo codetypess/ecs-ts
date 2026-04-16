@@ -3,6 +3,7 @@
 ## Recently Addressed
 
 - [x] Refresh cached `QueryState` / `OptionalQueryState` base-store selection when component store sizes drift so repeated queries keep scanning the current smallest candidate store.
+- [x] Optimize `RemovedReader.read()` so empty reads jump directly to the unread tail instead of rescanning the full buffered removal history.
 
 ## Open Performance And Design Follow-Ups
 
