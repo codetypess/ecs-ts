@@ -26,15 +26,15 @@ import {
     remove as removeComponent,
     removeBundle as removeComponentBundle,
     type ComponentRuntimeContext,
-} from "./internal/component-runtime";
-import { createComponentStoreRuntimeContext } from "./internal/component-store-runtime";
+} from "./internal/component-ops";
+import { createComponentStoreRuntimeContext } from "./internal/component-store";
 import {
     addComponentHook as registerComponentHook,
     createComponentHookRuntimeContext,
     runComponentHooks as dispatchComponentHooks,
-} from "./internal/component-hook-runtime";
-import { runSystemWithCommands } from "./internal/command-runtime";
-import { createEventRuntimeContext, observeEvent, triggerEvent } from "./internal/event-runtime";
+} from "./internal/component-hooks";
+import { runSystemWithCommands } from "./internal/command-execution";
+import { createEventRuntimeContext, observeEvent, triggerEvent } from "./internal/events";
 import {
     addMessageType,
     clearMessages as clearStoredMessages,
@@ -43,8 +43,8 @@ import {
     readMessages as readStoredMessages,
     updateMessages as updateStoredMessages,
     writeMessage as writeStoredMessage,
-} from "./internal/message-runtime";
-import { createQueryPlanRuntimeContext } from "./internal/query-plan-runtime";
+} from "./internal/messages";
+import { createQueryPlanContext } from "./internal/query-plan";
 import {
     each as eachQuery,
     eachOptional as eachOptionalQuery,
@@ -59,13 +59,13 @@ import {
     queryOptionalWithState as runOptionalQueryWithState,
     queryWithState as runQueryWithState,
     type QueryRuntimeContext,
-} from "./internal/query-runtime";
+} from "./internal/query-executor";
 import {
     createRemovedRuntimeContext,
     drainRemoved as drainRemovedComponents,
     readRemoved as readRemovedComponents,
     recordRemoved as recordRemovedComponent,
-} from "./internal/removed-runtime";
+} from "./internal/removed-store";
 import {
     createResourceRuntimeContext,
     getResource as getStoredResource,
@@ -76,7 +76,7 @@ import {
     matchesResource as matchesStoredResource,
     removeResource as removeStoredResource,
     setResource as setStoredResource,
-} from "./internal/resource-runtime";
+} from "./internal/resources";
 import {
     addSystemRunner as addScheduledSystemRunner,
     configureSet as configureScheduleSet,
@@ -87,7 +87,7 @@ import {
     setFixedTimeStep as setScheduleFixedTimeStep,
     shouldRunSystem as shouldRunScheduledSystem,
     type ScheduleRuntimeContext,
-} from "./internal/schedule-runtime";
+} from "./internal/schedule-engine";
 import {
     addStateSystem as addStateLifecycleSystem,
     addTransitionSystem as addStateTransitionSystem,
@@ -103,7 +103,7 @@ import {
     runInitialEnters,
     setState,
     type StateRuntimeContext,
-} from "./internal/state-runtime";
+} from "./internal/state-machine";
 import type { MessageId, MessageReader, MessageType } from "./message";
 import type {
     ChangeDetectionRange,
@@ -190,7 +190,7 @@ export class World {
     private readonly eventContext = createEventRuntimeContext();
     private readonly messageContext = createMessageRuntimeContext();
     private readonly queryContext: QueryRuntimeContext = {
-        planRuntime: createQueryPlanRuntimeContext({
+        planContext: createQueryPlanContext({
             stores: this.componentStoreContext.stores,
             getStoreVersion: () => this.componentStoreContext.storeVersion,
         }),

@@ -1,6 +1,6 @@
 import type { EventObserver } from "../event";
 import type { World } from "../world";
-import { runEventObserverWithCommands } from "./command-runtime";
+import { runEventObserverWithCommands } from "./command-execution";
 
 export interface EventRuntimeContext {
     readonly observers: Map<number, EventObserver<unknown>[]>;

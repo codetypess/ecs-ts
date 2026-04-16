@@ -2,7 +2,7 @@ import type { Entity } from "../entity";
 import type { ChangeDetectionRange } from "../query";
 import { isTickInRange } from "../query";
 import type { SparseSet } from "../sparse-set";
-import type { QueryFilterMode, ResolvedQueryFilter } from "./query-plan";
+import { QueryFilterMode, ResolvedQueryFilter } from "./query-plan";
 
 interface FilteredQueryPlan {
     readonly filterMode: QueryFilterMode;

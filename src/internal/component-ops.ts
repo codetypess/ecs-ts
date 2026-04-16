@@ -15,7 +15,7 @@ import {
     getComponentStoreEntries,
     getComponentType,
     type ComponentStoreRuntimeContext,
-} from "./component-store-runtime";
+} from "./component-store";
 
 interface ComponentRuntimeOptions {
     readonly entities: EntityManager;

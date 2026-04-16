@@ -1,6 +1,5 @@
 import type { AnyComponentType } from "../component";
 import type { Entity } from "../entity";
-import type { ResolvedOptionalQueryPlan, ResolvedQueryPlan } from "./query-plan";
 import type {
     ChangeDetectionRange,
     ComponentTuple,
@@ -11,18 +10,20 @@ import type {
     QueryRow,
     QueryState,
 } from "../query";
-import { fillComponents, fillOptionalComponents, hasComponents } from "./query-component-runtime";
-import { matchesPlanFilter } from "./query-filter-runtime";
+import { fillComponents, fillOptionalComponents, hasComponents } from "./query-components";
+import { matchesPlanFilter } from "./query-filter";
 import {
+    ResolvedOptionalQueryPlan,
+    ResolvedQueryPlan,
     resolveOptionalQueryPlan,
     resolveOptionalQueryStateCache,
     resolveQueryPlan,
     resolveQueryStateCache,
-    type QueryPlanRuntimeContext,
-} from "./query-plan-runtime";
+    type QueryPlanContext,
+} from "./query-plan";
 
 export interface QueryRuntimeContext {
-    readonly planRuntime: QueryPlanRuntimeContext;
+    readonly planContext: QueryPlanContext;
     readonly isAlive: (entity: Entity) => boolean;
 }
 
@@ -48,7 +49,11 @@ export function query<const TComponents extends readonly AnyComponentType[]>(
     filter: QueryFilter,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<TComponents>> {
-    return iterateResolvedQuery(context, resolveQueryPlan(context.planRuntime, types, filter), changeDetection);
+    return iterateResolvedQuery(
+        context,
+        resolveQueryPlan(context.planContext, types, filter),
+        changeDetection
+    );
 }
 
 export function queryOptional<
@@ -63,7 +68,7 @@ export function queryOptional<
 ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
     return iterateResolvedOptionalQuery(
         context,
-        resolveOptionalQueryPlan(context.planRuntime, required, optional, filter),
+        resolveOptionalQueryPlan(context.planContext, required, optional, filter),
         changeDetection
     );
 }
@@ -73,7 +78,11 @@ export function queryWithState<const TComponents extends readonly AnyComponentTy
     state: QueryState<TComponents>,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<TComponents>> {
-    return iterateResolvedQuery(context, resolveQueryStateCache(context.planRuntime, state), changeDetection);
+    return iterateResolvedQuery(
+        context,
+        resolveQueryStateCache(context.planContext, state),
+        changeDetection
+    );
 }
 
 export function queryOptionalWithState<
@@ -86,7 +95,7 @@ export function queryOptionalWithState<
 ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
     return iterateResolvedOptionalQuery(
         context,
-        resolveOptionalQueryStateCache(context.planRuntime, state),
+        resolveOptionalQueryStateCache(context.planContext, state),
         changeDetection
     );
 }
@@ -96,7 +105,7 @@ export function matchesAnyWithState<const TComponents extends readonly AnyCompon
     state: QueryState<TComponents>,
     changeDetection: ChangeDetectionRange
 ): boolean {
-    const plan = resolveQueryStateCache(context.planRuntime, state);
+    const plan = resolveQueryStateCache(context.planContext, state);
 
     if (plan === undefined) {
         return false;
@@ -110,7 +119,7 @@ export function matchesSingleWithState<const TComponents extends readonly AnyCom
     state: QueryState<TComponents>,
     changeDetection: ChangeDetectionRange
 ): boolean {
-    const plan = resolveQueryStateCache(context.planRuntime, state);
+    const plan = resolveQueryStateCache(context.planContext, state);
 
     if (plan === undefined) {
         return false;
@@ -127,7 +136,7 @@ export function matchesAnyOptionalWithState<
     state: OptionalQueryState<TRequiredComponents, TOptionalComponents>,
     changeDetection: ChangeDetectionRange
 ): boolean {
-    const plan = resolveOptionalQueryStateCache(context.planRuntime, state);
+    const plan = resolveOptionalQueryStateCache(context.planContext, state);
 
     if (plan === undefined) {
         return false;
@@ -144,7 +153,7 @@ export function matchesSingleOptionalWithState<
     state: OptionalQueryState<TRequiredComponents, TOptionalComponents>,
     changeDetection: ChangeDetectionRange
 ): boolean {
-    const plan = resolveOptionalQueryStateCache(context.planRuntime, state);
+    const plan = resolveOptionalQueryStateCache(context.planContext, state);
 
     if (plan === undefined) {
         return false;
@@ -162,7 +171,7 @@ export function each<const TComponents extends readonly AnyComponentType[]>(
 ): void {
     eachResolvedQuery(
         context,
-        resolveQueryPlan(context.planRuntime, types, filter),
+        resolveQueryPlan(context.planContext, types, filter),
         changeDetection,
         visitor
     );
@@ -181,7 +190,7 @@ export function eachOptional<
 ): void {
     eachResolvedOptionalQuery(
         context,
-        resolveOptionalQueryPlan(context.planRuntime, required, optional, filter),
+        resolveOptionalQueryPlan(context.planContext, required, optional, filter),
         changeDetection,
         visitor
     );
@@ -195,7 +204,7 @@ export function eachWithState<const TComponents extends readonly AnyComponentTyp
 ): void {
     eachResolvedQuery(
         context,
-        resolveQueryStateCache(context.planRuntime, state),
+        resolveQueryStateCache(context.planContext, state),
         changeDetection,
         visitor
     );
@@ -212,13 +221,13 @@ export function eachOptionalWithState<
 ): void {
     eachResolvedOptionalQuery(
         context,
-        resolveOptionalQueryStateCache(context.planRuntime, state),
+        resolveOptionalQueryStateCache(context.planContext, state),
         changeDetection,
         visitor
     );
 }
 
-function *iterateResolvedQuery<const TComponents extends readonly AnyComponentType[]>(
+function* iterateResolvedQuery<const TComponents extends readonly AnyComponentType[]>(
     context: QueryRuntimeContext,
     plan: ResolvedQueryPlan | undefined,
     changeDetection: ChangeDetectionRange
@@ -496,7 +505,7 @@ function countResolvedQueryMatches(
     return matches;
 }
 
-function *iterateResolvedOptionalQuery<
+function* iterateResolvedOptionalQuery<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
 >(
@@ -537,7 +546,9 @@ function *iterateResolvedOptionalQuery<
         return;
     }
 
-    const components: unknown[] = new Array(plan.requiredStores.length + plan.optionalStores.length);
+    const components: unknown[] = new Array(
+        plan.requiredStores.length + plan.optionalStores.length
+    );
 
     for (const entity of plan.baseStore.entities) {
         if (!context.isAlive(entity)) {
@@ -601,7 +612,9 @@ function eachResolvedOptionalQuery<
         return;
     }
 
-    const components: unknown[] = new Array(plan.requiredStores.length + plan.optionalStores.length);
+    const components: unknown[] = new Array(
+        plan.requiredStores.length + plan.optionalStores.length
+    );
 
     for (const entity of plan.baseStore.entities) {
         if (!context.isAlive(entity)) {
