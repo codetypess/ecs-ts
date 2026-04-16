@@ -6,17 +6,31 @@ import type {
     ComponentLifecycleStage,
     ComponentType,
 } from "./component";
-import { assertComponentValue } from "./component";
 import { Commands } from "./commands";
-import { Entity, EntityManager, formatEntity } from "./entity";
+import { Entity, EntityManager } from "./entity";
 import type { EventObserver, EventType } from "./event";
 import { ComponentStoreRuntime } from "./internal/component-store-runtime";
+import { ComponentRuntime } from "./internal/component-runtime";
 import { ComponentHookRuntime } from "./internal/component-hook-runtime";
 import { runSystemWithCommands } from "./internal/command-runtime";
 import { EventRuntime } from "./internal/event-runtime";
 import { MessageRuntime } from "./internal/message-runtime";
 import { QueryPlanRuntime } from "./internal/query-plan-runtime";
-import { QueryRuntime } from "./internal/query-runtime";
+import {
+    each as eachQuery,
+    eachOptional as eachOptionalQuery,
+    eachOptionalWithState as eachOptionalQueryWithState,
+    eachWithState as eachQueryWithState,
+    matchesAnyOptionalWithState as matchesAnyOptionalQueryWithState,
+    matchesAnyWithState as matchesAnyQueryWithState,
+    matchesSingleOptionalWithState as matchesSingleOptionalQueryWithState,
+    matchesSingleWithState as matchesSingleQueryWithState,
+    query as runQuery,
+    queryOptional as runOptionalQuery,
+    queryOptionalWithState as runOptionalQueryWithState,
+    queryWithState as runQueryWithState,
+    type QueryRuntimeContext,
+} from "./internal/query-runtime";
 import { RemovedRuntime } from "./internal/removed-runtime";
 import { ResourceRuntime } from "./internal/resource-runtime";
 import { ScheduleRuntime } from "./internal/schedule-runtime";
@@ -32,7 +46,7 @@ import type {
     QueryRow,
     QueryState,
 } from "./query";
-import { isTickInRange, optionalQueryState, queryState } from "./query";
+import { optionalQueryState, queryState } from "./query";
 import type { RemovedComponent, RemovedReader } from "./removed";
 import type { ResourceType } from "./resource";
 import type {
@@ -91,16 +105,28 @@ export class World {
         getChangeTick: () => this.changeTick,
     });
     private readonly componentHookRuntime = new ComponentHookRuntime();
+    private readonly componentRuntime = new ComponentRuntime({
+        entities: this.entities,
+        componentStores: this.componentStoreRuntime,
+        getChangeTick: () => this.changeTick,
+        getChangeDetectionRange: () => this.changeDetectionRange(),
+        runComponentHooks: (type, stage, entity, component) => {
+            this.componentHookRuntime.run(type, stage, entity, component, this);
+        },
+        recordRemoved: (type, entity, component) => {
+            this.removedRuntime.record(type, entity, component);
+        },
+    });
     private readonly stateRuntime = new StateRuntime();
     private readonly eventRuntime = new EventRuntime();
     private readonly messageRuntime = new MessageRuntime();
-    private readonly queryRuntime = new QueryRuntime({
+    private readonly queryContext: QueryRuntimeContext = {
         planRuntime: new QueryPlanRuntime({
             stores: this.componentStoreRuntime.stores,
             getStoreVersion: () => this.componentStoreRuntime.version,
         }),
         isAlive: (entity) => this.entities.isAlive(entity),
-    });
+    };
     private readonly scheduleRuntime = new ScheduleRuntime();
     private activeChangeDetection: ChangeDetectionRange | undefined;
     private changeTick = 1;
@@ -119,23 +145,13 @@ export class World {
     }
 
     insertBundle(entity: Entity, bundle: Bundle): this {
-        this.assertAlive(entity);
-
-        for (const entry of bundle.entries) {
-            this.add(entity, entry.type, entry.value);
-        }
+        this.componentRuntime.insertBundle(entity, bundle);
 
         return this;
     }
 
     removeBundle(entity: Entity, bundle: Bundle): boolean {
-        let removedAny = false;
-
-        for (const entry of bundle.entries) {
-            removedAny = this.remove(entity, entry.type) || removedAny;
-        }
-
-        return removedAny;
+        return this.componentRuntime.removeBundle(entity, bundle);
     }
 
     isAlive(entity: Entity): boolean {
@@ -143,242 +159,86 @@ export class World {
     }
 
     add<T>(entity: Entity, type: ComponentType<T>, value: T): this {
-        this.assertAlive(entity);
-        this.addWithRequired(entity, type, value, []);
+        this.componentRuntime.add(entity, type, value);
 
         return this;
     }
 
-    private addWithRequired<T>(
-        entity: Entity,
-        type: ComponentType<T>,
-        value: T,
-        resolving: readonly AnyComponentType[]
-    ): void {
-        assertComponentValue(type, value);
-        this.addRequiredComponents(entity, type, resolving);
-        this.insertComponentOnly(entity, type, value);
-    }
-
-    private addRequiredComponents(
-        entity: Entity,
-        type: AnyComponentType,
-        resolving: readonly AnyComponentType[]
-    ): void {
-        if (type.required.length === 0) {
-            return;
-        }
-
-        const cycleStart = resolving.findIndex((resolvedType) => resolvedType.id === type.id);
-
-        if (cycleStart !== -1) {
-            const cycle = [...resolving.slice(cycleStart), type]
-                .map((resolvedType) => resolvedType.name)
-                .join(" -> ");
-            throw new Error(`Circular required component dependency: ${cycle}`);
-        }
-
-        const nextResolving = [...resolving, type];
-
-        for (const required of type.required) {
-            if (this.has(entity, required.type)) {
-                continue;
-            }
-
-            this.addWithRequired(entity, required.type, required.create(), nextResolving);
-        }
-    }
-
-    private insertComponentOnly<T>(entity: Entity, type: ComponentType<T>, value: T): void {
-        assertComponentValue(type, value);
-        const store = this.componentStoreRuntime.ensureStore(type);
-        const hadComponent = store.has(entity);
-
-        if (hadComponent) {
-            this.runComponentHooks(type, "onReplace", entity, store.get(entity) as T);
-        }
-
-        store.set(entity, value, this.changeTick);
-
-        if (!hadComponent) {
-            this.runComponentHooks(type, "onAdd", entity, value);
-        }
-
-        this.runComponentHooks(type, "onInsert", entity, value);
-    }
-
     markChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
-        if (!this.isAlive(entity)) {
-            return false;
-        }
-
-        return (
-            this.componentStoreRuntime.getStore(type)?.markChanged(entity, this.changeTick) ?? false
-        );
+        return this.componentRuntime.markChanged(entity, type);
     }
 
     has<T>(entity: Entity, type: ComponentType<T>): boolean {
-        return (
-            this.isAlive(entity) &&
-            (this.componentStoreRuntime.getStore(type)?.has(entity) ?? false)
-        );
+        return this.componentRuntime.has(entity, type);
     }
 
     hasAll(entity: Entity, types: readonly AnyComponentType[]): boolean {
-        if (!this.isAlive(entity)) {
-            return false;
-        }
-
-        for (const type of types) {
-            if (!this.componentStoreRuntime.getStore(type)?.has(entity)) {
-                return false;
-            }
-        }
-
-        return true;
+        return this.componentRuntime.hasAll(entity, types);
     }
 
     hasAny(entity: Entity, types: readonly AnyComponentType[]): boolean {
-        if (!this.isAlive(entity)) {
-            return false;
-        }
-
-        for (const type of types) {
-            if (this.componentStoreRuntime.getStore(type)?.has(entity)) {
-                return true;
-            }
-        }
-
-        return false;
+        return this.componentRuntime.hasAny(entity, types);
     }
 
     get<T>(entity: Entity, type: ComponentType<T>): T | undefined {
-        if (!this.isAlive(entity)) {
-            return undefined;
-        }
-
-        return this.componentStoreRuntime.getStore(type)?.get(entity);
+        return this.componentRuntime.get(entity, type);
     }
 
     mustGet<T>(entity: Entity, type: ComponentType<T>): T {
-        const value = this.get(entity, type);
-
-        if (value === undefined) {
-            throw new Error(`Entity ${formatEntity(entity)} does not have ${type.name}`);
-        }
-
-        return value;
+        return this.componentRuntime.mustGet(entity, type);
     }
 
     getMany<const TComponents extends readonly AnyComponentType[]>(
         entity: Entity,
         ...types: TComponents
     ): ComponentTuple<TComponents> | undefined {
-        if (!this.isAlive(entity)) {
-            return undefined;
-        }
-
-        const components: unknown[] = new Array(types.length);
-
-        for (let index = 0; index < types.length; index++) {
-            const type = types[index]!;
-            const store = this.componentStoreRuntime.getStore(type);
-
-            if (!store?.has(entity)) {
-                return undefined;
-            }
-
-            components[index] = store.get(entity);
-        }
-
-        return components as ComponentTuple<TComponents>;
+        return this.componentRuntime.getMany(entity, ...types);
     }
 
     isAdded<T>(entity: Entity, type: ComponentType<T>): boolean {
-        if (!this.isAlive(entity)) {
-            return false;
-        }
-
-        const tick = this.componentStoreRuntime.getStore(type)?.getAddedTick(entity);
-
-        return tick !== undefined && isTickInRange(tick, this.changeDetectionRange());
+        return this.componentRuntime.isAdded(entity, type);
     }
 
     isChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
-        if (!this.isAlive(entity)) {
-            return false;
-        }
-
-        const tick = this.componentStoreRuntime.getStore(type)?.getChangedTick(entity);
-
-        return tick !== undefined && isTickInRange(tick, this.changeDetectionRange());
+        return this.componentRuntime.isChanged(entity, type);
     }
 
     remove<T>(entity: Entity, type: ComponentType<T>): boolean {
-        const store = this.componentStoreRuntime.getStore(type);
-
-        if (!this.isAlive(entity) || !store?.has(entity)) {
-            return false;
-        }
-
-        const component = store.get(entity) as T;
-        this.runComponentHooks(type, "onReplace", entity, component);
-        this.runComponentHooks(type, "onRemove", entity, component);
-        this.recordRemoved(type, entity, component);
-        store.delete(entity);
-
-        return true;
+        return this.componentRuntime.remove(entity, type);
     }
 
     despawn(entity: Entity): boolean {
-        if (!this.isAlive(entity)) {
-            return false;
-        }
-
-        for (const [componentId, store] of this.componentStoreRuntime.entries()) {
-            if (!store.has(entity)) {
-                continue;
-            }
-
-            const type = this.componentStoreRuntime.getType(componentId);
-            const component = store.get(entity);
-
-            if (type !== undefined) {
-                this.runComponentHooks(type, "onReplace", entity, component);
-                this.runComponentHooks(type, "onRemove", entity, component);
-                this.runComponentHooks(type, "onDespawn", entity, component);
-                this.recordRemoved(type, entity, component);
-            }
-
-            store.delete(entity);
-        }
-
-        return this.entities.destroy(entity);
+        return this.componentRuntime.despawn(entity);
     }
 
     query<const TComponents extends readonly AnyComponentType[]>(
         ...types: TComponents
     ): IterableIterator<QueryRow<TComponents>> {
-        return this.queryRuntime.query(types, {}, this.changeDetectionRange());
+        return runQuery(this.queryContext, types, {}, this.changeDetectionRange());
     }
 
     queryWhere<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents,
         filter: QueryFilter
     ): IterableIterator<QueryRow<TComponents>> {
-        return this.queryRuntime.query(types, filter, this.changeDetectionRange());
+        return runQuery(this.queryContext, types, filter, this.changeDetectionRange());
     }
 
     queryAdded<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents
     ): IterableIterator<QueryRow<TComponents>> {
-        return this.queryRuntime.query(types, { added: types }, this.changeDetectionRange());
+        return runQuery(this.queryContext, types, { added: types }, this.changeDetectionRange());
     }
 
     queryChanged<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents
     ): IterableIterator<QueryRow<TComponents>> {
-        return this.queryRuntime.query(types, { changed: types }, this.changeDetectionRange());
+        return runQuery(
+            this.queryContext,
+            types,
+            { changed: types },
+            this.changeDetectionRange()
+        );
     }
 
     queryOptional<
@@ -389,7 +249,8 @@ export class World {
         optional: TOptionalComponents,
         filter: QueryFilter = {}
     ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
-        return this.queryRuntime.queryOptional(
+        return runOptionalQuery(
+            this.queryContext,
             required,
             optional,
             filter,
@@ -418,13 +279,13 @@ export class World {
     queryWithState<const TComponents extends readonly AnyComponentType[]>(
         state: QueryState<TComponents>
     ): IterableIterator<QueryRow<TComponents>> {
-        return this.queryRuntime.queryWithState(state, this.changeDetectionRange());
+        return runQueryWithState(this.queryContext, state, this.changeDetectionRange());
     }
 
     matchesAnyWithState<const TComponents extends readonly AnyComponentType[]>(
         state: QueryState<TComponents>
     ): boolean {
-        return this.queryRuntime.matchesAnyWithState(state, this.changeDetectionRange());
+        return matchesAnyQueryWithState(this.queryContext, state, this.changeDetectionRange());
     }
 
     matchesNoneWithState<const TComponents extends readonly AnyComponentType[]>(
@@ -436,7 +297,7 @@ export class World {
     matchesSingleWithState<const TComponents extends readonly AnyComponentType[]>(
         state: QueryState<TComponents>
     ): boolean {
-        return this.queryRuntime.matchesSingleWithState(state, this.changeDetectionRange());
+        return matchesSingleQueryWithState(this.queryContext, state, this.changeDetectionRange());
     }
 
     queryOptionalWithState<
@@ -445,14 +306,18 @@ export class World {
     >(
         state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
     ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
-        return this.queryRuntime.queryOptionalWithState(state, this.changeDetectionRange());
+        return runOptionalQueryWithState(this.queryContext, state, this.changeDetectionRange());
     }
 
     matchesAnyOptionalWithState<
         const TRequiredComponents extends readonly AnyComponentType[],
         const TOptionalComponents extends readonly AnyComponentType[],
     >(state: OptionalQueryState<TRequiredComponents, TOptionalComponents>): boolean {
-        return this.queryRuntime.matchesAnyOptionalWithState(state, this.changeDetectionRange());
+        return matchesAnyOptionalQueryWithState(
+            this.queryContext,
+            state,
+            this.changeDetectionRange()
+        );
     }
 
     matchesNoneOptionalWithState<
@@ -466,14 +331,18 @@ export class World {
         const TRequiredComponents extends readonly AnyComponentType[],
         const TOptionalComponents extends readonly AnyComponentType[],
     >(state: OptionalQueryState<TRequiredComponents, TOptionalComponents>): boolean {
-        return this.queryRuntime.matchesSingleOptionalWithState(state, this.changeDetectionRange());
+        return matchesSingleOptionalQueryWithState(
+            this.queryContext,
+            state,
+            this.changeDetectionRange()
+        );
     }
 
     eachWithState<const TComponents extends readonly AnyComponentType[]>(
         state: QueryState<TComponents>,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        this.queryRuntime.eachWithState(state, this.changeDetectionRange(), visitor);
+        eachQueryWithState(this.queryContext, state, this.changeDetectionRange(), visitor);
     }
 
     eachOptionalWithState<
@@ -489,7 +358,12 @@ export class World {
             ]
         ) => void
     ): void {
-        this.queryRuntime.eachOptionalWithState(state, this.changeDetectionRange(), visitor);
+        eachOptionalQueryWithState(
+            this.queryContext,
+            state,
+            this.changeDetectionRange(),
+            visitor
+        );
     }
 
     trySingle<const TComponents extends readonly AnyComponentType[]>(
@@ -529,7 +403,7 @@ export class World {
         types: TComponents,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        this.queryRuntime.each(types, {}, this.changeDetectionRange(), visitor);
+        eachQuery(this.queryContext, types, {}, this.changeDetectionRange(), visitor);
     }
 
     eachWhere<const TComponents extends readonly AnyComponentType[]>(
@@ -537,21 +411,33 @@ export class World {
         filter: QueryFilter,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        this.queryRuntime.each(types, filter, this.changeDetectionRange(), visitor);
+        eachQuery(this.queryContext, types, filter, this.changeDetectionRange(), visitor);
     }
 
     eachAdded<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        this.queryRuntime.each(types, { added: types }, this.changeDetectionRange(), visitor);
+        eachQuery(
+            this.queryContext,
+            types,
+            { added: types },
+            this.changeDetectionRange(),
+            visitor
+        );
     }
 
     eachChanged<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        this.queryRuntime.each(types, { changed: types }, this.changeDetectionRange(), visitor);
+        eachQuery(
+            this.queryContext,
+            types,
+            { changed: types },
+            this.changeDetectionRange(),
+            visitor
+        );
     }
 
     eachOptional<
@@ -569,7 +455,8 @@ export class World {
             ]
         ) => void
     ): void {
-        this.queryRuntime.eachOptional(
+        eachOptionalQuery(
+            this.queryContext,
             required,
             optional,
             filter,
@@ -829,10 +716,6 @@ export class World {
         this.messageRuntime.update();
     }
 
-    private recordRemoved<T>(type: ComponentType<T>, entity: Entity, component: T): void {
-        this.removedRuntime.record(type, entity, component);
-    }
-
     private registerSystem(system: System, options: SystemOptions): void {
         for (const { stage, systemMethod } of scheduleStageDefinitions) {
             const method = system[systemMethod];
@@ -897,18 +780,4 @@ export class World {
         }
     }
 
-    private runComponentHooks<T>(
-        type: ComponentType<T>,
-        stage: ComponentLifecycleStage,
-        entity: Entity,
-        component: T
-    ): void {
-        this.componentHookRuntime.run(type, stage, entity, component, this);
-    }
-
-    private assertAlive(entity: Entity): void {
-        if (!this.isAlive(entity)) {
-            throw new Error(`Entity is not alive: ${formatEntity(entity)}`);
-        }
-    }
 }
