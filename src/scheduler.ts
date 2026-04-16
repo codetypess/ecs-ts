@@ -1,6 +1,7 @@
 import type { Commands } from "./commands";
 import type { World } from "./world";
 
+/** Ordered scheduler stages supported by object-style systems. */
 export const scheduleStageDefinitions = [
     { stage: "preStartup", systemMethod: "onPreStartup" },
     { stage: "startup", systemMethod: "onStartup" },
@@ -17,20 +18,25 @@ export const scheduleStageDefinitions = [
 export type ScheduleStage = (typeof scheduleStageDefinitions)[number]["stage"];
 export type ScheduleSystemMethod = (typeof scheduleStageDefinitions)[number]["systemMethod"];
 
+/** Frozen list of stage names in execution order. */
 export const scheduleStages = Object.freeze(
     scheduleStageDefinitions.map((definition) => definition.stage)
 ) as readonly ScheduleStage[];
 
+/** Symbolic label used for ordering systems and grouping them into sets. */
 export type SystemLabel = string | symbol;
 export type SystemSetLabel = SystemLabel;
+/** Predicate consulted before a system is allowed to run. */
 export type SystemRunCondition = (world: World) => boolean;
 
+/** Shared ordering and run conditions applied to all systems inside a set. */
 export interface SystemSetOptions {
     readonly before?: readonly SystemLabel[];
     readonly after?: readonly SystemLabel[];
     readonly runIf?: SystemRunCondition;
 }
 
+/** Per-system scheduling metadata such as labels, sets, ordering, and run conditions. */
 export interface SystemOptions {
     readonly label?: SystemLabel;
     readonly set?: SystemSetLabel | readonly SystemSetLabel[];
@@ -39,8 +45,10 @@ export interface SystemOptions {
     readonly runIf?: SystemRunCondition;
 }
 
+/** Function form used by the scheduler and state/event helpers to run work. */
 export type SystemCallback = (world: World, dt: number, commands: Commands) => void;
 
+/** Normalized system metadata stored by the scheduler. */
 export interface SystemRunner {
     readonly run: SystemCallback;
     readonly label: SystemLabel | undefined;
@@ -51,6 +59,7 @@ export interface SystemRunner {
     lastRunTick: number;
 }
 
+/** Resolved configuration for a system set. */
 export interface SystemSetConfig {
     readonly before: readonly SystemLabel[];
     readonly after: readonly SystemLabel[];
@@ -62,6 +71,7 @@ interface ScheduleCacheEntry {
     systems: readonly SystemRunner[] | undefined;
 }
 
+/** Converts user-facing system options into the scheduler's normalized runner shape. */
 export function createSystemRunner(run: SystemCallback, options: SystemOptions = {}): SystemRunner {
     return {
         run,
@@ -88,6 +98,7 @@ function normalizeSystemSets(
     return [set as SystemSetLabel];
 }
 
+/** Freezes a system-set configuration with default empty ordering arrays. */
 export function createSystemSetConfig(options: SystemSetOptions): SystemSetConfig {
     return {
         before: options.before ?? [],
@@ -102,6 +113,7 @@ function createStageRecord<T>(createValue: () => T): Record<ScheduleStage, T> {
     ) as Record<ScheduleStage, T>;
 }
 
+/** Creates the stage-local system-set configuration maps. */
 export function createSystemSetStageConfigs(): Record<
     ScheduleStage,
     Map<SystemSetLabel, SystemSetConfig>
@@ -109,6 +121,7 @@ export function createSystemSetStageConfigs(): Record<
     return createStageRecord(() => new Map<SystemSetLabel, SystemSetConfig>());
 }
 
+/** Sorts systems by explicit `before`/`after` edges and set-level ordering rules. */
 export function sortSystemRunners(
     systems: readonly SystemRunner[],
     stage: ScheduleStage,
@@ -327,10 +340,12 @@ function formatSystemRunner(system: SystemRunner): string {
     return label === undefined ? sets : `${label} (${sets})`;
 }
 
+/** Creates the per-stage system lists stored by the schedule engine. */
 export function createSchedules(): Record<ScheduleStage, SystemRunner[]> {
     return createStageRecord<SystemRunner[]>(() => []);
 }
 
+/** Creates per-stage cache entries for lazily sorted schedules. */
 export function createScheduleCacheEntries(): Record<ScheduleStage, ScheduleCacheEntry> {
     return createStageRecord(() => ({ dirty: true, systems: undefined }));
 }

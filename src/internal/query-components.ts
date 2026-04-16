@@ -1,6 +1,7 @@
 import type { Entity } from "../entity";
 import type { SparseSet } from "../sparse-set";
 
+/** Fills an output array with required component values, aborting on the first miss. */
 export function fillComponents(
     entity: Entity,
     stores: readonly SparseSet<unknown>[],
@@ -21,6 +22,7 @@ export function fillComponents(
     return true;
 }
 
+/** Checks presence only, without materializing component values. */
 export function hasComponents(entity: Entity, stores: readonly SparseSet<unknown>[]): boolean {
     for (const store of stores) {
         if (!store.has(entity)) {
@@ -31,6 +33,7 @@ export function hasComponents(entity: Entity, stores: readonly SparseSet<unknown
     return true;
 }
 
+/** Fills optional component slots, leaving `undefined` where a store or value is missing. */
 export function fillOptionalComponents(
     entity: Entity,
     stores: readonly (SparseSet<unknown> | undefined)[],

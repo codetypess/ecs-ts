@@ -24,6 +24,7 @@ interface ScheduleCacheEntry {
 type ScheduleStageConfigs = ReturnType<typeof createSystemSetStageConfigs>;
 type ScheduleCollections = ReturnType<typeof createSchedules>;
 
+/** Mutable scheduler state owned by a `World`. */
 export interface ScheduleEngineContext {
     fixedTimeStep: number;
     fixedUpdateAccumulator: number;
@@ -33,6 +34,7 @@ export interface ScheduleEngineContext {
     readonly sortedSchedules: Record<ScheduleStage, ScheduleCacheEntry>;
 }
 
+/** Creates the scheduler runtime with empty stage lists and caches. */
 export function createScheduleEngineContext(): ScheduleEngineContext {
     return {
         fixedTimeStep: 1 / 60,
@@ -44,6 +46,7 @@ export function createScheduleEngineContext(): ScheduleEngineContext {
     };
 }
 
+/** Applies a global configuration to a system set and invalidates sorted schedules. */
 export function configureSet(
     context: ScheduleEngineContext,
     set: SystemSetLabel,
@@ -53,6 +56,7 @@ export function configureSet(
     invalidateAllScheduleCaches(context);
 }
 
+/** Applies a stage-local configuration to a system set. */
 export function configureSetForStage(
     context: ScheduleEngineContext,
     stage: ScheduleStage,
@@ -63,6 +67,7 @@ export function configureSetForStage(
     invalidateScheduleCache(context, stage);
 }
 
+/** Sets the fixed-update timestep used by the accumulator. */
 export function setFixedTimeStep(context: ScheduleEngineContext, seconds: number): void {
     if (!Number.isFinite(seconds) || seconds <= 0) {
         throw new Error("Fixed time step must be a positive finite number");
@@ -71,6 +76,7 @@ export function setFixedTimeStep(context: ScheduleEngineContext, seconds: number
     context.fixedTimeStep = seconds;
 }
 
+/** Adds a stage runner and invalidates the sorted cache for that stage. */
 export function addSystemRunner(
     context: ScheduleEngineContext,
     stage: ScheduleStage,
@@ -80,6 +86,7 @@ export function addSystemRunner(
     invalidateScheduleCache(context, stage);
 }
 
+/** Evaluates system-, set-, and stage-local run conditions. */
 export function shouldRunSystem(
     context: ScheduleEngineContext,
     system: SystemRunner,
@@ -99,6 +106,7 @@ export function shouldRunSystem(
     return matchesRunCondition(system.runIf, world);
 }
 
+/** Resolves a sorted stage and executes its systems. */
 export function runSchedule(
     context: ScheduleEngineContext,
     stage: ScheduleStage,
@@ -108,6 +116,7 @@ export function runSchedule(
     runSystems(resolveSortedSchedule(context, stage), stage, dt);
 }
 
+/** Accumulates frame time and runs `fixedUpdate` as many times as needed. */
 export function runFixedUpdate(
     context: ScheduleEngineContext,
     dt: number,
@@ -121,6 +130,7 @@ export function runFixedUpdate(
     }
 }
 
+/** Sorts a stage lazily and reuses the cached result until the stage is dirtied again. */
 function resolveSortedSchedule(
     context: ScheduleEngineContext,
     stage: ScheduleStage

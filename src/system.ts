@@ -2,6 +2,7 @@ import type { StateValue } from "./state";
 import type { Commands } from "./commands";
 import type { World } from "./world";
 
+/** Object-style system whose lifecycle methods are attached to scheduler stages. */
 export interface System {
     onPreStartup?(world: World, dt: number, commands: Commands): void;
     onStartup?(world: World, dt: number, commands: Commands): void;
@@ -15,11 +16,13 @@ export interface System {
     onShutdown?(world: World, dt: number, commands: Commands): void;
 }
 
+/** Optional enter/exit callbacks bound to a single concrete state value. */
 export interface StateSystem<T extends StateValue> {
     onEnter?(world: World, dt: number, commands: Commands, value: T): void;
     onExit?(world: World, dt: number, commands: Commands, value: T): void;
 }
 
+/** Optional callback fired when a state transitions between two concrete values. */
 export interface TransitionSystem<T extends StateValue> {
     onTransition?(world: World, dt: number, commands: Commands, from: T, to: T): void;
 }

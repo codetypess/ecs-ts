@@ -9,6 +9,7 @@ interface FilteredQueryPlan {
     readonly filterStores: ResolvedQueryFilter;
 }
 
+/** Applies the cheapest possible filter path for a resolved query plan. */
 export function matchesPlanFilter(
     entity: Entity,
     plan: FilteredQueryPlan,
@@ -46,6 +47,7 @@ function matchesFilter(
     return true;
 }
 
+/** Structural filters depend only on store membership, not change ticks. */
 function matchesStructuralFilter(entity: Entity, filter: ResolvedQueryFilter): boolean {
     for (const store of filter.with) {
         if (!store.has(entity)) {
@@ -72,6 +74,7 @@ function matchesStructuralFilter(entity: Entity, filter: ResolvedQueryFilter): b
     return false;
 }
 
+/** Added filters match when any watched store was inserted during the visible tick window. */
 function matchesAddedStores(
     entity: Entity,
     stores: readonly SparseSet<unknown>[],
@@ -92,6 +95,7 @@ function matchesAddedStores(
     return false;
 }
 
+/** Changed filters match when any watched store changed during the visible tick window. */
 function matchesChangedStores(
     entity: Entity,
     stores: readonly SparseSet<unknown>[],

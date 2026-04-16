@@ -3,8 +3,10 @@ import type { OptionalQueryState, QueryFilter, QueryState } from "../query";
 import { chooseSmallestStore } from "../query";
 import { SparseSet } from "../sparse-set";
 
+/** Broad buckets that let query execution skip unnecessary filter work. */
 export type QueryFilterMode = "unfiltered" | "structural" | "change";
 
+/** Filter stores resolved from a user-facing query filter. */
 export interface ResolvedQueryFilter {
     readonly with: readonly SparseSet<unknown>[];
     readonly without: readonly SparseSet<unknown>[];
@@ -13,6 +15,7 @@ export interface ResolvedQueryFilter {
     readonly changed: readonly SparseSet<unknown>[];
 }
 
+/** Execution plan for a required-component query. */
 export interface ResolvedQueryPlan {
     readonly stores: readonly SparseSet<unknown>[];
     readonly filterStores: ResolvedQueryFilter;
@@ -20,6 +23,7 @@ export interface ResolvedQueryPlan {
     readonly filterMode: QueryFilterMode;
 }
 
+/** Execution plan for a query with required and optional component sections. */
 export interface ResolvedOptionalQueryPlan {
     readonly requiredStores: readonly SparseSet<unknown>[];
     readonly optionalStores: readonly (SparseSet<unknown> | undefined)[];
@@ -28,21 +32,25 @@ export interface ResolvedOptionalQueryPlan {
     readonly filterMode: QueryFilterMode;
 }
 
+/** Cache entry for `QueryState` plans keyed by component-store topology. */
 export interface QueryStateCache {
     readonly storeVersion: number;
     readonly plan?: ResolvedQueryPlan;
 }
 
+/** Cache entry for `OptionalQueryState` plans keyed by component-store topology. */
 export interface OptionalQueryStateCache {
     readonly storeVersion: number;
     readonly plan?: ResolvedOptionalQueryPlan;
 }
 
+/** Inputs needed to resolve component types into concrete stores. */
 export interface QueryPlanContextOptions {
     readonly stores: ReadonlyMap<number, SparseSet<unknown>>;
     readonly getStoreVersion: () => number;
 }
 
+/** Shared cache and lookup context used by query planning. */
 export interface QueryPlanContext extends QueryPlanContextOptions {
     readonly queryStateCaches: WeakMap<QueryState<readonly AnyComponentType[]>, QueryStateCache>;
     readonly optionalQueryStateCaches: WeakMap<
@@ -51,6 +59,7 @@ export interface QueryPlanContext extends QueryPlanContextOptions {
     >;
 }
 
+/** Creates the planner context that backs all world queries. */
 export function createQueryPlanContext(options: QueryPlanContextOptions): QueryPlanContext {
     return {
         queryStateCaches: new WeakMap(),
@@ -59,6 +68,7 @@ export function createQueryPlanContext(options: QueryPlanContextOptions): QueryP
     };
 }
 
+/** Resolves a direct query request into concrete stores and a scan strategy. */
 export function resolveQueryPlan(
     context: QueryPlanContext,
     types: readonly AnyComponentType[],
@@ -79,6 +89,7 @@ export function resolveQueryPlan(
     return createQueryPlan(stores, filterStores);
 }
 
+/** Resolves an optional query request into concrete stores and a scan strategy. */
 export function resolveOptionalQueryPlan(
     context: QueryPlanContext,
     required: readonly AnyComponentType[],
@@ -104,6 +115,7 @@ export function resolveOptionalQueryPlan(
     );
 }
 
+/** Resolves and caches a `QueryState` plan until the store topology changes. */
 export function resolveQueryStateCache<const TComponents extends readonly AnyComponentType[]>(
     context: QueryPlanContext,
     state: QueryState<TComponents>
@@ -126,6 +138,7 @@ export function resolveQueryStateCache<const TComponents extends readonly AnyCom
     return cache.plan;
 }
 
+/** Resolves and caches an `OptionalQueryState` plan until the store topology changes. */
 export function resolveOptionalQueryStateCache<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
@@ -260,6 +273,7 @@ function resolveFilterStores(
     };
 }
 
+/** Distinguishes fast structural filters from change-aware filters. */
 function resolveFilterMode(filter: ResolvedQueryFilter): QueryFilterMode {
     if (filter.with.length === 0 && filter.without.length === 0 && filter.or.length === 0) {
         return filter.added.length === 0 && filter.changed.length === 0 ? "unfiltered" : "change";
@@ -268,6 +282,7 @@ function resolveFilterMode(filter: ResolvedQueryFilter): QueryFilterMode {
     return filter.added.length === 0 && filter.changed.length === 0 ? "structural" : "change";
 }
 
+/** Chooses the scan store and packages the resolved plan for required queries. */
 function createQueryPlan(
     stores: readonly SparseSet<unknown>[],
     filterStores: ResolvedQueryFilter
@@ -280,6 +295,7 @@ function createQueryPlan(
     };
 }
 
+/** Chooses the scan store and packages the resolved plan for optional queries. */
 function createOptionalQueryPlan(
     requiredStores: readonly SparseSet<unknown>[],
     optionalStores: readonly (SparseSet<unknown> | undefined)[],

@@ -1,12 +1,14 @@
 import type { AnyComponentType, ComponentType } from "../component";
 import { SparseSet } from "../sparse-set";
 
+/** Registry of component stores keyed by component id. */
 export interface ComponentStoreContext {
     readonly stores: Map<number, SparseSet<unknown>>;
     readonly componentTypes: Map<number, AnyComponentType>;
     storeVersion: number;
 }
 
+/** Creates the component-store registry used by a world. */
 export function createComponentStoreContext(): ComponentStoreContext {
     return {
         stores: new Map(),
@@ -15,6 +17,7 @@ export function createComponentStoreContext(): ComponentStoreContext {
     };
 }
 
+/** Returns the store for a component type, creating it on first write. */
 export function ensureComponentStore<T>(
     context: ComponentStoreContext,
     type: ComponentType<T>
@@ -34,6 +37,7 @@ export function ensureComponentStore<T>(
     return store;
 }
 
+/** Returns the existing store for a component type, if any. */
 export function getComponentStore<T>(
     context: ComponentStoreContext,
     type: ComponentType<T>
@@ -41,6 +45,7 @@ export function getComponentStore<T>(
     return context.stores.get(type.id) as SparseSet<T> | undefined;
 }
 
+/** Looks up the runtime component metadata for a numeric component id. */
 export function getComponentType(
     context: ComponentStoreContext,
     componentId: number
@@ -48,6 +53,7 @@ export function getComponentType(
     return context.componentTypes.get(componentId);
 }
 
+/** Iterates every registered component store. */
 export function getComponentStoreEntries(
     context: ComponentStoreContext
 ): IterableIterator<[number, SparseSet<unknown>]> {

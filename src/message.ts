@@ -3,8 +3,10 @@ let nextMessageTypeId = 0;
 declare const MessageTypeBrand: unique symbol;
 declare const MessageIdBrand: unique symbol;
 
+/** Monotonic id assigned to each written message instance. */
 export type MessageId<T> = number & { readonly [MessageIdBrand]: T };
 
+/** Runtime handle for a short-lived message channel. */
 export interface MessageType<T> {
     readonly id: number;
     readonly name: string;
@@ -16,19 +18,23 @@ export type AnyMessageType = MessageType<unknown>;
 export type MessageData<TMessage extends AnyMessageType> =
     TMessage extends MessageType<infer TData> ? TData : never;
 
+/** Stored message record combining the payload with its channel-local id. */
 export interface MessageEntry<T> {
     readonly id: MessageId<T>;
     readonly value: T;
 }
 
+/** Minimal world surface needed by message readers. */
 export interface MessageWorld {
     readMessages<T>(reader: MessageReader<T>): readonly T[];
 }
 
+/** Options for constructing a reader that starts from a custom cursor. */
 export interface MessageReaderOptions {
     readonly startAt?: number;
 }
 
+/** Cursor-based reader that lets multiple consumers independently read the same messages. */
 export class MessageReader<T> {
     private nextMessageId: number;
 
@@ -39,32 +45,39 @@ export class MessageReader<T> {
         this.nextMessageId = options.startAt ?? 0;
     }
 
+    /** Next message id that will be considered unread by this reader. */
     get cursor(): number {
         return this.nextMessageId;
     }
 
+    /** Reads all unread messages and advances the cursor to the latest id. */
     read(world: MessageWorld): readonly T[] {
         return world.readMessages(this);
     }
 
+    /** Manually rewinds or fast-forwards the reader cursor. */
     advanceTo(nextMessageId: number): void {
         this.nextMessageId = nextMessageId;
     }
 }
 
+/** Double-buffered message storage that survives exactly one world update boundary. */
 export class Messages<T> {
     private readonly buffers: [MessageEntry<T>[], MessageEntry<T>[]] = [[], []];
     private currentBuffer: 0 | 1 = 0;
     private nextMessageId = 0;
 
+    /** Id that will be assigned to the next written message. */
     get nextId(): number {
         return this.nextMessageId;
     }
 
+    /** Total unread and current-frame messages across both buffers. */
     get length(): number {
         return this.buffers[0].length + this.buffers[1].length;
     }
 
+    /** Appends a message to the current write buffer. */
     write(value: T): MessageId<T> {
         const id = this.nextMessageId as MessageId<T>;
         this.nextMessageId++;
@@ -73,6 +86,7 @@ export class Messages<T> {
         return id;
     }
 
+    /** Reads unread messages from both buffers and advances the reader cursor. */
     read(reader: MessageReader<T>): readonly T[] {
         const values: T[] = [];
         const cursor = reader.cursor;
@@ -84,16 +98,19 @@ export class Messages<T> {
         return values;
     }
 
+    /** Rotates the active write buffer and clears the now-current one for the next frame. */
     update(): void {
         this.currentBuffer = this.previousBuffer();
         this.buffers[this.currentBuffer].length = 0;
     }
 
+    /** Removes every buffered message without changing the next id counter. */
     clear(): void {
         this.buffers[0].length = 0;
         this.buffers[1].length = 0;
     }
 
+    /** Returns all buffered messages and empties both buffers. */
     drain(): T[] {
         const values: T[] = [];
         const previousBuffer = this.previousBuffer();
@@ -124,6 +141,7 @@ export class Messages<T> {
     }
 }
 
+/** Defines a message channel for queued multi-reader communication. */
 export function defineMessage<T>(name: string): MessageType<T> {
     return Object.freeze({
         id: nextMessageTypeId++,
@@ -131,6 +149,7 @@ export function defineMessage<T>(name: string): MessageType<T> {
     });
 }
 
+/** Creates a cursor-based reader that starts at the current channel origin. */
 export function messageReader<T>(type: MessageType<T>): MessageReader<T> {
     return new MessageReader(type);
 }

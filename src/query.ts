@@ -3,19 +3,23 @@ import type { Entity } from "./entity";
 import type { SparseSet } from "./sparse-set";
 import type { World } from "./world";
 
+/** Maps a component-type tuple to the tuple of resolved component payload types. */
 export type ComponentTuple<TComponents extends readonly AnyComponentType[]> = {
     [TIndex in keyof TComponents]: ComponentData<TComponents[TIndex]>;
 };
 
+/** Maps a component-type tuple to payloads that may be absent. */
 export type OptionalComponentTuple<TComponents extends readonly AnyComponentType[]> = {
     [TIndex in keyof TComponents]: ComponentData<TComponents[TIndex]> | undefined;
 };
 
+/** Standard query row format: entity first, then the requested component values. */
 export type QueryRow<TComponents extends readonly AnyComponentType[]> = [
     Entity,
     ...ComponentTuple<TComponents>,
 ];
 
+/** Query row format for optional queries with required values followed by optional values. */
 export type OptionalQueryRow<
     TRequiredComponents extends readonly AnyComponentType[],
     TOptionalComponents extends readonly AnyComponentType[],
@@ -25,6 +29,7 @@ export type OptionalQueryRow<
     ...OptionalComponentTuple<TOptionalComponents>,
 ];
 
+/** Structural and change-detection filters supported by world queries. */
 export interface QueryFilter {
     readonly with?: readonly AnyComponentType[];
     readonly without?: readonly AnyComponentType[];
@@ -33,11 +38,13 @@ export interface QueryFilter {
     readonly changed?: readonly AnyComponentType[];
 }
 
+/** Tick window used for per-system added/changed detection. */
 export interface ChangeDetectionRange {
     readonly lastRunTick: number;
     readonly thisRunTick: number;
 }
 
+/** Cached query definition for repeated required-component queries. */
 export class QueryState<TComponents extends readonly AnyComponentType[]> {
     readonly types: TComponents;
     readonly filter: QueryFilter;
@@ -47,10 +54,12 @@ export class QueryState<TComponents extends readonly AnyComponentType[]> {
         this.filter = cloneQueryFilter(filter);
     }
 
+    /** Iterates matching rows using the world's cached query plan. */
     iter(world: World): IterableIterator<QueryRow<TComponents>> {
         return world.queryWithState(this);
     }
 
+    /** Visits each matching row without exposing the iterator protocol. */
     each(
         world: World,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
@@ -58,19 +67,23 @@ export class QueryState<TComponents extends readonly AnyComponentType[]> {
         world.eachWithState(this, visitor);
     }
 
+    /** Returns `true` when at least one row matches. */
     matchesAny(world: World): boolean {
         return world.matchesAnyWithState(this);
     }
 
+    /** Returns `true` when no rows match. */
     matchesNone(world: World): boolean {
         return world.matchesNoneWithState(this);
     }
 
+    /** Returns `true` when exactly one row matches. */
     matchesSingle(world: World): boolean {
         return world.matchesSingleWithState(this);
     }
 }
 
+/** Cached query definition for required components plus trailing optional components. */
 export class OptionalQueryState<
     TRequiredComponents extends readonly AnyComponentType[],
     TOptionalComponents extends readonly AnyComponentType[],
@@ -89,12 +102,14 @@ export class OptionalQueryState<
         this.filter = cloneQueryFilter(filter);
     }
 
+    /** Iterates matching rows using the world's cached optional-query plan. */
     iter(
         world: World
     ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
         return world.queryOptionalWithState(this);
     }
 
+    /** Visits each optional-query row without exposing the iterator protocol. */
     each(
         world: World,
         visitor: (
@@ -108,19 +123,23 @@ export class OptionalQueryState<
         world.eachOptionalWithState(this, visitor);
     }
 
+    /** Returns `true` when at least one row matches. */
     matchesAny(world: World): boolean {
         return world.matchesAnyOptionalWithState(this);
     }
 
+    /** Returns `true` when no rows match. */
     matchesNone(world: World): boolean {
         return world.matchesNoneOptionalWithState(this);
     }
 
+    /** Returns `true` when exactly one row matches. */
     matchesSingle(world: World): boolean {
         return world.matchesSingleOptionalWithState(this);
     }
 }
 
+/** Creates a reusable query definition that can cache store resolution between runs. */
 export function queryState<const TComponents extends readonly AnyComponentType[]>(
     types: TComponents,
     filter: QueryFilter = {}
@@ -128,6 +147,7 @@ export function queryState<const TComponents extends readonly AnyComponentType[]
     return new QueryState(types, filter);
 }
 
+/** Creates a reusable query definition with required and optional component sections. */
 export function optionalQueryState<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
@@ -161,10 +181,12 @@ function cloneFilterTypes(
     return types === undefined ? undefined : Object.freeze([...types]);
 }
 
+/** Checks whether a change tick falls inside the current system's visible window. */
 export function isTickInRange(tick: number, changeDetection: ChangeDetectionRange): boolean {
     return tick > changeDetection.lastRunTick && tick <= changeDetection.thisRunTick;
 }
 
+/** Picks the smallest candidate store so queries scan the cheapest dense set first. */
 export function chooseSmallestStore(
     stores: readonly SparseSet<unknown>[],
     additionalStores: readonly SparseSet<unknown>[] = []

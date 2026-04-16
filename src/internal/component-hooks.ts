@@ -2,20 +2,24 @@ import type { ComponentHook, ComponentLifecycleStage, ComponentType } from "../c
 import type { Entity } from "../entity";
 import type { World } from "../world";
 
+/** Additional runtime hooks registered on top of component type metadata. */
 export type ComponentHookRegistry = {
     [TStage in ComponentLifecycleStage]?: ComponentHook<unknown>[];
 };
 
+/** Hook registry keyed by component type id. */
 export interface ComponentHookContext {
     readonly hooks: Map<number, ComponentHookRegistry>;
 }
 
+/** Creates the component-hook context used by a world. */
 export function createComponentHookContext(): ComponentHookContext {
     return {
         hooks: new Map(),
     };
 }
 
+/** Registers a runtime component hook and returns an unsubscribe callback. */
 export function addComponentHook<T>(
     context: ComponentHookContext,
     type: ComponentType<T>,
@@ -38,6 +42,7 @@ export function addComponentHook<T>(
     };
 }
 
+/** Runs built-in lifecycle hooks first, then any hooks registered at runtime. */
 export function runComponentHooks<T>(
     context: ComponentHookContext,
     type: ComponentType<T>,

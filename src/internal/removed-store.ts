@@ -7,19 +7,20 @@ interface RemovedStoreOptions {
     readonly getChangeTick: () => number;
 }
 
+/** Removed-component storage grouped by component type id. */
 export interface RemovedStoreContext extends RemovedStoreOptions {
     readonly removedComponents: Map<number, RemovedComponents<unknown>>;
 }
 
-export function createRemovedStoreContext(
-    options: RemovedStoreOptions
-): RemovedStoreContext {
+/** Creates the removed-component context used by a world. */
+export function createRemovedStoreContext(options: RemovedStoreOptions): RemovedStoreContext {
     return {
         removedComponents: new Map(),
         ...options,
     };
 }
 
+/** Reads unread removed-component records for the provided reader. */
 export function readRemoved<T>(
     context: RemovedStoreContext,
     reader: RemovedReader<T>
@@ -27,6 +28,7 @@ export function readRemoved<T>(
     return getRemovedComponents(context, reader.type)?.read(reader) ?? [];
 }
 
+/** Returns and clears all removed-component records for the component type. */
 export function drainRemoved<T>(
     context: RemovedStoreContext,
     type: ComponentType<T>
@@ -34,6 +36,7 @@ export function drainRemoved<T>(
     return getRemovedComponents(context, type)?.drain() ?? [];
 }
 
+/** Records a removed component together with the current change tick. */
 export function recordRemoved<T>(
     context: RemovedStoreContext,
     type: ComponentType<T>,

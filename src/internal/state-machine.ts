@@ -4,6 +4,7 @@ import type { Commands } from "../commands";
 import type { StateType, StateValue } from "../state";
 import type { World } from "../world";
 
+/** Runtime record for a single registered state machine. */
 export interface StateRecord<T extends StateValue> {
     readonly type: StateType<T>;
     current: T;
@@ -14,16 +15,19 @@ export interface StateRecord<T extends StateValue> {
     readonly onTransition: Map<T, Map<T, SystemRunner[]>>;
 }
 
+/** Collection of all registered state machines for a world. */
 export interface StateMachineContext {
     readonly states: Map<number, StateRecord<StateValue>>;
 }
 
+/** Creates the state-machine context used by a world. */
 export function createStateMachineContext(): StateMachineContext {
     return {
         states: new Map(),
     };
 }
 
+/** Initializes a state machine explicitly and rejects duplicate initialization. */
 export function initState<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>,
@@ -36,6 +40,7 @@ export function initState<T extends StateValue>(
     context.states.set(type.id, createStateRecord(type, initial));
 }
 
+/** Returns whether the state machine has been initialized. */
 export function hasState<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>
@@ -43,6 +48,7 @@ export function hasState<T extends StateValue>(
     return context.states.has(type.id);
 }
 
+/** Returns the current value of an initialized state machine. */
 export function currentState<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>
@@ -50,6 +56,7 @@ export function currentState<T extends StateValue>(
     return requireState(context, type).current;
 }
 
+/** Evaluates a predicate against the current state value when initialized. */
 export function matchesState<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>,
@@ -61,6 +68,7 @@ export function matchesState<T extends StateValue>(
     return state !== undefined && predicate((state as StateRecord<T>).current, world);
 }
 
+/** Schedules a transition to be applied during the next update cycle. */
 export function setState<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>,
@@ -70,6 +78,7 @@ export function setState<T extends StateValue>(
     state.pending = next;
 }
 
+/** Registers a callback that runs when the state enters a concrete value. */
 export function onEnterState<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>,
@@ -79,6 +88,7 @@ export function onEnterState<T extends StateValue>(
     getStateSystems(ensureState(context, type).onEnter, value).push(createSystemRunner(system));
 }
 
+/** Registers a callback that runs when the state exits a concrete value. */
 export function onExitState<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>,
@@ -88,6 +98,7 @@ export function onExitState<T extends StateValue>(
     getStateSystems(ensureState(context, type).onExit, value).push(createSystemRunner(system));
 }
 
+/** Registers a callback that runs for one specific transition pair. */
 export function onTransitionState<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>,
@@ -98,6 +109,7 @@ export function onTransitionState<T extends StateValue>(
     addTransitionRunner(context, type, from, to, system);
 }
 
+/** Adapts object-style enter/exit handlers into scheduler runners. */
 export function addStateSystem<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>,
@@ -124,6 +136,7 @@ export function addStateSystem<T extends StateValue>(
     }
 }
 
+/** Adapts an object-style transition handler into a scheduler runner. */
 export function addTransitionSystem<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>,
@@ -142,6 +155,7 @@ export function addTransitionSystem<T extends StateValue>(
     });
 }
 
+/** Runs initial enter callbacks exactly once per initialized state machine. */
 export function runInitialEnters(
     context: StateMachineContext,
     dt: number,
@@ -157,6 +171,7 @@ export function runInitialEnters(
     }
 }
 
+/** Applies queued transitions in exit -> transition -> enter order. */
 export function applyStateTransitions(
     context: StateMachineContext,
     dt: number,

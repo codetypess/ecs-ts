@@ -2,6 +2,12 @@ import { Entity, entityIndex } from "./entity";
 
 const MISSING = -1;
 
+/**
+ * Dense/sparse storage used for component tables.
+ *
+ * Values are stored densely for iteration while the sparse index provides O(1)-ish
+ * lookups by entity slot.
+ */
 export class SparseSet<T> {
     private readonly sparse: number[] = [];
     private readonly denseEntities: Entity[] = [];
@@ -9,40 +15,48 @@ export class SparseSet<T> {
     private readonly addedTicks: number[] = [];
     private readonly changedTicks: number[] = [];
 
+    /** Number of live values stored in the dense arrays. */
     get size(): number {
         return this.denseEntities.length;
     }
 
+    /** Dense entity array used as the main iteration source. */
     get entities(): readonly Entity[] {
         return this.denseEntities;
     }
 
+    /** Dense value array kept in lockstep with {@link entities}. */
     get values(): readonly T[] {
         return this.denseValues;
     }
 
+    /** Checks whether the entity currently has a value in this store. */
     has(entity: Entity): boolean {
         return this.denseIndexOf(entity) !== MISSING;
     }
 
+    /** Returns the stored value for the entity, if present. */
     get(entity: Entity): T | undefined {
         const denseIndex = this.denseIndexOf(entity);
 
         return denseIndex === MISSING ? undefined : this.denseValues[denseIndex];
     }
 
+    /** Returns the tick when the value was first inserted. */
     getAddedTick(entity: Entity): number | undefined {
         const denseIndex = this.denseIndexOf(entity);
 
         return denseIndex === MISSING ? undefined : this.addedTicks[denseIndex];
     }
 
+    /** Returns the tick when the value was last changed. */
     getChangedTick(entity: Entity): number | undefined {
         const denseIndex = this.denseIndexOf(entity);
 
         return denseIndex === MISSING ? undefined : this.changedTicks[denseIndex];
     }
 
+    /** Updates only the changed tick for an existing value. */
     markChanged(entity: Entity, tick: number): boolean {
         const denseIndex = this.denseIndexOf(entity);
 
@@ -55,6 +69,7 @@ export class SparseSet<T> {
         return true;
     }
 
+    /** Inserts or replaces a value while keeping dense iteration packed. */
     set(entity: Entity, value: T, tick: number): void {
         const existingIndex = this.denseIndexOf(entity);
 
@@ -72,6 +87,7 @@ export class SparseSet<T> {
         this.changedTicks.push(tick);
     }
 
+    /** Removes a value with swap-remove to keep dense iteration compact. */
     delete(entity: Entity): boolean {
         const denseIndex = this.denseIndexOf(entity);
 

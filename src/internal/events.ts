@@ -2,16 +2,19 @@ import type { EventObserver } from "../event";
 import type { World } from "../world";
 import { runEventObserverWithCommands } from "./command-execution";
 
+/** Observer registry keyed by event type id. */
 export interface EventContext {
     readonly observers: Map<number, EventObserver<unknown>[]>;
 }
 
+/** Creates the event context used by a world. */
 export function createEventContext(): EventContext {
     return {
         observers: new Map(),
     };
 }
 
+/** Registers an observer and returns an unsubscribe callback. */
 export function observeEvent<T>(
     context: EventContext,
     typeId: number,
@@ -31,6 +34,7 @@ export function observeEvent<T>(
     };
 }
 
+/** Triggers observers immediately, isolating each one behind a fresh command queue. */
 export function triggerEvent<T>(
     context: EventContext,
     typeId: number,
@@ -43,14 +47,12 @@ export function triggerEvent<T>(
         return;
     }
 
+    // Snapshot the observer list so observers can safely unsubscribe during dispatch.
     for (const observer of [...observers]) {
         runEventObserverWithCommands(world, observer, value);
     }
 }
 
-function getEventObservers<T>(
-    context: EventContext,
-    typeId: number
-): readonly EventObserver<T>[] {
+function getEventObservers<T>(context: EventContext, typeId: number): readonly EventObserver<T>[] {
     return (context.observers.get(typeId) ?? []) as readonly EventObserver<T>[];
 }

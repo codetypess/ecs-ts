@@ -22,6 +22,7 @@ import {
     type QueryPlanContext,
 } from "./query-plan";
 
+/** Inputs needed to execute resolved query plans. */
 export interface QueryExecutorContext {
     readonly planContext: QueryPlanContext;
     readonly isAlive: (entity: Entity) => boolean;
@@ -43,6 +44,7 @@ type OptionalQueryVisitor<
     ]
 ) => void;
 
+/** Iterates a direct required-component query. */
 export function query<const TComponents extends readonly AnyComponentType[]>(
     context: QueryExecutorContext,
     types: TComponents,
@@ -56,6 +58,7 @@ export function query<const TComponents extends readonly AnyComponentType[]>(
     );
 }
 
+/** Iterates a direct query with required and optional component sections. */
 export function queryOptional<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
@@ -73,6 +76,7 @@ export function queryOptional<
     );
 }
 
+/** Iterates a cached required-component query. */
 export function queryWithState<const TComponents extends readonly AnyComponentType[]>(
     context: QueryExecutorContext,
     state: QueryState<TComponents>,
@@ -85,6 +89,7 @@ export function queryWithState<const TComponents extends readonly AnyComponentTy
     );
 }
 
+/** Iterates a cached optional query. */
 export function queryOptionalWithState<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
@@ -100,6 +105,7 @@ export function queryOptionalWithState<
     );
 }
 
+/** Returns whether a cached query matches at least one entity. */
 export function matchesAnyWithState<const TComponents extends readonly AnyComponentType[]>(
     context: QueryExecutorContext,
     state: QueryState<TComponents>,
@@ -114,6 +120,7 @@ export function matchesAnyWithState<const TComponents extends readonly AnyCompon
     return countResolvedQueryMatches(context, plan, changeDetection, 1) === 1;
 }
 
+/** Returns whether a cached query matches exactly one entity. */
 export function matchesSingleWithState<const TComponents extends readonly AnyComponentType[]>(
     context: QueryExecutorContext,
     state: QueryState<TComponents>,
@@ -128,6 +135,7 @@ export function matchesSingleWithState<const TComponents extends readonly AnyCom
     return countResolvedQueryMatches(context, plan, changeDetection, 2) === 1;
 }
 
+/** Returns whether a cached optional query matches at least one entity. */
 export function matchesAnyOptionalWithState<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
@@ -145,6 +153,7 @@ export function matchesAnyOptionalWithState<
     return countResolvedOptionalQueryMatches(context, plan, changeDetection, 1) === 1;
 }
 
+/** Returns whether a cached optional query matches exactly one entity. */
 export function matchesSingleOptionalWithState<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
@@ -162,6 +171,7 @@ export function matchesSingleOptionalWithState<
     return countResolvedOptionalQueryMatches(context, plan, changeDetection, 2) === 1;
 }
 
+/** Visits every row of a direct required-component query. */
 export function each<const TComponents extends readonly AnyComponentType[]>(
     context: QueryExecutorContext,
     types: TComponents,
@@ -177,6 +187,7 @@ export function each<const TComponents extends readonly AnyComponentType[]>(
     );
 }
 
+/** Visits every row of a direct optional query. */
 export function eachOptional<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
@@ -196,6 +207,7 @@ export function eachOptional<
     );
 }
 
+/** Visits every row of a cached required-component query. */
 export function eachWithState<const TComponents extends readonly AnyComponentType[]>(
     context: QueryExecutorContext,
     state: QueryState<TComponents>,
@@ -210,6 +222,7 @@ export function eachWithState<const TComponents extends readonly AnyComponentTyp
     );
 }
 
+/** Visits every row of a cached optional query. */
 export function eachOptionalWithState<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
@@ -236,6 +249,7 @@ function* iterateResolvedQuery<const TComponents extends readonly AnyComponentTy
         return;
     }
 
+    // Keep common arities branchless for callers by yielding rows directly.
     // Specialize the hottest small-arity cases so iteration avoids temporary arrays/spreads.
     if (plan.stores.length === 1) {
         const store0 = plan.stores[0]!;
@@ -361,6 +375,7 @@ function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]
 
     const callVisitor = visitor as (entity: Entity, ...components: unknown[]) => void;
 
+    // Match the iterator fast paths so `each()` stays allocation-free in common cases.
     // Mirror iterateResolvedQuery fast paths so each() can call the visitor directly.
     if (plan.stores.length === 1) {
         const store0 = plan.stores[0]!;
@@ -505,6 +520,7 @@ function countResolvedQueryMatches(
     return matches;
 }
 
+/** Iterates a resolved optional query, filling required values before optional trailing values. */
 function* iterateResolvedOptionalQuery<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
@@ -572,6 +588,7 @@ function* iterateResolvedOptionalQuery<
     }
 }
 
+/** Visits a resolved optional query using the same fast paths as the iterator version. */
 function eachResolvedOptionalQuery<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],

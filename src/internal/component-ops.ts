@@ -31,19 +31,18 @@ interface ComponentOpsContextOptions {
     readonly recordRemoved: <T>(type: ComponentType<T>, entity: Entity, component: T) => void;
 }
 
+/** Shared dependencies for component mutation helpers. */
 export type ComponentOpsContext = ComponentOpsContextOptions;
 
+/** Creates the component-operations context used by `World`. */
 export function createComponentOpsContext(
     options: ComponentOpsContextOptions
 ): ComponentOpsContext {
     return options;
 }
 
-export function insertBundle(
-    context: ComponentOpsContext,
-    entity: Entity,
-    bundle: Bundle
-): void {
+/** Inserts every entry in a bundle, validating that the entity is alive first. */
+export function insertBundle(context: ComponentOpsContext, entity: Entity, bundle: Bundle): void {
     assertAlive(context, entity);
 
     for (const entry of bundle.entries) {
@@ -51,6 +50,7 @@ export function insertBundle(
     }
 }
 
+/** Removes every entry listed by a bundle and reports whether anything changed. */
 export function removeBundle(
     context: ComponentOpsContext,
     entity: Entity,
@@ -65,6 +65,7 @@ export function removeBundle(
     return removedAny;
 }
 
+/** Inserts or replaces a component, including required-component expansion. */
 export function add<T>(
     context: ComponentOpsContext,
     entity: Entity,
@@ -75,6 +76,7 @@ export function add<T>(
     addWithRequired(context, entity, type, value, []);
 }
 
+/** Updates the changed tick for an existing component. */
 export function markChanged<T>(
     context: ComponentOpsContext,
     entity: Entity,
@@ -84,20 +86,27 @@ export function markChanged<T>(
         return false;
     }
 
-    return getComponentStore(context.componentStores, type)?.markChanged(
-        entity,
-        context.getChangeTick()
-    ) ?? false;
+    return (
+        getComponentStore(context.componentStores, type)?.markChanged(
+            entity,
+            context.getChangeTick()
+        ) ?? false
+    );
 }
 
+/** Returns whether the entity currently has the requested component. */
 export function has<T>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
 ): boolean {
-    return context.entities.isAlive(entity) && (getComponentStore(context.componentStores, type)?.has(entity) ?? false);
+    return (
+        context.entities.isAlive(entity) &&
+        (getComponentStore(context.componentStores, type)?.has(entity) ?? false)
+    );
 }
 
+/** Returns whether the entity has every component in the provided list. */
 export function hasAll(
     context: ComponentOpsContext,
     entity: Entity,
@@ -116,6 +125,7 @@ export function hasAll(
     return true;
 }
 
+/** Returns whether the entity has at least one component in the provided list. */
 export function hasAny(
     context: ComponentOpsContext,
     entity: Entity,
@@ -134,6 +144,7 @@ export function hasAny(
     return false;
 }
 
+/** Returns the component value when the entity is alive and the component exists. */
 export function get<T>(
     context: ComponentOpsContext,
     entity: Entity,
@@ -146,6 +157,7 @@ export function get<T>(
     return getComponentStore(context.componentStores, type)?.get(entity);
 }
 
+/** Returns the component value or throws when it is missing. */
 export function mustGet<T>(
     context: ComponentOpsContext,
     entity: Entity,
@@ -160,6 +172,7 @@ export function mustGet<T>(
     return value;
 }
 
+/** Returns multiple component values at once, aborting when any are missing. */
 export function getMany<const TComponents extends readonly AnyComponentType[]>(
     context: ComponentOpsContext,
     entity: Entity,
@@ -185,6 +198,7 @@ export function getMany<const TComponents extends readonly AnyComponentType[]>(
     return components as ComponentTuple<TComponents>;
 }
 
+/** Returns whether the component was added inside the current change-detection window. */
 export function isAdded<T>(
     context: ComponentOpsContext,
     entity: Entity,
@@ -199,6 +213,7 @@ export function isAdded<T>(
     return tick !== undefined && isTickInRange(tick, context.getChangeDetectionRange());
 }
 
+/** Returns whether the component changed inside the current change-detection window. */
 export function isChanged<T>(
     context: ComponentOpsContext,
     entity: Entity,
@@ -213,6 +228,7 @@ export function isChanged<T>(
     return tick !== undefined && isTickInRange(tick, context.getChangeDetectionRange());
 }
 
+/** Removes a component and runs replacement/removal lifecycle hooks before deleting it. */
 export function remove<T>(
     context: ComponentOpsContext,
     entity: Entity,
@@ -233,6 +249,7 @@ export function remove<T>(
     return true;
 }
 
+/** Removes every component on the entity, records removals, and destroys the entity handle. */
 export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
     if (!context.entities.isAlive(entity)) {
         return false;
@@ -259,6 +276,7 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
     return context.entities.destroy(entity);
 }
 
+/** Expands required components recursively before inserting the requested component. */
 function addWithRequired<T>(
     context: ComponentOpsContext,
     entity: Entity,
@@ -271,6 +289,7 @@ function addWithRequired<T>(
     insertComponentOnly(context, entity, type, value);
 }
 
+/** Resolves required-component chains and detects dependency cycles eagerly. */
 function addRequiredComponents(
     context: ComponentOpsContext,
     entity: Entity,
@@ -301,6 +320,7 @@ function addRequiredComponents(
     }
 }
 
+/** Writes exactly one component store and runs the appropriate lifecycle hooks around it. */
 function insertComponentOnly<T>(
     context: ComponentOpsContext,
     entity: Entity,
@@ -324,6 +344,7 @@ function insertComponentOnly<T>(
     context.runComponentHooks(type, "onInsert", entity, value);
 }
 
+/** Guards every mutation path that expects a live entity handle. */
 function assertAlive(context: ComponentOpsContext, entity: Entity): void {
     if (!context.entities.isAlive(entity)) {
         throw new Error(`Entity is not alive: ${formatEntity(entity)}`);
