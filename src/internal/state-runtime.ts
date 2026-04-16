@@ -14,178 +14,221 @@ export interface StateRecord<T extends StateValue> {
     readonly onTransition: Map<T, Map<T, SystemRunner[]>>;
 }
 
-export class StateRuntime {
-    private readonly states = new Map<number, StateRecord<StateValue>>();
+export interface StateRuntimeContext {
+    readonly states: Map<number, StateRecord<StateValue>>;
+}
 
-    init<T extends StateValue>(type: StateType<T>, initial = type.initial): void {
-        if (this.states.has(type.id)) {
-            throw new Error(`State is already initialized: ${type.name}`);
+export function createStateRuntimeContext(): StateRuntimeContext {
+    return {
+        states: new Map(),
+    };
+}
+
+export function initState<T extends StateValue>(
+    context: StateRuntimeContext,
+    type: StateType<T>,
+    initial = type.initial
+): void {
+    if (context.states.has(type.id)) {
+        throw new Error(`State is already initialized: ${type.name}`);
+    }
+
+    context.states.set(type.id, createStateRecord(type, initial));
+}
+
+export function hasState<T extends StateValue>(
+    context: StateRuntimeContext,
+    type: StateType<T>
+): boolean {
+    return context.states.has(type.id);
+}
+
+export function currentState<T extends StateValue>(
+    context: StateRuntimeContext,
+    type: StateType<T>
+): T {
+    return requireState(context, type).current;
+}
+
+export function matchesState<T extends StateValue>(
+    context: StateRuntimeContext,
+    type: StateType<T>,
+    predicate: (value: T, world: World) => boolean,
+    world: World
+): boolean {
+    const state = context.states.get(type.id);
+
+    return state !== undefined && predicate((state as StateRecord<T>).current, world);
+}
+
+export function setState<T extends StateValue>(
+    context: StateRuntimeContext,
+    type: StateType<T>,
+    next: T
+): void {
+    const state = ensureState(context, type);
+    state.pending = next;
+}
+
+export function onEnterState<T extends StateValue>(
+    context: StateRuntimeContext,
+    type: StateType<T>,
+    value: T,
+    system: SystemCallback
+): void {
+    getStateSystems(ensureState(context, type).onEnter, value).push(createSystemRunner(system));
+}
+
+export function onExitState<T extends StateValue>(
+    context: StateRuntimeContext,
+    type: StateType<T>,
+    value: T,
+    system: SystemCallback
+): void {
+    getStateSystems(ensureState(context, type).onExit, value).push(createSystemRunner(system));
+}
+
+export function onTransitionState<T extends StateValue>(
+    context: StateRuntimeContext,
+    type: StateType<T>,
+    from: T,
+    to: T,
+    system: SystemCallback
+): void {
+    addTransitionRunner(context, type, from, to, system);
+}
+
+export function addStateSystem<T extends StateValue>(
+    context: StateRuntimeContext,
+    type: StateType<T>,
+    value: T,
+    onEnter: ((world: World, dt: number, commands: Commands, value: T) => void) | undefined,
+    onExit: ((world: World, dt: number, commands: Commands, value: T) => void) | undefined
+): void {
+    const state = ensureState(context, type);
+
+    if (onEnter !== undefined) {
+        getStateSystems(state.onEnter, value).push(
+            createSystemRunner((world, dt, commands) => {
+                onEnter(world, dt, commands, value);
+            })
+        );
+    }
+
+    if (onExit !== undefined) {
+        getStateSystems(state.onExit, value).push(
+            createSystemRunner((world, dt, commands) => {
+                onExit(world, dt, commands, value);
+            })
+        );
+    }
+}
+
+export function addTransitionSystem<T extends StateValue>(
+    context: StateRuntimeContext,
+    type: StateType<T>,
+    from: T,
+    to: T,
+    onTransition:
+        | ((world: World, dt: number, commands: Commands, from: T, to: T) => void)
+        | undefined
+): void {
+    if (onTransition === undefined) {
+        return;
+    }
+
+    addTransitionRunner(context, type, from, to, (world, dt, commands) => {
+        onTransition(world, dt, commands, from, to);
+    });
+}
+
+export function runInitialEnters(
+    context: StateRuntimeContext,
+    dt: number,
+    runSystems: (systems: readonly SystemRunner[], dt: number) => void
+): void {
+    for (const state of context.states.values()) {
+        if (state.didEnterInitial) {
+            continue;
         }
 
-        this.states.set(type.id, createStateRecord(type, initial));
+        runSystems(state.onEnter.get(state.current) ?? [], dt);
+        state.didEnterInitial = true;
     }
+}
 
-    has<T extends StateValue>(type: StateType<T>): boolean {
-        return this.states.has(type.id);
-    }
-
-    current<T extends StateValue>(type: StateType<T>): T {
-        return this.require(type).current;
-    }
-
-    matches<T extends StateValue>(
-        type: StateType<T>,
-        predicate: (value: T, world: World) => boolean,
-        world: World
-    ): boolean {
-        const state = this.states.get(type.id);
-
-        return state !== undefined && predicate((state as StateRecord<T>).current, world);
-    }
-
-    set<T extends StateValue>(type: StateType<T>, next: T): void {
-        const state = this.ensure(type);
-        state.pending = next;
-    }
-
-    onEnter<T extends StateValue>(type: StateType<T>, value: T, system: SystemCallback): void {
-        getStateSystems(this.ensure(type).onEnter, value).push(createSystemRunner(system));
-    }
-
-    onExit<T extends StateValue>(type: StateType<T>, value: T, system: SystemCallback): void {
-        getStateSystems(this.ensure(type).onExit, value).push(createSystemRunner(system));
-    }
-
-    onTransition<T extends StateValue>(
-        type: StateType<T>,
-        from: T,
-        to: T,
-        system: SystemCallback
-    ): void {
-        this.addTransitionRunner(type, from, to, system);
-    }
-
-    addStateSystem<T extends StateValue>(
-        type: StateType<T>,
-        value: T,
-        onEnter: ((world: World, dt: number, commands: Commands, value: T) => void) | undefined,
-        onExit: ((world: World, dt: number, commands: Commands, value: T) => void) | undefined
-    ): void {
-        const state = this.ensure(type);
-
-        if (onEnter !== undefined) {
-            getStateSystems(state.onEnter, value).push(
-                createSystemRunner((world, dt, commands) => {
-                    onEnter(world, dt, commands, value);
-                })
-            );
+export function applyStateTransitions(
+    context: StateRuntimeContext,
+    dt: number,
+    runSystems: (systems: readonly SystemRunner[], dt: number) => void
+): void {
+    for (const state of context.states.values()) {
+        if (state.pending === undefined) {
+            continue;
         }
 
-        if (onExit !== undefined) {
-            getStateSystems(state.onExit, value).push(
-                createSystemRunner((world, dt, commands) => {
-                    onExit(world, dt, commands, value);
-                })
-            );
+        const from = state.current;
+        const to = state.pending;
+
+        state.pending = undefined;
+
+        if (Object.is(from, to)) {
+            continue;
         }
+
+        state.didEnterInitial = true;
+        runSystems(state.onExit.get(from) ?? [], dt);
+        runSystems(state.onTransition.get(from)?.get(to) ?? [], dt);
+        state.current = to;
+        runSystems(state.onEnter.get(to) ?? [], dt);
+    }
+}
+
+function addTransitionRunner<T extends StateValue>(
+    context: StateRuntimeContext,
+    type: StateType<T>,
+    from: T,
+    to: T,
+    system: SystemCallback
+): void {
+    const state = ensureState(context, type);
+    let transitionsFrom = state.onTransition.get(from);
+
+    if (transitionsFrom === undefined) {
+        transitionsFrom = new Map<T, SystemRunner[]>();
+        state.onTransition.set(from, transitionsFrom);
     }
 
-    addTransitionSystem<T extends StateValue>(
-        type: StateType<T>,
-        from: T,
-        to: T,
-        onTransition:
-            | ((world: World, dt: number, commands: Commands, from: T, to: T) => void)
-            | undefined
-    ): void {
-        if (onTransition === undefined) {
-            return;
-        }
+    getStateSystems(transitionsFrom, to).push(createSystemRunner(system));
+}
 
-        this.addTransitionRunner(type, from, to, (world, dt, commands) => {
-            onTransition(world, dt, commands, from, to);
-        });
-    }
+function ensureState<T extends StateValue>(
+    context: StateRuntimeContext,
+    type: StateType<T>
+): StateRecord<T> {
+    const state = context.states.get(type.id);
 
-    runInitialEnters(
-        dt: number,
-        runSystems: (systems: readonly SystemRunner[], dt: number) => void
-    ): void {
-        for (const state of this.states.values()) {
-            if (state.didEnterInitial) {
-                continue;
-            }
-
-            runSystems(state.onEnter.get(state.current) ?? [], dt);
-            state.didEnterInitial = true;
-        }
-    }
-
-    applyTransitions(
-        dt: number,
-        runSystems: (systems: readonly SystemRunner[], dt: number) => void
-    ): void {
-        for (const state of this.states.values()) {
-            if (state.pending === undefined) {
-                continue;
-            }
-
-            const from = state.current;
-            const to = state.pending;
-
-            state.pending = undefined;
-
-            if (Object.is(from, to)) {
-                continue;
-            }
-
-            state.didEnterInitial = true;
-            runSystems(state.onExit.get(from) ?? [], dt);
-            runSystems(state.onTransition.get(from)?.get(to) ?? [], dt);
-            state.current = to;
-            runSystems(state.onEnter.get(to) ?? [], dt);
-        }
-    }
-
-    private addTransitionRunner<T extends StateValue>(
-        type: StateType<T>,
-        from: T,
-        to: T,
-        system: SystemCallback
-    ): void {
-        const state = this.ensure(type);
-        let transitionsFrom = state.onTransition.get(from);
-
-        if (transitionsFrom === undefined) {
-            transitionsFrom = new Map<T, SystemRunner[]>();
-            state.onTransition.set(from, transitionsFrom);
-        }
-
-        getStateSystems(transitionsFrom, to).push(createSystemRunner(system));
-    }
-
-    private ensure<T extends StateValue>(type: StateType<T>): StateRecord<T> {
-        const state = this.states.get(type.id);
-
-        if (state !== undefined) {
-            return state as StateRecord<T>;
-        }
-
-        const created = createStateRecord(type, type.initial);
-        this.states.set(type.id, created);
-
-        return created;
-    }
-
-    private require<T extends StateValue>(type: StateType<T>): StateRecord<T> {
-        const state = this.states.get(type.id);
-
-        if (state === undefined) {
-            throw new Error(`State is not initialized: ${type.name}`);
-        }
-
+    if (state !== undefined) {
         return state as StateRecord<T>;
     }
+
+    const created = createStateRecord(type, type.initial);
+    context.states.set(type.id, created);
+
+    return created;
+}
+
+function requireState<T extends StateValue>(
+    context: StateRuntimeContext,
+    type: StateType<T>
+): StateRecord<T> {
+    const state = context.states.get(type.id);
+
+    if (state === undefined) {
+        throw new Error(`State is not initialized: ${type.name}`);
+    }
+
+    return state as StateRecord<T>;
 }
 
 function createStateRecord<T extends StateValue>(type: StateType<T>, initial: T): StateRecord<T> {

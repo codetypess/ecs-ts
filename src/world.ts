@@ -77,8 +77,33 @@ import {
     removeResource as removeStoredResource,
     setResource as setStoredResource,
 } from "./internal/resource-runtime";
-import { ScheduleRuntime } from "./internal/schedule-runtime";
-import { StateRuntime } from "./internal/state-runtime";
+import {
+    addSystemRunner as addScheduledSystemRunner,
+    configureSet as configureScheduleSet,
+    configureSetForStage as configureScheduleSetForStage,
+    createScheduleRuntimeContext,
+    runFixedUpdate as runScheduledFixedUpdate,
+    runSchedule as runScheduledStage,
+    setFixedTimeStep as setScheduleFixedTimeStep,
+    shouldRunSystem as shouldRunScheduledSystem,
+    type ScheduleRuntimeContext,
+} from "./internal/schedule-runtime";
+import {
+    addStateSystem as addStateLifecycleSystem,
+    addTransitionSystem as addStateTransitionSystem,
+    applyStateTransitions,
+    createStateRuntimeContext,
+    currentState,
+    hasState,
+    initState,
+    matchesState,
+    onEnterState,
+    onExitState,
+    onTransitionState,
+    runInitialEnters,
+    setState,
+    type StateRuntimeContext,
+} from "./internal/state-runtime";
 import type { MessageId, MessageReader, MessageType } from "./message";
 import type {
     ChangeDetectionRange,
@@ -161,7 +186,7 @@ export class World {
             recordRemovedComponent(this.removedContext, type, entity, component);
         },
     });
-    private readonly stateRuntime = new StateRuntime();
+    private readonly stateContext: StateRuntimeContext = createStateRuntimeContext();
     private readonly eventContext = createEventRuntimeContext();
     private readonly messageContext = createMessageRuntimeContext();
     private readonly queryContext: QueryRuntimeContext = {
@@ -171,7 +196,7 @@ export class World {
         }),
         isAlive: (entity) => this.entities.isAlive(entity),
     };
-    private readonly scheduleRuntime = new ScheduleRuntime();
+    private readonly scheduleContext: ScheduleRuntimeContext = createScheduleRuntimeContext();
     private activeChangeDetection: ChangeDetectionRange | undefined;
     private changeTick = 1;
     private didStartup = false;
@@ -524,7 +549,7 @@ export class World {
     }
 
     configureSet(set: SystemSetLabel, options: SystemSetOptions): this {
-        this.scheduleRuntime.configureSet(set, options);
+        configureScheduleSet(this.scheduleContext, set, options);
 
         return this;
     }
@@ -534,13 +559,13 @@ export class World {
         set: SystemSetLabel,
         options: SystemSetOptions
     ): this {
-        this.scheduleRuntime.configureSetForStage(stage, set, options);
+        configureScheduleSetForStage(this.scheduleContext, stage, set, options);
 
         return this;
     }
 
     setFixedTimeStep(seconds: number): this {
-        this.scheduleRuntime.setFixedTimeStep(seconds);
+        setScheduleFixedTimeStep(this.scheduleContext, seconds);
 
         return this;
     }
@@ -630,40 +655,40 @@ export class World {
     }
 
     initState<T extends StateValue>(type: StateType<T>, initial = type.initial): this {
-        this.stateRuntime.init(type, initial);
+        initState(this.stateContext, type, initial);
 
         return this;
     }
 
     state<T extends StateValue>(type: StateType<T>): T {
-        return this.stateRuntime.current(type);
+        return currentState(this.stateContext, type);
     }
 
     hasState<T extends StateValue>(type: StateType<T>): boolean {
-        return this.stateRuntime.has(type);
+        return hasState(this.stateContext, type);
     }
 
     stateMatches<T extends StateValue>(
         type: StateType<T>,
         predicate: (value: T, world: World) => boolean
     ): boolean {
-        return this.stateRuntime.matches(type, predicate, this);
+        return matchesState(this.stateContext, type, predicate, this);
     }
 
     setState<T extends StateValue>(type: StateType<T>, next: T): this {
-        this.stateRuntime.set(type, next);
+        setState(this.stateContext, type, next);
 
         return this;
     }
 
     onEnter<T extends StateValue>(type: StateType<T>, value: T, system: SystemCallback): this {
-        this.stateRuntime.onEnter(type, value, system);
+        onEnterState(this.stateContext, type, value, system);
 
         return this;
     }
 
     onExit<T extends StateValue>(type: StateType<T>, value: T, system: SystemCallback): this {
-        this.stateRuntime.onExit(type, value, system);
+        onExitState(this.stateContext, type, value, system);
 
         return this;
     }
@@ -674,7 +699,7 @@ export class World {
         to: T,
         system: SystemCallback
     ): this {
-        this.stateRuntime.onTransition(type, from, to, system);
+        onTransitionState(this.stateContext, type, from, to, system);
 
         return this;
     }
@@ -684,7 +709,7 @@ export class World {
         value: T,
         system: StateSystem<T>
     ): this {
-        this.stateRuntime.addStateSystem(type, value, system.onEnter, system.onExit);
+        addStateLifecycleSystem(this.stateContext, type, value, system.onEnter, system.onExit);
 
         return this;
     }
@@ -695,7 +720,7 @@ export class World {
         to: T,
         system: TransitionSystem<T>
     ): this {
-        this.stateRuntime.addTransitionSystem(type, from, to, system.onTransition);
+        addStateTransitionSystem(this.stateContext, type, from, to, system.onTransition);
 
         return this;
     }
@@ -765,7 +790,8 @@ export class World {
             const method = system[systemMethod];
 
             if (method !== undefined) {
-                this.scheduleRuntime.addSystemRunner(
+                addScheduledSystemRunner(
+                    this.scheduleContext,
                     stage,
                     createSystemRunner(method.bind(system), options)
                 );
@@ -774,11 +800,11 @@ export class World {
     }
 
     private runSchedule(stage: ScheduleStage, dt: number): void {
-        this.scheduleRuntime.runSchedule(stage, dt, this.runScheduledSystems);
+        runScheduledStage(this.scheduleContext, stage, dt, this.runScheduledSystems);
     }
 
     private runFixedUpdate(dt: number): void {
-        this.scheduleRuntime.runFixedUpdate(dt, this.runScheduledSystems);
+        runScheduledFixedUpdate(this.scheduleContext, dt, this.runScheduledSystems);
     }
 
     private runStartupSchedules(): void {
@@ -790,11 +816,11 @@ export class World {
     }
 
     private runUpdateSchedules(dt: number): void {
-        this.stateRuntime.runInitialEnters(dt, this.runUpdateStageSystems);
+        runInitialEnters(this.stateContext, dt, this.runUpdateStageSystems);
         this.runSchedule("first", dt);
         this.runSchedule("preUpdate", dt);
         this.runFixedUpdate(dt);
-        this.stateRuntime.applyTransitions(dt, this.runUpdateStageSystems);
+        applyStateTransitions(this.stateContext, dt, this.runUpdateStageSystems);
         this.runSchedule("update", dt);
         this.runSchedule("postUpdate", dt);
         this.runSchedule("last", dt);
@@ -811,7 +837,7 @@ export class World {
             };
 
             try {
-                if (!this.scheduleRuntime.shouldRunSystem(system, stage, this)) {
+                if (!shouldRunScheduledSystem(this.scheduleContext, system, stage, this)) {
                     continue;
                 }
 
