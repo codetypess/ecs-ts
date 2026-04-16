@@ -5,10 +5,18 @@ import type { SparseSet } from "../sparse-set";
 export function fillComponents(
     entity: Entity,
     stores: readonly SparseSet<unknown>[],
-    output: unknown[]
+    output: unknown[],
+    knownPresentStore?: SparseSet<unknown>,
+    knownPresentValue?: unknown
 ): boolean {
     for (let index = 0; index < stores.length; index++) {
         const store = stores[index]!;
+
+        if (store === knownPresentStore) {
+            output[index] = knownPresentValue;
+            continue;
+        }
+
         const value = store.get(entity);
 
         // A single get() doubles as both presence check and value fetch on the hot path.
@@ -23,8 +31,16 @@ export function fillComponents(
 }
 
 /** Checks presence only, without materializing component values. */
-export function hasComponents(entity: Entity, stores: readonly SparseSet<unknown>[]): boolean {
+export function hasComponents(
+    entity: Entity,
+    stores: readonly SparseSet<unknown>[],
+    knownPresentStore?: SparseSet<unknown>
+): boolean {
     for (const store of stores) {
+        if (store === knownPresentStore) {
+            continue;
+        }
+
         if (!store.has(entity)) {
             return false;
         }

@@ -13,7 +13,8 @@ interface FilteredQueryPlan {
 export function matchesPlanFilter(
     entity: Entity,
     plan: FilteredQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    knownPresentStore?: SparseSet<unknown>
 ): boolean {
     if (plan.filterMode === "unfiltered") {
         return true;
@@ -21,18 +22,19 @@ export function matchesPlanFilter(
 
     // Structural-only filters can skip change-tick lookups entirely.
     if (plan.filterMode === "structural") {
-        return matchesStructuralFilter(entity, plan.filterStores);
+        return matchesStructuralFilter(entity, plan.filterStores, knownPresentStore);
     }
 
-    return matchesFilter(entity, plan.filterStores, changeDetection);
+    return matchesFilter(entity, plan.filterStores, changeDetection, knownPresentStore);
 }
 
 function matchesFilter(
     entity: Entity,
     filter: ResolvedQueryFilter,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    knownPresentStore?: SparseSet<unknown>
 ): boolean {
-    if (!matchesStructuralFilter(entity, filter)) {
+    if (!matchesStructuralFilter(entity, filter, knownPresentStore)) {
         return false;
     }
 
@@ -48,8 +50,16 @@ function matchesFilter(
 }
 
 /** Structural filters depend only on store membership, not change ticks. */
-function matchesStructuralFilter(entity: Entity, filter: ResolvedQueryFilter): boolean {
+function matchesStructuralFilter(
+    entity: Entity,
+    filter: ResolvedQueryFilter,
+    knownPresentStore?: SparseSet<unknown>
+): boolean {
     for (const store of filter.with) {
+        if (store === knownPresentStore) {
+            continue;
+        }
+
         if (!store.has(entity)) {
             return false;
         }
@@ -66,6 +76,10 @@ function matchesStructuralFilter(entity: Entity, filter: ResolvedQueryFilter): b
     }
 
     for (const store of filter.or) {
+        if (store === knownPresentStore) {
+            return true;
+        }
+
         if (store.has(entity)) {
             return true;
         }

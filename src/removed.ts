@@ -24,6 +24,8 @@ interface RemovedReaderBinding<T> {
     readonly release: (reader: RemovedReader<T>) => void;
 }
 
+const REMOVED_PHYSICAL_COMPACTION_THRESHOLD = 64;
+
 /** Cursor-based reader for removed-component streams. */
 export class RemovedReader<T> {
     private nextRemovedId: number;
@@ -76,6 +78,7 @@ export class RemovedReader<T> {
 export class RemovedComponents<T> {
     private readonly removed: RemovedComponent<T>[] = [];
     private readonly activeReaders = new Set<RemovedReader<T>>();
+    private startIndex = 0;
     private firstRemovedId = 0;
     private nextRemovedId = 0;
 
@@ -86,7 +89,7 @@ export class RemovedComponents<T> {
 
     /** Number of buffered removal records. */
     get length(): number {
-        return this.removed.length;
+        return this.removed.length - this.startIndex;
     }
 
     /** Starts tracking a reader so consumed prefixes can be compacted safely. */
@@ -102,7 +105,7 @@ export class RemovedComponents<T> {
     push(entity: Entity, component: T, tick: number): RemovedComponentId<T> {
         const id = this.nextRemovedId as RemovedComponentId<T>;
 
-        if (this.removed.length === 0) {
+        if (this.length === 0) {
             this.firstRemovedId = id;
         }
 
@@ -120,7 +123,8 @@ export class RemovedComponents<T> {
 
         // Removed ids are contiguous, so the unread slice can be computed directly
         // instead of scanning the entire append-only buffer every read.
-        const startIndex = Math.max(0, reader.cursor - this.firstRemovedId);
+        const startIndex =
+            this.startIndex + Math.max(0, reader.cursor - this.firstRemovedId);
         const unread =
             startIndex >= this.removed.length ? [] : this.removed.slice(startIndex);
 
@@ -144,7 +148,11 @@ export class RemovedComponents<T> {
 
     /** Returns all removal records and clears the internal buffer. */
     drain(): RemovedComponent<T>[] {
-        const drained = this.removed.splice(0);
+        const drained =
+            this.startIndex === 0 ? this.removed.splice(0) : this.removed.slice(this.startIndex);
+
+        this.removed.length = 0;
+        this.startIndex = 0;
         this.firstRemovedId = this.nextRemovedId;
 
         return drained;
@@ -190,17 +198,32 @@ export class RemovedComponents<T> {
     }
 
     private dropBufferedPrefix(nextLiveId: number): void {
-        if (this.removed.length === 0 || nextLiveId <= this.firstRemovedId) {
+        if (this.length === 0 || nextLiveId <= this.firstRemovedId) {
             return;
         }
 
-        const compacted = Math.min(this.removed.length, nextLiveId - this.firstRemovedId);
+        const compacted = Math.min(this.length, nextLiveId - this.firstRemovedId);
 
         if (compacted <= 0) {
             return;
         }
 
-        this.removed.splice(0, compacted);
+        this.startIndex += compacted;
         this.firstRemovedId += compacted;
+        this.compactPhysicalPrefix();
+    }
+
+    private compactPhysicalPrefix(): void {
+        if (this.startIndex < REMOVED_PHYSICAL_COMPACTION_THRESHOLD) {
+            return;
+        }
+
+        if (this.startIndex === this.removed.length) {
+            this.removed.length = 0;
+        } else {
+            this.removed.splice(0, this.startIndex);
+        }
+
+        this.startIndex = 0;
     }
 }

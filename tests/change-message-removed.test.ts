@@ -139,6 +139,18 @@ test("removed readers only see removals still buffered after drain", () => {
     assert.deepEqual(removed[0]?.component, { x: 3, y: 4 });
 });
 
+test("removed readers hide fully consumed history from drainRemoved immediately", () => {
+    const Position = defineComponent<{ x: number; y: number }>("RemovedConsumedPosition");
+    const world = new World();
+    const reader = world.removedReader(Position);
+    const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
+
+    world.remove(entity, Position);
+
+    assert.equal(reader.read().length, 1);
+    assert.equal(world.drainRemoved(Position).length, 0);
+});
+
 test("drainRemoved keeps working even when no removed reader exists", () => {
     const Position = defineComponent<{ x: number; y: number }>("RemovedDrainOnlyPosition");
     const world = new World();

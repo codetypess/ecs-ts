@@ -251,22 +251,28 @@ function* iterateResolvedQuery<const TComponents extends readonly AnyComponentTy
     }
 
     const baseStore = currentRequiredBaseStore(plan);
+    const baseEntities = baseStore.entities;
+    const baseValues = baseStore.values;
+    const hasFilter = plan.filterMode !== "unfiltered";
 
     // Keep common arities branchless for callers by yielding rows directly.
     // Specialize the hottest small-arity cases so iteration avoids temporary arrays/spreads.
     if (plan.stores.length === 1) {
         const store0 = plan.stores[0]!;
+        const baseIsStore0 = store0 === baseStore;
 
-        for (const entity of baseStore.entities) {
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
+
             if (!context.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesPlanFilter(entity, plan, changeDetection)) {
+            if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
                 continue;
             }
 
-            const value0 = store0.get(entity);
+            const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
 
             if (value0 === undefined) {
                 continue;
@@ -281,23 +287,27 @@ function* iterateResolvedQuery<const TComponents extends readonly AnyComponentTy
     if (plan.stores.length === 2) {
         const store0 = plan.stores[0]!;
         const store1 = plan.stores[1]!;
+        const baseIsStore0 = store0 === baseStore;
+        const baseIsStore1 = store1 === baseStore;
 
-        for (const entity of baseStore.entities) {
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
+
             if (!context.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesPlanFilter(entity, plan, changeDetection)) {
+            if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
                 continue;
             }
 
-            const value0 = store0.get(entity);
+            const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
 
             if (value0 === undefined) {
                 continue;
             }
 
-            const value1 = store1.get(entity);
+            const value1 = baseIsStore1 ? baseValues[index] : store1.get(entity);
 
             if (value1 === undefined) {
                 continue;
@@ -313,29 +323,34 @@ function* iterateResolvedQuery<const TComponents extends readonly AnyComponentTy
         const store0 = plan.stores[0]!;
         const store1 = plan.stores[1]!;
         const store2 = plan.stores[2]!;
+        const baseIsStore0 = store0 === baseStore;
+        const baseIsStore1 = store1 === baseStore;
+        const baseIsStore2 = store2 === baseStore;
 
-        for (const entity of baseStore.entities) {
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
+
             if (!context.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesPlanFilter(entity, plan, changeDetection)) {
+            if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
                 continue;
             }
 
-            const value0 = store0.get(entity);
+            const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
 
             if (value0 === undefined) {
                 continue;
             }
 
-            const value1 = store1.get(entity);
+            const value1 = baseIsStore1 ? baseValues[index] : store1.get(entity);
 
             if (value1 === undefined) {
                 continue;
             }
 
-            const value2 = store2.get(entity);
+            const value2 = baseIsStore2 ? baseValues[index] : store2.get(entity);
 
             if (value2 === undefined) {
                 continue;
@@ -349,16 +364,18 @@ function* iterateResolvedQuery<const TComponents extends readonly AnyComponentTy
 
     const components: unknown[] = new Array(plan.stores.length);
 
-    for (const entity of baseStore.entities) {
+    for (let index = 0; index < baseEntities.length; index++) {
+        const entity = baseEntities[index]!;
+
         if (!context.isAlive(entity)) {
             continue;
         }
 
-        if (!matchesPlanFilter(entity, plan, changeDetection)) {
+        if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
 
-        if (!fillComponents(entity, plan.stores, components)) {
+        if (!fillComponents(entity, plan.stores, components, baseStore, baseValues[index])) {
             continue;
         }
 
@@ -378,22 +395,28 @@ function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]
 
     const callVisitor = visitor as (entity: Entity, ...components: unknown[]) => void;
     const baseStore = currentRequiredBaseStore(plan);
+    const baseEntities = baseStore.entities;
+    const baseValues = baseStore.values;
+    const hasFilter = plan.filterMode !== "unfiltered";
 
     // Match the iterator fast paths so `each()` stays allocation-free in common cases.
     // Mirror iterateResolvedQuery fast paths so each() can call the visitor directly.
     if (plan.stores.length === 1) {
         const store0 = plan.stores[0]!;
+        const baseIsStore0 = store0 === baseStore;
 
-        for (const entity of baseStore.entities) {
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
+
             if (!context.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesPlanFilter(entity, plan, changeDetection)) {
+            if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
                 continue;
             }
 
-            const value0 = store0.get(entity);
+            const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
 
             if (value0 === undefined) {
                 continue;
@@ -408,23 +431,27 @@ function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]
     if (plan.stores.length === 2) {
         const store0 = plan.stores[0]!;
         const store1 = plan.stores[1]!;
+        const baseIsStore0 = store0 === baseStore;
+        const baseIsStore1 = store1 === baseStore;
 
-        for (const entity of baseStore.entities) {
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
+
             if (!context.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesPlanFilter(entity, plan, changeDetection)) {
+            if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
                 continue;
             }
 
-            const value0 = store0.get(entity);
+            const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
 
             if (value0 === undefined) {
                 continue;
             }
 
-            const value1 = store1.get(entity);
+            const value1 = baseIsStore1 ? baseValues[index] : store1.get(entity);
 
             if (value1 === undefined) {
                 continue;
@@ -440,29 +467,34 @@ function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]
         const store0 = plan.stores[0]!;
         const store1 = plan.stores[1]!;
         const store2 = plan.stores[2]!;
+        const baseIsStore0 = store0 === baseStore;
+        const baseIsStore1 = store1 === baseStore;
+        const baseIsStore2 = store2 === baseStore;
 
-        for (const entity of baseStore.entities) {
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
+
             if (!context.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesPlanFilter(entity, plan, changeDetection)) {
+            if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
                 continue;
             }
 
-            const value0 = store0.get(entity);
+            const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
 
             if (value0 === undefined) {
                 continue;
             }
 
-            const value1 = store1.get(entity);
+            const value1 = baseIsStore1 ? baseValues[index] : store1.get(entity);
 
             if (value1 === undefined) {
                 continue;
             }
 
-            const value2 = store2.get(entity);
+            const value2 = baseIsStore2 ? baseValues[index] : store2.get(entity);
 
             if (value2 === undefined) {
                 continue;
@@ -476,16 +508,18 @@ function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]
 
     const components: unknown[] = new Array(plan.stores.length);
 
-    for (const entity of baseStore.entities) {
+    for (let index = 0; index < baseEntities.length; index++) {
+        const entity = baseEntities[index]!;
+
         if (!context.isAlive(entity)) {
             continue;
         }
 
-        if (!matchesPlanFilter(entity, plan, changeDetection)) {
+        if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
 
-        if (!fillComponents(entity, plan.stores, components)) {
+        if (!fillComponents(entity, plan.stores, components, baseStore, baseValues[index])) {
             continue;
         }
 
@@ -501,17 +535,18 @@ function countResolvedQueryMatches(
 ): number {
     let matches = 0;
     const baseStore = currentRequiredBaseStore(plan);
+    const hasFilter = plan.filterMode !== "unfiltered";
 
     for (const entity of baseStore.entities) {
         if (!context.isAlive(entity)) {
             continue;
         }
 
-        if (!matchesPlanFilter(entity, plan, changeDetection)) {
+        if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
 
-        if (!hasComponents(entity, plan.stores)) {
+        if (!hasComponents(entity, plan.stores, baseStore)) {
             continue;
         }
 
@@ -539,21 +574,29 @@ function* iterateResolvedOptionalQuery<
     }
 
     const baseStore = currentOptionalBaseStore(plan);
+    const baseEntities = baseStore.entities;
+    const baseValues = baseStore.values;
+    const hasFilter = plan.filterMode !== "unfiltered";
 
     if (plan.requiredStores.length === 1 && plan.optionalStores.length === 1) {
         const requiredStore0 = plan.requiredStores[0]!;
         const optionalStore0 = plan.optionalStores[0];
+        const baseIsRequiredStore0 = requiredStore0 === baseStore;
 
-        for (const entity of baseStore.entities) {
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
+
             if (!context.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesPlanFilter(entity, plan, changeDetection)) {
+            if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
                 continue;
             }
 
-            const requiredValue0 = requiredStore0.get(entity);
+            const requiredValue0 = baseIsRequiredStore0
+                ? baseValues[index]
+                : requiredStore0.get(entity);
 
             if (requiredValue0 === undefined) {
                 continue;
@@ -573,16 +616,26 @@ function* iterateResolvedOptionalQuery<
         plan.requiredStores.length + plan.optionalStores.length
     );
 
-    for (const entity of baseStore.entities) {
+    for (let index = 0; index < baseEntities.length; index++) {
+        const entity = baseEntities[index]!;
+
         if (!context.isAlive(entity)) {
             continue;
         }
 
-        if (!matchesPlanFilter(entity, plan, changeDetection)) {
+        if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
 
-        if (!fillComponents(entity, plan.requiredStores, components)) {
+        if (
+            !fillComponents(
+                entity,
+                plan.requiredStores,
+                components,
+                baseStore,
+                baseValues[index]
+            )
+        ) {
             continue;
         }
 
@@ -611,21 +664,29 @@ function eachResolvedOptionalQuery<
 
     const callVisitor = visitor as (entity: Entity, ...components: unknown[]) => void;
     const baseStore = currentOptionalBaseStore(plan);
+    const baseEntities = baseStore.entities;
+    const baseValues = baseStore.values;
+    const hasFilter = plan.filterMode !== "unfiltered";
 
     if (plan.requiredStores.length === 1 && plan.optionalStores.length === 1) {
         const requiredStore0 = plan.requiredStores[0]!;
         const optionalStore0 = plan.optionalStores[0];
+        const baseIsRequiredStore0 = requiredStore0 === baseStore;
 
-        for (const entity of baseStore.entities) {
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
+
             if (!context.isAlive(entity)) {
                 continue;
             }
 
-            if (!matchesPlanFilter(entity, plan, changeDetection)) {
+            if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
                 continue;
             }
 
-            const requiredValue0 = requiredStore0.get(entity);
+            const requiredValue0 = baseIsRequiredStore0
+                ? baseValues[index]
+                : requiredStore0.get(entity);
 
             if (requiredValue0 === undefined) {
                 continue;
@@ -641,16 +702,26 @@ function eachResolvedOptionalQuery<
         plan.requiredStores.length + plan.optionalStores.length
     );
 
-    for (const entity of baseStore.entities) {
+    for (let index = 0; index < baseEntities.length; index++) {
+        const entity = baseEntities[index]!;
+
         if (!context.isAlive(entity)) {
             continue;
         }
 
-        if (!matchesPlanFilter(entity, plan, changeDetection)) {
+        if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
 
-        if (!fillComponents(entity, plan.requiredStores, components)) {
+        if (
+            !fillComponents(
+                entity,
+                plan.requiredStores,
+                components,
+                baseStore,
+                baseValues[index]
+            )
+        ) {
             continue;
         }
 
@@ -674,17 +745,18 @@ function countResolvedOptionalQueryMatches(
 ): number {
     let matches = 0;
     const baseStore = currentOptionalBaseStore(plan);
+    const hasFilter = plan.filterMode !== "unfiltered";
 
     for (const entity of baseStore.entities) {
         if (!context.isAlive(entity)) {
             continue;
         }
 
-        if (!matchesPlanFilter(entity, plan, changeDetection)) {
+        if (hasFilter && !matchesPlanFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
 
-        if (!hasComponents(entity, plan.requiredStores)) {
+        if (!hasComponents(entity, plan.requiredStores, baseStore)) {
             continue;
         }
 
