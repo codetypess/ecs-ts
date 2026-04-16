@@ -1,55 +1,71 @@
 import { Messages } from "../message";
 import type { MessageId, MessageReader, MessageType } from "../message";
 
-export class MessageRuntime {
-    private readonly messageStores: (Messages<unknown> | undefined)[] = [];
+export interface MessageRuntimeContext {
+    readonly messageStores: (Messages<unknown> | undefined)[];
+}
 
-    add<T>(type: MessageType<T>): void {
-        this.ensure(type);
+export function createMessageRuntimeContext(): MessageRuntimeContext {
+    return {
+        messageStores: [],
+    };
+}
+
+export function addMessageType<T>(context: MessageRuntimeContext, type: MessageType<T>): void {
+    ensureMessageStore(context, type);
+}
+
+export function writeMessage<T>(
+    context: MessageRuntimeContext,
+    type: MessageType<T>,
+    value: T
+): MessageId<T> {
+    const existing = context.messageStores[type.id] as Messages<T> | undefined;
+
+    if (existing !== undefined) {
+        return existing.write(value);
     }
 
-    write<T>(type: MessageType<T>, value: T): MessageId<T> {
-        const existing = this.messageStores[type.id] as Messages<T> | undefined;
+    return ensureMessageStore(context, type).write(value);
+}
 
-        if (existing !== undefined) {
-            return existing.write(value);
-        }
+export function readMessages<T>(
+    context: MessageRuntimeContext,
+    reader: MessageReader<T>
+): readonly T[] {
+    const messages = context.messageStores[reader.type.id] as Messages<T> | undefined;
 
-        return this.ensure(type).write(value);
+    return messages?.read(reader) ?? [];
+}
+
+export function drainMessages<T>(context: MessageRuntimeContext, type: MessageType<T>): T[] {
+    const messages = context.messageStores[type.id] as Messages<T> | undefined;
+
+    return messages?.drain() ?? [];
+}
+
+export function clearMessages<T>(context: MessageRuntimeContext, type: MessageType<T>): void {
+    (context.messageStores[type.id] as Messages<T> | undefined)?.clear();
+}
+
+export function updateMessages(context: MessageRuntimeContext): void {
+    for (const messages of context.messageStores) {
+        messages?.update();
+    }
+}
+
+function ensureMessageStore<T>(
+    context: MessageRuntimeContext,
+    type: MessageType<T>
+): Messages<T> {
+    const existing = context.messageStores[type.id];
+
+    if (existing !== undefined) {
+        return existing as Messages<T>;
     }
 
-    read<T>(reader: MessageReader<T>): readonly T[] {
-        const messages = this.messageStores[reader.type.id] as Messages<T> | undefined;
+    const messages = new Messages<T>();
+    context.messageStores[type.id] = messages as Messages<unknown>;
 
-        return messages?.read(reader) ?? [];
-    }
-
-    drain<T>(type: MessageType<T>): T[] {
-        const messages = this.messageStores[type.id] as Messages<T> | undefined;
-
-        return messages?.drain() ?? [];
-    }
-
-    clear<T>(type: MessageType<T>): void {
-        (this.messageStores[type.id] as Messages<T> | undefined)?.clear();
-    }
-
-    update(): void {
-        for (const messages of this.messageStores) {
-            messages?.update();
-        }
-    }
-
-    private ensure<T>(type: MessageType<T>): Messages<T> {
-        const existing = this.messageStores[type.id];
-
-        if (existing !== undefined) {
-            return existing as Messages<T>;
-        }
-
-        const messages = new Messages<T>();
-        this.messageStores[type.id] = messages as Messages<unknown>;
-
-        return messages;
-    }
+    return messages;
 }

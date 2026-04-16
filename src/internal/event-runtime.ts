@@ -2,37 +2,55 @@ import type { EventObserver } from "../event";
 import type { World } from "../world";
 import { runEventObserverWithCommands } from "./command-runtime";
 
-export class EventRuntime {
-    private readonly observers = new Map<number, EventObserver<unknown>[]>();
+export interface EventRuntimeContext {
+    readonly observers: Map<number, EventObserver<unknown>[]>;
+}
 
-    observe<T>(typeId: number, observer: EventObserver<T>): () => void {
-        const observers = this.observers.get(typeId) ?? [];
+export function createEventRuntimeContext(): EventRuntimeContext {
+    return {
+        observers: new Map(),
+    };
+}
 
-        observers.push(observer as EventObserver<unknown>);
-        this.observers.set(typeId, observers);
+export function observeEvent<T>(
+    context: EventRuntimeContext,
+    typeId: number,
+    observer: EventObserver<T>
+): () => void {
+    const observers = context.observers.get(typeId) ?? [];
 
-        return () => {
-            const index = observers.indexOf(observer as EventObserver<unknown>);
+    observers.push(observer as EventObserver<unknown>);
+    context.observers.set(typeId, observers);
 
-            if (index !== -1) {
-                observers.splice(index, 1);
-            }
-        };
-    }
+    return () => {
+        const index = observers.indexOf(observer as EventObserver<unknown>);
 
-    get<T>(typeId: number): readonly EventObserver<T>[] {
-        return (this.observers.get(typeId) ?? []) as readonly EventObserver<T>[];
-    }
-
-    trigger<T>(typeId: number, value: T, world: World): void {
-        const observers = this.get<T>(typeId);
-
-        if (observers.length === 0) {
-            return;
+        if (index !== -1) {
+            observers.splice(index, 1);
         }
+    };
+}
 
-        for (const observer of [...observers]) {
-            runEventObserverWithCommands(world, observer, value);
-        }
+export function triggerEvent<T>(
+    context: EventRuntimeContext,
+    typeId: number,
+    value: T,
+    world: World
+): void {
+    const observers = getEventObservers<T>(context, typeId);
+
+    if (observers.length === 0) {
+        return;
     }
+
+    for (const observer of [...observers]) {
+        runEventObserverWithCommands(world, observer, value);
+    }
+}
+
+function getEventObservers<T>(
+    context: EventRuntimeContext,
+    typeId: number
+): readonly EventObserver<T>[] {
+    return (context.observers.get(typeId) ?? []) as readonly EventObserver<T>[];
 }

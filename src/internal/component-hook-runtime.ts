@@ -6,43 +6,51 @@ export type ComponentHookRegistry = {
     [TStage in ComponentLifecycleStage]?: ComponentHook<unknown>[];
 };
 
-export class ComponentHookRuntime {
-    private readonly hooks = new Map<number, ComponentHookRegistry>();
+export interface ComponentHookRuntimeContext {
+    readonly hooks: Map<number, ComponentHookRegistry>;
+}
 
-    add<T>(
-        type: ComponentType<T>,
-        stage: ComponentLifecycleStage,
-        hook: ComponentHook<T>
-    ): () => void {
-        const registry = this.hooks.get(type.id) ?? {};
-        const hooks = registry[stage] ?? [];
+export function createComponentHookRuntimeContext(): ComponentHookRuntimeContext {
+    return {
+        hooks: new Map(),
+    };
+}
 
-        hooks.push(hook);
-        registry[stage] = hooks;
-        this.hooks.set(type.id, registry);
+export function addComponentHook<T>(
+    context: ComponentHookRuntimeContext,
+    type: ComponentType<T>,
+    stage: ComponentLifecycleStage,
+    hook: ComponentHook<T>
+): () => void {
+    const registry = context.hooks.get(type.id) ?? {};
+    const hooks = registry[stage] ?? [];
 
-        return () => {
-            const index = hooks.indexOf(hook);
+    hooks.push(hook);
+    registry[stage] = hooks;
+    context.hooks.set(type.id, registry);
 
-            if (index !== -1) {
-                hooks.splice(index, 1);
-            }
-        };
-    }
+    return () => {
+        const index = hooks.indexOf(hook);
 
-    run<T>(
-        type: ComponentType<T>,
-        stage: ComponentLifecycleStage,
-        entity: Entity,
-        component: T,
-        world: World
-    ): void {
-        type.lifecycle[stage]?.(entity, component, world);
-
-        const registeredHooks = this.hooks.get(type.id)?.[stage] ?? [];
-
-        for (const hook of registeredHooks) {
-            hook(entity, component, world);
+        if (index !== -1) {
+            hooks.splice(index, 1);
         }
+    };
+}
+
+export function runComponentHooks<T>(
+    context: ComponentHookRuntimeContext,
+    type: ComponentType<T>,
+    stage: ComponentLifecycleStage,
+    entity: Entity,
+    component: T,
+    world: World
+): void {
+    type.lifecycle[stage]?.(entity, component, world);
+
+    const registeredHooks = context.hooks.get(type.id)?.[stage] ?? [];
+
+    for (const hook of registeredHooks) {
+        hook(entity, component, world);
     }
 }

@@ -14,83 +14,112 @@ interface ResourceRuntimeOptions {
     readonly getChangeDetectionRange: () => ChangeDetectionRange;
 }
 
-export class ResourceRuntime {
-    private readonly resources = new Map<number, ResourceEntry<unknown>>();
+export interface ResourceRuntimeContext extends ResourceRuntimeOptions {
+    readonly resources: Map<number, ResourceEntry<unknown>>;
+}
 
-    constructor(private readonly options: ResourceRuntimeOptions) {}
+export function createResourceRuntimeContext(
+    options: ResourceRuntimeOptions
+): ResourceRuntimeContext {
+    return {
+        resources: new Map(),
+        ...options,
+    };
+}
 
-    set<T>(type: ResourceType<T>, value: T): void {
-        const existing = this.getEntry(type);
+export function setResource<T>(
+    context: ResourceRuntimeContext,
+    type: ResourceType<T>,
+    value: T
+): void {
+    const existing = getResourceEntry(context, type);
 
-        if (existing !== undefined) {
-            existing.value = value;
-            existing.changedTick = this.options.getChangeTick();
-            return;
-        }
-
-        this.resources.set(type.id, {
-            value,
-            addedTick: this.options.getChangeTick(),
-            changedTick: this.options.getChangeTick(),
-        } satisfies ResourceEntry<T> as ResourceEntry<unknown>);
+    if (existing !== undefined) {
+        existing.value = value;
+        existing.changedTick = context.getChangeTick();
+        return;
     }
 
-    has<T>(type: ResourceType<T>): boolean {
-        return this.resources.has(type.id);
+    context.resources.set(type.id, {
+        value,
+        addedTick: context.getChangeTick(),
+        changedTick: context.getChangeTick(),
+    } satisfies ResourceEntry<T> as ResourceEntry<unknown>);
+}
+
+export function hasResource<T>(
+    context: ResourceRuntimeContext,
+    type: ResourceType<T>
+): boolean {
+    return context.resources.has(type.id);
+}
+
+export function getResource<T>(
+    context: ResourceRuntimeContext,
+    type: ResourceType<T>
+): T | undefined {
+    return getResourceEntry(context, type)?.value;
+}
+
+export function matchesResource<T>(
+    context: ResourceRuntimeContext,
+    type: ResourceType<T>,
+    predicate: (value: T, world: World) => boolean,
+    world: World
+): boolean {
+    const entry = getResourceEntry(context, type);
+
+    return entry !== undefined && predicate(entry.value, world);
+}
+
+export function removeResource<T>(
+    context: ResourceRuntimeContext,
+    type: ResourceType<T>
+): T | undefined {
+    const value = getResourceEntry(context, type)?.value;
+    context.resources.delete(type.id);
+
+    return value;
+}
+
+export function markResourceChanged<T>(
+    context: ResourceRuntimeContext,
+    type: ResourceType<T>
+): boolean {
+    const entry = getResourceEntry(context, type);
+
+    if (entry === undefined) {
+        return false;
     }
 
-    get<T>(type: ResourceType<T>): T | undefined {
-        return this.getEntry(type)?.value;
-    }
+    entry.changedTick = context.getChangeTick();
 
-    matches<T>(
-        type: ResourceType<T>,
-        predicate: (value: T, world: World) => boolean,
-        world: World
-    ): boolean {
-        const entry = this.getEntry(type);
+    return true;
+}
 
-        return entry !== undefined && predicate(entry.value, world);
-    }
+export function isResourceAdded<T>(
+    context: ResourceRuntimeContext,
+    type: ResourceType<T>
+): boolean {
+    const entry = getResourceEntry(context, type);
 
-    remove<T>(type: ResourceType<T>): T | undefined {
-        const value = this.getEntry(type)?.value;
-        this.resources.delete(type.id);
+    return entry !== undefined && isTickInRange(entry.addedTick, context.getChangeDetectionRange());
+}
 
-        return value;
-    }
+export function isResourceChanged<T>(
+    context: ResourceRuntimeContext,
+    type: ResourceType<T>
+): boolean {
+    const entry = getResourceEntry(context, type);
 
-    markChanged<T>(type: ResourceType<T>): boolean {
-        const entry = this.getEntry(type);
+    return (
+        entry !== undefined && isTickInRange(entry.changedTick, context.getChangeDetectionRange())
+    );
+}
 
-        if (entry === undefined) {
-            return false;
-        }
-
-        entry.changedTick = this.options.getChangeTick();
-
-        return true;
-    }
-
-    isAdded<T>(type: ResourceType<T>): boolean {
-        const entry = this.getEntry(type);
-
-        return (
-            entry !== undefined &&
-            isTickInRange(entry.addedTick, this.options.getChangeDetectionRange())
-        );
-    }
-
-    isChanged<T>(type: ResourceType<T>): boolean {
-        const entry = this.getEntry(type);
-
-        return (
-            entry !== undefined &&
-            isTickInRange(entry.changedTick, this.options.getChangeDetectionRange())
-        );
-    }
-
-    private getEntry<T>(type: ResourceType<T>): ResourceEntry<T> | undefined {
-        return this.resources.get(type.id) as ResourceEntry<T> | undefined;
-    }
+function getResourceEntry<T>(
+    context: ResourceRuntimeContext,
+    type: ResourceType<T>
+): ResourceEntry<T> | undefined {
+    return context.resources.get(type.id) as ResourceEntry<T> | undefined;
 }

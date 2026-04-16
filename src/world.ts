@@ -11,10 +11,22 @@ import { Entity, EntityManager } from "./entity";
 import type { EventObserver, EventType } from "./event";
 import { ComponentStoreRuntime } from "./internal/component-store-runtime";
 import { ComponentRuntime } from "./internal/component-runtime";
-import { ComponentHookRuntime } from "./internal/component-hook-runtime";
+import {
+    addComponentHook as registerComponentHook,
+    createComponentHookRuntimeContext,
+    runComponentHooks as dispatchComponentHooks,
+} from "./internal/component-hook-runtime";
 import { runSystemWithCommands } from "./internal/command-runtime";
-import { EventRuntime } from "./internal/event-runtime";
-import { MessageRuntime } from "./internal/message-runtime";
+import { createEventRuntimeContext, observeEvent, triggerEvent } from "./internal/event-runtime";
+import {
+    addMessageType,
+    clearMessages as clearStoredMessages,
+    createMessageRuntimeContext,
+    drainMessages as drainStoredMessages,
+    readMessages as readStoredMessages,
+    updateMessages as updateStoredMessages,
+    writeMessage as writeStoredMessage,
+} from "./internal/message-runtime";
 import { QueryPlanRuntime } from "./internal/query-plan-runtime";
 import {
     each as eachQuery,
@@ -31,8 +43,23 @@ import {
     queryWithState as runQueryWithState,
     type QueryRuntimeContext,
 } from "./internal/query-runtime";
-import { RemovedRuntime } from "./internal/removed-runtime";
-import { ResourceRuntime } from "./internal/resource-runtime";
+import {
+    createRemovedRuntimeContext,
+    drainRemoved as drainRemovedComponents,
+    readRemoved as readRemovedComponents,
+    recordRemoved as recordRemovedComponent,
+} from "./internal/removed-runtime";
+import {
+    createResourceRuntimeContext,
+    getResource as getStoredResource,
+    hasResource as hasStoredResource,
+    isResourceAdded as isStoredResourceAdded,
+    isResourceChanged as isStoredResourceChanged,
+    markResourceChanged as markStoredResourceChanged,
+    matchesResource as matchesStoredResource,
+    removeResource as removeStoredResource,
+    setResource as setStoredResource,
+} from "./internal/resource-runtime";
 import { ScheduleRuntime } from "./internal/schedule-runtime";
 import { StateRuntime } from "./internal/state-runtime";
 import type { MessageId, MessageReader, MessageType } from "./message";
@@ -97,29 +124,29 @@ export class World {
     };
     private readonly entities = new EntityManager();
     private readonly componentStoreRuntime = new ComponentStoreRuntime();
-    private readonly resourceRuntime = new ResourceRuntime({
+    private readonly resourceContext = createResourceRuntimeContext({
         getChangeTick: () => this.changeTick,
         getChangeDetectionRange: () => this.changeDetectionRange(),
     });
-    private readonly removedRuntime = new RemovedRuntime({
+    private readonly removedContext = createRemovedRuntimeContext({
         getChangeTick: () => this.changeTick,
     });
-    private readonly componentHookRuntime = new ComponentHookRuntime();
+    private readonly componentHookContext = createComponentHookRuntimeContext();
     private readonly componentRuntime = new ComponentRuntime({
         entities: this.entities,
         componentStores: this.componentStoreRuntime,
         getChangeTick: () => this.changeTick,
         getChangeDetectionRange: () => this.changeDetectionRange(),
         runComponentHooks: (type, stage, entity, component) => {
-            this.componentHookRuntime.run(type, stage, entity, component, this);
+            dispatchComponentHooks(this.componentHookContext, type, stage, entity, component, this);
         },
         recordRemoved: (type, entity, component) => {
-            this.removedRuntime.record(type, entity, component);
+            recordRemovedComponent(this.removedContext, type, entity, component);
         },
     });
     private readonly stateRuntime = new StateRuntime();
-    private readonly eventRuntime = new EventRuntime();
-    private readonly messageRuntime = new MessageRuntime();
+    private readonly eventContext = createEventRuntimeContext();
+    private readonly messageContext = createMessageRuntimeContext();
     private readonly queryContext: QueryRuntimeContext = {
         planRuntime: new QueryPlanRuntime({
             stores: this.componentStoreRuntime.stores,
@@ -466,11 +493,11 @@ export class World {
     }
 
     drainRemoved<T>(type: ComponentType<T>): RemovedComponent<T>[] {
-        return this.removedRuntime.drain(type);
+        return drainRemovedComponents(this.removedContext, type);
     }
 
     readRemoved<T>(reader: RemovedReader<T>): readonly RemovedComponent<T>[] {
-        return this.removedRuntime.read(reader);
+        return readRemovedComponents(this.removedContext, reader);
     }
 
     addSystem(system: System, options: SystemOptions = {}): this {
@@ -525,35 +552,35 @@ export class World {
     }
 
     addMessage<T>(type: MessageType<T>): this {
-        this.messageRuntime.add(type);
+        addMessageType(this.messageContext, type);
 
         return this;
     }
 
     writeMessage<T>(type: MessageType<T>, value: T): MessageId<T> {
-        return this.messageRuntime.write(type, value);
+        return writeStoredMessage(this.messageContext, type, value);
     }
 
     readMessages<T>(reader: MessageReader<T>): readonly T[] {
-        return this.messageRuntime.read(reader);
+        return readStoredMessages(this.messageContext, reader);
     }
 
     drainMessages<T>(type: MessageType<T>): T[] {
-        return this.messageRuntime.drain(type);
+        return drainStoredMessages(this.messageContext, type);
     }
 
     clearMessages<T>(type: MessageType<T>): this {
-        this.messageRuntime.clear(type);
+        clearStoredMessages(this.messageContext, type);
 
         return this;
     }
 
     observe<T>(type: EventType<T>, observer: EventObserver<T>): () => void {
-        return this.eventRuntime.observe(type.id, observer);
+        return observeEvent(this.eventContext, type.id, observer);
     }
 
     trigger<T>(type: EventType<T>, value: T): this {
-        this.eventRuntime.trigger(type.id, value, this);
+        triggerEvent(this.eventContext, type.id, value, this);
         return this;
     }
 
@@ -582,7 +609,7 @@ export class World {
         stage: ComponentLifecycleStage,
         hook: ComponentHook<T>
     ): () => void {
-        return this.componentHookRuntime.add(type, stage, hook);
+        return registerComponentHook(this.componentHookContext, type, stage, hook);
     }
 
     initState<T extends StateValue>(type: StateType<T>, initial = type.initial): this {
@@ -657,28 +684,28 @@ export class World {
     }
 
     setResource<T>(type: ResourceType<T>, value: T): this {
-        this.resourceRuntime.set(type, value);
+        setStoredResource(this.resourceContext, type, value);
 
         return this;
     }
 
     hasResource<T>(type: ResourceType<T>): boolean {
-        return this.resourceRuntime.has(type);
+        return hasStoredResource(this.resourceContext, type);
     }
 
     getResource<T>(type: ResourceType<T>): T | undefined {
-        return this.resourceRuntime.get(type);
+        return getStoredResource(this.resourceContext, type);
     }
 
     resourceMatches<T>(
         type: ResourceType<T>,
         predicate: (value: T, world: World) => boolean
     ): boolean {
-        return this.resourceRuntime.matches(type, predicate, this);
+        return matchesStoredResource(this.resourceContext, type, predicate, this);
     }
 
     resource<T>(type: ResourceType<T>): T {
-        const resource = this.resourceRuntime.get(type);
+        const resource = getStoredResource(this.resourceContext, type);
 
         if (resource === undefined) {
             throw new Error(`Resource not found: ${type.name}`);
@@ -688,19 +715,19 @@ export class World {
     }
 
     removeResource<T>(type: ResourceType<T>): T | undefined {
-        return this.resourceRuntime.remove(type);
+        return removeStoredResource(this.resourceContext, type);
     }
 
     markResourceChanged<T>(type: ResourceType<T>): boolean {
-        return this.resourceRuntime.markChanged(type);
+        return markStoredResourceChanged(this.resourceContext, type);
     }
 
     isResourceAdded<T>(type: ResourceType<T>): boolean {
-        return this.resourceRuntime.isAdded(type);
+        return isStoredResourceAdded(this.resourceContext, type);
     }
 
     isResourceChanged<T>(type: ResourceType<T>): boolean {
-        return this.resourceRuntime.isChanged(type);
+        return isStoredResourceChanged(this.resourceContext, type);
     }
 
     private changeDetectionRange(): ChangeDetectionRange {
@@ -713,7 +740,7 @@ export class World {
     }
 
     private updateMessages(): void {
-        this.messageRuntime.update();
+        updateStoredMessages(this.messageContext);
     }
 
     private registerSystem(system: System, options: SystemOptions): void {

@@ -7,37 +7,61 @@ interface RemovedRuntimeOptions {
     readonly getChangeTick: () => number;
 }
 
-export class RemovedRuntime {
-    private readonly removedComponents = new Map<number, RemovedComponents<unknown>>();
+export interface RemovedRuntimeContext extends RemovedRuntimeOptions {
+    readonly removedComponents: Map<number, RemovedComponents<unknown>>;
+}
 
-    constructor(private readonly options: RemovedRuntimeOptions) {}
+export function createRemovedRuntimeContext(
+    options: RemovedRuntimeOptions
+): RemovedRuntimeContext {
+    return {
+        removedComponents: new Map(),
+        ...options,
+    };
+}
 
-    read<T>(reader: RemovedReader<T>): readonly RemovedComponent<T>[] {
-        return this.get(reader.type)?.read(reader) ?? [];
+export function readRemoved<T>(
+    context: RemovedRuntimeContext,
+    reader: RemovedReader<T>
+): readonly RemovedComponent<T>[] {
+    return getRemovedComponents(context, reader.type)?.read(reader) ?? [];
+}
+
+export function drainRemoved<T>(
+    context: RemovedRuntimeContext,
+    type: ComponentType<T>
+): RemovedComponent<T>[] {
+    return getRemovedComponents(context, type)?.drain() ?? [];
+}
+
+export function recordRemoved<T>(
+    context: RemovedRuntimeContext,
+    type: ComponentType<T>,
+    entity: Entity,
+    component: T
+): void {
+    ensureRemovedComponents(context, type).push(entity, component, context.getChangeTick());
+}
+
+function ensureRemovedComponents<T>(
+    context: RemovedRuntimeContext,
+    type: ComponentType<T>
+): RemovedComponents<T> {
+    const existing = context.removedComponents.get(type.id);
+
+    if (existing !== undefined) {
+        return existing as RemovedComponents<T>;
     }
 
-    drain<T>(type: ComponentType<T>): RemovedComponent<T>[] {
-        return this.get(type)?.drain() ?? [];
-    }
+    const removed = new RemovedComponents<T>();
+    context.removedComponents.set(type.id, removed as RemovedComponents<unknown>);
 
-    record<T>(type: ComponentType<T>, entity: Entity, component: T): void {
-        this.ensure(type).push(entity, component, this.options.getChangeTick());
-    }
+    return removed;
+}
 
-    private ensure<T>(type: ComponentType<T>): RemovedComponents<T> {
-        const existing = this.removedComponents.get(type.id);
-
-        if (existing !== undefined) {
-            return existing as RemovedComponents<T>;
-        }
-
-        const removed = new RemovedComponents<T>();
-        this.removedComponents.set(type.id, removed as RemovedComponents<unknown>);
-
-        return removed;
-    }
-
-    private get<T>(type: ComponentType<T>): RemovedComponents<T> | undefined {
-        return this.removedComponents.get(type.id) as RemovedComponents<T> | undefined;
-    }
+function getRemovedComponents<T>(
+    context: RemovedRuntimeContext,
+    type: ComponentType<T>
+): RemovedComponents<T> | undefined {
+    return context.removedComponents.get(type.id) as RemovedComponents<T> | undefined;
 }
