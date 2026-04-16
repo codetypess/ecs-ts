@@ -7,22 +7,14 @@ import type {
     ComponentType,
 } from "./component";
 import { Commands } from "./commands";
-import { Entity, EntityManager } from "./entity";
+import { Entity, EntityManager, formatEntity } from "./entity";
 import type { EventObserver, EventType } from "./event";
 import {
     add as addComponent,
     createComponentOpsContext,
     despawn as despawnEntity,
-    get as getComponent,
-    getMany as getManyComponents,
-    has as hasComponent,
-    hasAll as hasAllComponents,
-    hasAny as hasAnyComponents,
     insertBundle as insertComponentBundle,
-    isAdded as isComponentAdded,
-    isChanged as isComponentChanged,
     markChanged as markComponentChanged,
-    mustGet as mustGetComponent,
     remove as removeComponent,
     removeBundle as removeComponentBundle,
     type ComponentOpsContext,
@@ -115,7 +107,7 @@ import type {
     QueryRow,
     QueryState,
 } from "./query";
-import { optionalQueryState, queryState } from "./query";
+import { isTickInRange, optionalQueryState, queryState } from "./query";
 import type { RemovedComponent, RemovedReader } from "./removed";
 import type { ResourceType } from "./resource";
 import type {
@@ -237,39 +229,105 @@ export class World {
         return markComponentChanged(this.componentContext, entity, type);
     }
 
+    // Keep these tiny component-read helpers inlined on World.
+    // Benchmarks showed that forwarding through component helpers adds measurable overhead
+    // on the `world.get`/`world.has` hot path, while writes and query execution still share
+    // the flattened internal helpers.
     has<T>(entity: Entity, type: ComponentType<T>): boolean {
-        return hasComponent(this.componentContext, entity, type);
+        return (
+            this.entities.isAlive(entity) &&
+            (this.componentStoreContext.stores.get(type.id)?.has(entity) ?? false)
+        );
     }
 
     hasAll(entity: Entity, types: readonly AnyComponentType[]): boolean {
-        return hasAllComponents(this.componentContext, entity, types);
+        if (!this.entities.isAlive(entity)) {
+            return false;
+        }
+
+        for (const type of types) {
+            if (!this.componentStoreContext.stores.get(type.id)?.has(entity)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     hasAny(entity: Entity, types: readonly AnyComponentType[]): boolean {
-        return hasAnyComponents(this.componentContext, entity, types);
+        if (!this.entities.isAlive(entity)) {
+            return false;
+        }
+
+        for (const type of types) {
+            if (this.componentStoreContext.stores.get(type.id)?.has(entity)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     get<T>(entity: Entity, type: ComponentType<T>): T | undefined {
-        return getComponent(this.componentContext, entity, type);
+        if (!this.entities.isAlive(entity)) {
+            return undefined;
+        }
+
+        return this.componentStoreContext.stores.get(type.id)?.get(entity) as T | undefined;
     }
 
     mustGet<T>(entity: Entity, type: ComponentType<T>): T {
-        return mustGetComponent(this.componentContext, entity, type);
+        const value = this.get(entity, type);
+
+        if (value === undefined) {
+            throw new Error(`Entity ${formatEntity(entity)} does not have ${type.name}`);
+        }
+
+        return value;
     }
 
     getMany<const TComponents extends readonly AnyComponentType[]>(
         entity: Entity,
         ...types: TComponents
     ): ComponentTuple<TComponents> | undefined {
-        return getManyComponents(this.componentContext, entity, ...types);
+        if (!this.entities.isAlive(entity)) {
+            return undefined;
+        }
+
+        const components: unknown[] = new Array(types.length);
+
+        for (let index = 0; index < types.length; index++) {
+            const type = types[index]!;
+            const store = this.componentStoreContext.stores.get(type.id);
+
+            if (!store?.has(entity)) {
+                return undefined;
+            }
+
+            components[index] = store.get(entity);
+        }
+
+        return components as ComponentTuple<TComponents>;
     }
 
     isAdded<T>(entity: Entity, type: ComponentType<T>): boolean {
-        return isComponentAdded(this.componentContext, entity, type);
+        if (!this.entities.isAlive(entity)) {
+            return false;
+        }
+
+        const tick = this.componentStoreContext.stores.get(type.id)?.getAddedTick(entity);
+
+        return tick !== undefined && isTickInRange(tick, this.changeDetectionRange());
     }
 
     isChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
-        return isComponentChanged(this.componentContext, entity, type);
+        if (!this.entities.isAlive(entity)) {
+            return false;
+        }
+
+        const tick = this.componentStoreContext.stores.get(type.id)?.getChangedTick(entity);
+
+        return tick !== undefined && isTickInRange(tick, this.changeDetectionRange());
     }
 
     remove<T>(entity: Entity, type: ComponentType<T>): boolean {
