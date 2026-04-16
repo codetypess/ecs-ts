@@ -6,18 +6,18 @@ export type ComponentHookRegistry = {
     [TStage in ComponentLifecycleStage]?: ComponentHook<unknown>[];
 };
 
-export interface ComponentHookRuntimeContext {
+export interface ComponentHookContext {
     readonly hooks: Map<number, ComponentHookRegistry>;
 }
 
-export function createComponentHookRuntimeContext(): ComponentHookRuntimeContext {
+export function createComponentHookContext(): ComponentHookContext {
     return {
         hooks: new Map(),
     };
 }
 
 export function addComponentHook<T>(
-    context: ComponentHookRuntimeContext,
+    context: ComponentHookContext,
     type: ComponentType<T>,
     stage: ComponentLifecycleStage,
     hook: ComponentHook<T>
@@ -39,7 +39,7 @@ export function addComponentHook<T>(
 }
 
 export function runComponentHooks<T>(
-    context: ComponentHookRuntimeContext,
+    context: ComponentHookContext,
     type: ComponentType<T>,
     stage: ComponentLifecycleStage,
     entity: Entity,

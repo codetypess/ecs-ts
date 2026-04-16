@@ -24,7 +24,7 @@ interface ScheduleCacheEntry {
 type ScheduleStageConfigs = ReturnType<typeof createSystemSetStageConfigs>;
 type ScheduleCollections = ReturnType<typeof createSchedules>;
 
-export interface ScheduleRuntimeContext {
+export interface ScheduleEngineContext {
     fixedTimeStep: number;
     fixedUpdateAccumulator: number;
     readonly systemSets: Map<SystemSetLabel, SystemSetConfig>;
@@ -33,7 +33,7 @@ export interface ScheduleRuntimeContext {
     readonly sortedSchedules: Record<ScheduleStage, ScheduleCacheEntry>;
 }
 
-export function createScheduleRuntimeContext(): ScheduleRuntimeContext {
+export function createScheduleEngineContext(): ScheduleEngineContext {
     return {
         fixedTimeStep: 1 / 60,
         fixedUpdateAccumulator: 0,
@@ -45,7 +45,7 @@ export function createScheduleRuntimeContext(): ScheduleRuntimeContext {
 }
 
 export function configureSet(
-    context: ScheduleRuntimeContext,
+    context: ScheduleEngineContext,
     set: SystemSetLabel,
     options: SystemSetOptions
 ): void {
@@ -54,7 +54,7 @@ export function configureSet(
 }
 
 export function configureSetForStage(
-    context: ScheduleRuntimeContext,
+    context: ScheduleEngineContext,
     stage: ScheduleStage,
     set: SystemSetLabel,
     options: SystemSetOptions
@@ -63,7 +63,7 @@ export function configureSetForStage(
     invalidateScheduleCache(context, stage);
 }
 
-export function setFixedTimeStep(context: ScheduleRuntimeContext, seconds: number): void {
+export function setFixedTimeStep(context: ScheduleEngineContext, seconds: number): void {
     if (!Number.isFinite(seconds) || seconds <= 0) {
         throw new Error("Fixed time step must be a positive finite number");
     }
@@ -72,7 +72,7 @@ export function setFixedTimeStep(context: ScheduleRuntimeContext, seconds: numbe
 }
 
 export function addSystemRunner(
-    context: ScheduleRuntimeContext,
+    context: ScheduleEngineContext,
     stage: ScheduleStage,
     runner: SystemRunner
 ): void {
@@ -81,7 +81,7 @@ export function addSystemRunner(
 }
 
 export function shouldRunSystem(
-    context: ScheduleRuntimeContext,
+    context: ScheduleEngineContext,
     system: SystemRunner,
     stage: ScheduleStage,
     world: World
@@ -100,7 +100,7 @@ export function shouldRunSystem(
 }
 
 export function runSchedule(
-    context: ScheduleRuntimeContext,
+    context: ScheduleEngineContext,
     stage: ScheduleStage,
     dt: number,
     runSystems: (systems: readonly SystemRunner[], stage: ScheduleStage, dt: number) => void
@@ -109,7 +109,7 @@ export function runSchedule(
 }
 
 export function runFixedUpdate(
-    context: ScheduleRuntimeContext,
+    context: ScheduleEngineContext,
     dt: number,
     runSystems: (systems: readonly SystemRunner[], stage: ScheduleStage, dt: number) => void
 ): void {
@@ -122,7 +122,7 @@ export function runFixedUpdate(
 }
 
 function resolveSortedSchedule(
-    context: ScheduleRuntimeContext,
+    context: ScheduleEngineContext,
     stage: ScheduleStage
 ): readonly SystemRunner[] {
     const cache = context.sortedSchedules[stage];
@@ -140,13 +140,13 @@ function resolveSortedSchedule(
     return cache.systems;
 }
 
-function invalidateScheduleCache(context: ScheduleRuntimeContext, stage: ScheduleStage): void {
+function invalidateScheduleCache(context: ScheduleEngineContext, stage: ScheduleStage): void {
     const cache = context.sortedSchedules[stage];
     cache.dirty = true;
     cache.systems = undefined;
 }
 
-function invalidateAllScheduleCaches(context: ScheduleRuntimeContext): void {
+function invalidateAllScheduleCaches(context: ScheduleEngineContext): void {
     for (const stage of scheduleStages) {
         invalidateScheduleCache(context, stage);
     }

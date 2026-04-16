@@ -3,17 +3,17 @@ import type { Entity } from "../entity";
 import type { RemovedComponent, RemovedReader } from "../removed";
 import { RemovedComponents } from "../removed";
 
-interface RemovedRuntimeOptions {
+interface RemovedStoreOptions {
     readonly getChangeTick: () => number;
 }
 
-export interface RemovedRuntimeContext extends RemovedRuntimeOptions {
+export interface RemovedStoreContext extends RemovedStoreOptions {
     readonly removedComponents: Map<number, RemovedComponents<unknown>>;
 }
 
-export function createRemovedRuntimeContext(
-    options: RemovedRuntimeOptions
-): RemovedRuntimeContext {
+export function createRemovedStoreContext(
+    options: RemovedStoreOptions
+): RemovedStoreContext {
     return {
         removedComponents: new Map(),
         ...options,
@@ -21,21 +21,21 @@ export function createRemovedRuntimeContext(
 }
 
 export function readRemoved<T>(
-    context: RemovedRuntimeContext,
+    context: RemovedStoreContext,
     reader: RemovedReader<T>
 ): readonly RemovedComponent<T>[] {
     return getRemovedComponents(context, reader.type)?.read(reader) ?? [];
 }
 
 export function drainRemoved<T>(
-    context: RemovedRuntimeContext,
+    context: RemovedStoreContext,
     type: ComponentType<T>
 ): RemovedComponent<T>[] {
     return getRemovedComponents(context, type)?.drain() ?? [];
 }
 
 export function recordRemoved<T>(
-    context: RemovedRuntimeContext,
+    context: RemovedStoreContext,
     type: ComponentType<T>,
     entity: Entity,
     component: T
@@ -44,7 +44,7 @@ export function recordRemoved<T>(
 }
 
 function ensureRemovedComponents<T>(
-    context: RemovedRuntimeContext,
+    context: RemovedStoreContext,
     type: ComponentType<T>
 ): RemovedComponents<T> {
     const existing = context.removedComponents.get(type.id);
@@ -60,7 +60,7 @@ function ensureRemovedComponents<T>(
 }
 
 function getRemovedComponents<T>(
-    context: RemovedRuntimeContext,
+    context: RemovedStoreContext,
     type: ComponentType<T>
 ): RemovedComponents<T> | undefined {
     return context.removedComponents.get(type.id) as RemovedComponents<T> | undefined;

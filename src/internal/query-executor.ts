@@ -22,7 +22,7 @@ import {
     type QueryPlanContext,
 } from "./query-plan";
 
-export interface QueryRuntimeContext {
+export interface QueryExecutorContext {
     readonly planContext: QueryPlanContext;
     readonly isAlive: (entity: Entity) => boolean;
 }
@@ -44,7 +44,7 @@ type OptionalQueryVisitor<
 ) => void;
 
 export function query<const TComponents extends readonly AnyComponentType[]>(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     types: TComponents,
     filter: QueryFilter,
     changeDetection: ChangeDetectionRange
@@ -60,7 +60,7 @@ export function queryOptional<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
 >(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     required: TRequiredComponents,
     optional: TOptionalComponents,
     filter: QueryFilter,
@@ -74,7 +74,7 @@ export function queryOptional<
 }
 
 export function queryWithState<const TComponents extends readonly AnyComponentType[]>(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     state: QueryState<TComponents>,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<TComponents>> {
@@ -89,7 +89,7 @@ export function queryOptionalWithState<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
 >(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     state: OptionalQueryState<TRequiredComponents, TOptionalComponents>,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
@@ -101,7 +101,7 @@ export function queryOptionalWithState<
 }
 
 export function matchesAnyWithState<const TComponents extends readonly AnyComponentType[]>(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     state: QueryState<TComponents>,
     changeDetection: ChangeDetectionRange
 ): boolean {
@@ -115,7 +115,7 @@ export function matchesAnyWithState<const TComponents extends readonly AnyCompon
 }
 
 export function matchesSingleWithState<const TComponents extends readonly AnyComponentType[]>(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     state: QueryState<TComponents>,
     changeDetection: ChangeDetectionRange
 ): boolean {
@@ -132,7 +132,7 @@ export function matchesAnyOptionalWithState<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
 >(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     state: OptionalQueryState<TRequiredComponents, TOptionalComponents>,
     changeDetection: ChangeDetectionRange
 ): boolean {
@@ -149,7 +149,7 @@ export function matchesSingleOptionalWithState<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
 >(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     state: OptionalQueryState<TRequiredComponents, TOptionalComponents>,
     changeDetection: ChangeDetectionRange
 ): boolean {
@@ -163,7 +163,7 @@ export function matchesSingleOptionalWithState<
 }
 
 export function each<const TComponents extends readonly AnyComponentType[]>(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     types: TComponents,
     filter: QueryFilter,
     changeDetection: ChangeDetectionRange,
@@ -181,7 +181,7 @@ export function eachOptional<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
 >(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     required: TRequiredComponents,
     optional: TOptionalComponents,
     filter: QueryFilter,
@@ -197,7 +197,7 @@ export function eachOptional<
 }
 
 export function eachWithState<const TComponents extends readonly AnyComponentType[]>(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     state: QueryState<TComponents>,
     changeDetection: ChangeDetectionRange,
     visitor: QueryVisitor<TComponents>
@@ -214,7 +214,7 @@ export function eachOptionalWithState<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
 >(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     state: OptionalQueryState<TRequiredComponents, TOptionalComponents>,
     changeDetection: ChangeDetectionRange,
     visitor: OptionalQueryVisitor<TRequiredComponents, TOptionalComponents>
@@ -228,7 +228,7 @@ export function eachOptionalWithState<
 }
 
 function* iterateResolvedQuery<const TComponents extends readonly AnyComponentType[]>(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     plan: ResolvedQueryPlan | undefined,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<TComponents>> {
@@ -350,7 +350,7 @@ function* iterateResolvedQuery<const TComponents extends readonly AnyComponentTy
 }
 
 function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]>(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     plan: ResolvedQueryPlan | undefined,
     changeDetection: ChangeDetectionRange,
     visitor: QueryVisitor<TComponents>
@@ -475,7 +475,7 @@ function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]
 }
 
 function countResolvedQueryMatches(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     plan: ResolvedQueryPlan,
     changeDetection: ChangeDetectionRange,
     limit: number
@@ -509,7 +509,7 @@ function* iterateResolvedOptionalQuery<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
 >(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     plan: ResolvedOptionalQueryPlan | undefined,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
@@ -576,7 +576,7 @@ function eachResolvedOptionalQuery<
     const TRequiredComponents extends readonly AnyComponentType[],
     const TOptionalComponents extends readonly AnyComponentType[],
 >(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     plan: ResolvedOptionalQueryPlan | undefined,
     changeDetection: ChangeDetectionRange,
     visitor: OptionalQueryVisitor<TRequiredComponents, TOptionalComponents>
@@ -642,7 +642,7 @@ function eachResolvedOptionalQuery<
 }
 
 function countResolvedOptionalQueryMatches(
-    context: QueryRuntimeContext,
+    context: QueryExecutorContext,
     plan: ResolvedOptionalQueryPlan,
     changeDetection: ChangeDetectionRange,
     limit: number

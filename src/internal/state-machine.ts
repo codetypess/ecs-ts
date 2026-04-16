@@ -14,18 +14,18 @@ export interface StateRecord<T extends StateValue> {
     readonly onTransition: Map<T, Map<T, SystemRunner[]>>;
 }
 
-export interface StateRuntimeContext {
+export interface StateMachineContext {
     readonly states: Map<number, StateRecord<StateValue>>;
 }
 
-export function createStateRuntimeContext(): StateRuntimeContext {
+export function createStateMachineContext(): StateMachineContext {
     return {
         states: new Map(),
     };
 }
 
 export function initState<T extends StateValue>(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     type: StateType<T>,
     initial = type.initial
 ): void {
@@ -37,21 +37,21 @@ export function initState<T extends StateValue>(
 }
 
 export function hasState<T extends StateValue>(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     type: StateType<T>
 ): boolean {
     return context.states.has(type.id);
 }
 
 export function currentState<T extends StateValue>(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     type: StateType<T>
 ): T {
     return requireState(context, type).current;
 }
 
 export function matchesState<T extends StateValue>(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     type: StateType<T>,
     predicate: (value: T, world: World) => boolean,
     world: World
@@ -62,7 +62,7 @@ export function matchesState<T extends StateValue>(
 }
 
 export function setState<T extends StateValue>(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     type: StateType<T>,
     next: T
 ): void {
@@ -71,7 +71,7 @@ export function setState<T extends StateValue>(
 }
 
 export function onEnterState<T extends StateValue>(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     type: StateType<T>,
     value: T,
     system: SystemCallback
@@ -80,7 +80,7 @@ export function onEnterState<T extends StateValue>(
 }
 
 export function onExitState<T extends StateValue>(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     type: StateType<T>,
     value: T,
     system: SystemCallback
@@ -89,7 +89,7 @@ export function onExitState<T extends StateValue>(
 }
 
 export function onTransitionState<T extends StateValue>(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     type: StateType<T>,
     from: T,
     to: T,
@@ -99,7 +99,7 @@ export function onTransitionState<T extends StateValue>(
 }
 
 export function addStateSystem<T extends StateValue>(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     type: StateType<T>,
     value: T,
     onEnter: ((world: World, dt: number, commands: Commands, value: T) => void) | undefined,
@@ -125,7 +125,7 @@ export function addStateSystem<T extends StateValue>(
 }
 
 export function addTransitionSystem<T extends StateValue>(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     type: StateType<T>,
     from: T,
     to: T,
@@ -143,7 +143,7 @@ export function addTransitionSystem<T extends StateValue>(
 }
 
 export function runInitialEnters(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     dt: number,
     runSystems: (systems: readonly SystemRunner[], dt: number) => void
 ): void {
@@ -158,7 +158,7 @@ export function runInitialEnters(
 }
 
 export function applyStateTransitions(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     dt: number,
     runSystems: (systems: readonly SystemRunner[], dt: number) => void
 ): void {
@@ -185,7 +185,7 @@ export function applyStateTransitions(
 }
 
 function addTransitionRunner<T extends StateValue>(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     type: StateType<T>,
     from: T,
     to: T,
@@ -203,7 +203,7 @@ function addTransitionRunner<T extends StateValue>(
 }
 
 function ensureState<T extends StateValue>(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     type: StateType<T>
 ): StateRecord<T> {
     const state = context.states.get(type.id);
@@ -219,7 +219,7 @@ function ensureState<T extends StateValue>(
 }
 
 function requireState<T extends StateValue>(
-    context: StateRuntimeContext,
+    context: StateMachineContext,
     type: StateType<T>
 ): StateRecord<T> {
     const state = context.states.get(type.id);

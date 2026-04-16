@@ -2,18 +2,18 @@ import type { EventObserver } from "../event";
 import type { World } from "../world";
 import { runEventObserverWithCommands } from "./command-execution";
 
-export interface EventRuntimeContext {
+export interface EventContext {
     readonly observers: Map<number, EventObserver<unknown>[]>;
 }
 
-export function createEventRuntimeContext(): EventRuntimeContext {
+export function createEventContext(): EventContext {
     return {
         observers: new Map(),
     };
 }
 
 export function observeEvent<T>(
-    context: EventRuntimeContext,
+    context: EventContext,
     typeId: number,
     observer: EventObserver<T>
 ): () => void {
@@ -32,7 +32,7 @@ export function observeEvent<T>(
 }
 
 export function triggerEvent<T>(
-    context: EventRuntimeContext,
+    context: EventContext,
     typeId: number,
     value: T,
     world: World
@@ -49,7 +49,7 @@ export function triggerEvent<T>(
 }
 
 function getEventObservers<T>(
-    context: EventRuntimeContext,
+    context: EventContext,
     typeId: number
 ): readonly EventObserver<T>[] {
     return (context.observers.get(typeId) ?? []) as readonly EventObserver<T>[];

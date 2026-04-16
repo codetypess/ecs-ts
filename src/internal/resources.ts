@@ -9,18 +9,18 @@ export interface ResourceEntry<T> {
     changedTick: number;
 }
 
-interface ResourceRuntimeOptions {
+interface ResourceContextOptions {
     readonly getChangeTick: () => number;
     readonly getChangeDetectionRange: () => ChangeDetectionRange;
 }
 
-export interface ResourceRuntimeContext extends ResourceRuntimeOptions {
+export interface ResourceContext extends ResourceContextOptions {
     readonly resources: Map<number, ResourceEntry<unknown>>;
 }
 
-export function createResourceRuntimeContext(
-    options: ResourceRuntimeOptions
-): ResourceRuntimeContext {
+export function createResourceContext(
+    options: ResourceContextOptions
+): ResourceContext {
     return {
         resources: new Map(),
         ...options,
@@ -28,7 +28,7 @@ export function createResourceRuntimeContext(
 }
 
 export function setResource<T>(
-    context: ResourceRuntimeContext,
+    context: ResourceContext,
     type: ResourceType<T>,
     value: T
 ): void {
@@ -48,21 +48,21 @@ export function setResource<T>(
 }
 
 export function hasResource<T>(
-    context: ResourceRuntimeContext,
+    context: ResourceContext,
     type: ResourceType<T>
 ): boolean {
     return context.resources.has(type.id);
 }
 
 export function getResource<T>(
-    context: ResourceRuntimeContext,
+    context: ResourceContext,
     type: ResourceType<T>
 ): T | undefined {
     return getResourceEntry(context, type)?.value;
 }
 
 export function matchesResource<T>(
-    context: ResourceRuntimeContext,
+    context: ResourceContext,
     type: ResourceType<T>,
     predicate: (value: T, world: World) => boolean,
     world: World
@@ -73,7 +73,7 @@ export function matchesResource<T>(
 }
 
 export function removeResource<T>(
-    context: ResourceRuntimeContext,
+    context: ResourceContext,
     type: ResourceType<T>
 ): T | undefined {
     const value = getResourceEntry(context, type)?.value;
@@ -83,7 +83,7 @@ export function removeResource<T>(
 }
 
 export function markResourceChanged<T>(
-    context: ResourceRuntimeContext,
+    context: ResourceContext,
     type: ResourceType<T>
 ): boolean {
     const entry = getResourceEntry(context, type);
@@ -98,7 +98,7 @@ export function markResourceChanged<T>(
 }
 
 export function isResourceAdded<T>(
-    context: ResourceRuntimeContext,
+    context: ResourceContext,
     type: ResourceType<T>
 ): boolean {
     const entry = getResourceEntry(context, type);
@@ -107,7 +107,7 @@ export function isResourceAdded<T>(
 }
 
 export function isResourceChanged<T>(
-    context: ResourceRuntimeContext,
+    context: ResourceContext,
     type: ResourceType<T>
 ): boolean {
     const entry = getResourceEntry(context, type);
@@ -118,7 +118,7 @@ export function isResourceChanged<T>(
 }
 
 function getResourceEntry<T>(
-    context: ResourceRuntimeContext,
+    context: ResourceContext,
     type: ResourceType<T>
 ): ResourceEntry<T> | undefined {
     return context.resources.get(type.id) as ResourceEntry<T> | undefined;

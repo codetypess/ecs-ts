@@ -14,12 +14,12 @@ import {
     getComponentStore,
     getComponentStoreEntries,
     getComponentType,
-    type ComponentStoreRuntimeContext,
+    type ComponentStoreContext,
 } from "./component-store";
 
-interface ComponentRuntimeOptions {
+interface ComponentOpsContextOptions {
     readonly entities: EntityManager;
-    readonly componentStores: ComponentStoreRuntimeContext;
+    readonly componentStores: ComponentStoreContext;
     readonly getChangeTick: () => number;
     readonly getChangeDetectionRange: () => ChangeDetectionRange;
     readonly runComponentHooks: <T>(
@@ -31,16 +31,16 @@ interface ComponentRuntimeOptions {
     readonly recordRemoved: <T>(type: ComponentType<T>, entity: Entity, component: T) => void;
 }
 
-export type ComponentRuntimeContext = ComponentRuntimeOptions;
+export type ComponentOpsContext = ComponentOpsContextOptions;
 
-export function createComponentRuntimeContext(
-    options: ComponentRuntimeOptions
-): ComponentRuntimeContext {
+export function createComponentOpsContext(
+    options: ComponentOpsContextOptions
+): ComponentOpsContext {
     return options;
 }
 
 export function insertBundle(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     bundle: Bundle
 ): void {
@@ -52,7 +52,7 @@ export function insertBundle(
 }
 
 export function removeBundle(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     bundle: Bundle
 ): boolean {
@@ -66,7 +66,7 @@ export function removeBundle(
 }
 
 export function add<T>(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>,
     value: T
@@ -76,7 +76,7 @@ export function add<T>(
 }
 
 export function markChanged<T>(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
 ): boolean {
@@ -91,7 +91,7 @@ export function markChanged<T>(
 }
 
 export function has<T>(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
 ): boolean {
@@ -99,7 +99,7 @@ export function has<T>(
 }
 
 export function hasAll(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     types: readonly AnyComponentType[]
 ): boolean {
@@ -117,7 +117,7 @@ export function hasAll(
 }
 
 export function hasAny(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     types: readonly AnyComponentType[]
 ): boolean {
@@ -135,7 +135,7 @@ export function hasAny(
 }
 
 export function get<T>(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
 ): T | undefined {
@@ -147,7 +147,7 @@ export function get<T>(
 }
 
 export function mustGet<T>(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
 ): T {
@@ -161,7 +161,7 @@ export function mustGet<T>(
 }
 
 export function getMany<const TComponents extends readonly AnyComponentType[]>(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     ...types: TComponents
 ): ComponentTuple<TComponents> | undefined {
@@ -186,7 +186,7 @@ export function getMany<const TComponents extends readonly AnyComponentType[]>(
 }
 
 export function isAdded<T>(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
 ): boolean {
@@ -200,7 +200,7 @@ export function isAdded<T>(
 }
 
 export function isChanged<T>(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
 ): boolean {
@@ -214,7 +214,7 @@ export function isChanged<T>(
 }
 
 export function remove<T>(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
 ): boolean {
@@ -233,7 +233,7 @@ export function remove<T>(
     return true;
 }
 
-export function despawn(context: ComponentRuntimeContext, entity: Entity): boolean {
+export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
     if (!context.entities.isAlive(entity)) {
         return false;
     }
@@ -260,7 +260,7 @@ export function despawn(context: ComponentRuntimeContext, entity: Entity): boole
 }
 
 function addWithRequired<T>(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>,
     value: T,
@@ -272,7 +272,7 @@ function addWithRequired<T>(
 }
 
 function addRequiredComponents(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     type: AnyComponentType,
     resolving: readonly AnyComponentType[]
@@ -302,7 +302,7 @@ function addRequiredComponents(
 }
 
 function insertComponentOnly<T>(
-    context: ComponentRuntimeContext,
+    context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>,
     value: T
@@ -324,7 +324,7 @@ function insertComponentOnly<T>(
     context.runComponentHooks(type, "onInsert", entity, value);
 }
 
-function assertAlive(context: ComponentRuntimeContext, entity: Entity): void {
+function assertAlive(context: ComponentOpsContext, entity: Entity): void {
     if (!context.entities.isAlive(entity)) {
         throw new Error(`Entity is not alive: ${formatEntity(entity)}`);
     }

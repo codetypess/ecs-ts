@@ -11,7 +11,7 @@ import { Entity, EntityManager } from "./entity";
 import type { EventObserver, EventType } from "./event";
 import {
     add as addComponent,
-    createComponentRuntimeContext,
+    createComponentOpsContext,
     despawn as despawnEntity,
     get as getComponent,
     getMany as getManyComponents,
@@ -25,20 +25,20 @@ import {
     mustGet as mustGetComponent,
     remove as removeComponent,
     removeBundle as removeComponentBundle,
-    type ComponentRuntimeContext,
+    type ComponentOpsContext,
 } from "./internal/component-ops";
-import { createComponentStoreRuntimeContext } from "./internal/component-store";
+import { createComponentStoreContext } from "./internal/component-store";
 import {
     addComponentHook as registerComponentHook,
-    createComponentHookRuntimeContext,
+    createComponentHookContext,
     runComponentHooks as dispatchComponentHooks,
 } from "./internal/component-hooks";
 import { runSystemWithCommands } from "./internal/command-execution";
-import { createEventRuntimeContext, observeEvent, triggerEvent } from "./internal/events";
+import { createEventContext, observeEvent, triggerEvent } from "./internal/events";
 import {
     addMessageType,
     clearMessages as clearStoredMessages,
-    createMessageRuntimeContext,
+    createMessageContext,
     drainMessages as drainStoredMessages,
     readMessages as readStoredMessages,
     updateMessages as updateStoredMessages,
@@ -58,16 +58,16 @@ import {
     queryOptional as runOptionalQuery,
     queryOptionalWithState as runOptionalQueryWithState,
     queryWithState as runQueryWithState,
-    type QueryRuntimeContext,
+    type QueryExecutorContext,
 } from "./internal/query-executor";
 import {
-    createRemovedRuntimeContext,
+    createRemovedStoreContext,
     drainRemoved as drainRemovedComponents,
     readRemoved as readRemovedComponents,
     recordRemoved as recordRemovedComponent,
 } from "./internal/removed-store";
 import {
-    createResourceRuntimeContext,
+    createResourceContext,
     getResource as getStoredResource,
     hasResource as hasStoredResource,
     isResourceAdded as isStoredResourceAdded,
@@ -81,18 +81,18 @@ import {
     addSystemRunner as addScheduledSystemRunner,
     configureSet as configureScheduleSet,
     configureSetForStage as configureScheduleSetForStage,
-    createScheduleRuntimeContext,
+    createScheduleEngineContext,
     runFixedUpdate as runScheduledFixedUpdate,
     runSchedule as runScheduledStage,
     setFixedTimeStep as setScheduleFixedTimeStep,
     shouldRunSystem as shouldRunScheduledSystem,
-    type ScheduleRuntimeContext,
+    type ScheduleEngineContext,
 } from "./internal/schedule-engine";
 import {
     addStateSystem as addStateLifecycleSystem,
     addTransitionSystem as addStateTransitionSystem,
     applyStateTransitions,
-    createStateRuntimeContext,
+    createStateMachineContext,
     currentState,
     hasState,
     initState,
@@ -102,7 +102,7 @@ import {
     onTransitionState,
     runInitialEnters,
     setState,
-    type StateRuntimeContext,
+    type StateMachineContext,
 } from "./internal/state-machine";
 import type { MessageId, MessageReader, MessageType } from "./message";
 import type {
@@ -165,16 +165,16 @@ export class World {
         this.runSystems(systems, "update", dt);
     };
     private readonly entities = new EntityManager();
-    private readonly componentStoreContext = createComponentStoreRuntimeContext();
-    private readonly resourceContext = createResourceRuntimeContext({
+    private readonly componentStoreContext = createComponentStoreContext();
+    private readonly resourceContext = createResourceContext({
         getChangeTick: () => this.changeTick,
         getChangeDetectionRange: () => this.changeDetectionRange(),
     });
-    private readonly removedContext = createRemovedRuntimeContext({
+    private readonly removedContext = createRemovedStoreContext({
         getChangeTick: () => this.changeTick,
     });
-    private readonly componentHookContext = createComponentHookRuntimeContext();
-    private readonly componentContext: ComponentRuntimeContext = createComponentRuntimeContext({
+    private readonly componentHookContext = createComponentHookContext();
+    private readonly componentContext: ComponentOpsContext = createComponentOpsContext({
         entities: this.entities,
         componentStores: this.componentStoreContext,
         getChangeTick: () => this.changeTick,
@@ -186,17 +186,17 @@ export class World {
             recordRemovedComponent(this.removedContext, type, entity, component);
         },
     });
-    private readonly stateContext: StateRuntimeContext = createStateRuntimeContext();
-    private readonly eventContext = createEventRuntimeContext();
-    private readonly messageContext = createMessageRuntimeContext();
-    private readonly queryContext: QueryRuntimeContext = {
+    private readonly stateContext: StateMachineContext = createStateMachineContext();
+    private readonly eventContext = createEventContext();
+    private readonly messageContext = createMessageContext();
+    private readonly queryContext: QueryExecutorContext = {
         planContext: createQueryPlanContext({
             stores: this.componentStoreContext.stores,
             getStoreVersion: () => this.componentStoreContext.storeVersion,
         }),
         isAlive: (entity) => this.entities.isAlive(entity),
     };
-    private readonly scheduleContext: ScheduleRuntimeContext = createScheduleRuntimeContext();
+    private readonly scheduleContext: ScheduleEngineContext = createScheduleEngineContext();
     private activeChangeDetection: ChangeDetectionRange | undefined;
     private changeTick = 1;
     private didStartup = false;

@@ -1,13 +1,13 @@
 import type { AnyComponentType, ComponentType } from "../component";
 import { SparseSet } from "../sparse-set";
 
-export interface ComponentStoreRuntimeContext {
+export interface ComponentStoreContext {
     readonly stores: Map<number, SparseSet<unknown>>;
     readonly componentTypes: Map<number, AnyComponentType>;
     storeVersion: number;
 }
 
-export function createComponentStoreRuntimeContext(): ComponentStoreRuntimeContext {
+export function createComponentStoreContext(): ComponentStoreContext {
     return {
         stores: new Map(),
         componentTypes: new Map(),
@@ -16,7 +16,7 @@ export function createComponentStoreRuntimeContext(): ComponentStoreRuntimeConte
 }
 
 export function ensureComponentStore<T>(
-    context: ComponentStoreRuntimeContext,
+    context: ComponentStoreContext,
     type: ComponentType<T>
 ): SparseSet<T> {
     context.componentTypes.set(type.id, type);
@@ -35,21 +35,21 @@ export function ensureComponentStore<T>(
 }
 
 export function getComponentStore<T>(
-    context: ComponentStoreRuntimeContext,
+    context: ComponentStoreContext,
     type: ComponentType<T>
 ): SparseSet<T> | undefined {
     return context.stores.get(type.id) as SparseSet<T> | undefined;
 }
 
 export function getComponentType(
-    context: ComponentStoreRuntimeContext,
+    context: ComponentStoreContext,
     componentId: number
 ): AnyComponentType | undefined {
     return context.componentTypes.get(componentId);
 }
 
 export function getComponentStoreEntries(
-    context: ComponentStoreRuntimeContext
+    context: ComponentStoreContext
 ): IterableIterator<[number, SparseSet<unknown>]> {
     return context.stores.entries();
 }
