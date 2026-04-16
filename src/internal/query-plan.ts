@@ -1,6 +1,5 @@
 import type { AnyComponentType } from "../component";
 import type { OptionalQueryState, QueryFilter, QueryState } from "../query";
-import { chooseSmallestStore } from "../query";
 import { SparseSet } from "../sparse-set";
 
 /** Broad buckets that let query execution skip unnecessary filter work. */
@@ -19,7 +18,6 @@ export interface ResolvedQueryFilter {
 export interface ResolvedQueryPlan {
     readonly stores: readonly SparseSet<unknown>[];
     readonly filterStores: ResolvedQueryFilter;
-    readonly baseStore: SparseSet<unknown>;
     readonly filterMode: QueryFilterMode;
 }
 
@@ -28,7 +26,6 @@ export interface ResolvedOptionalQueryPlan {
     readonly requiredStores: readonly SparseSet<unknown>[];
     readonly optionalStores: readonly (SparseSet<unknown> | undefined)[];
     readonly filterStores: ResolvedQueryFilter;
-    readonly baseStore: SparseSet<unknown>;
     readonly filterMode: QueryFilterMode;
 }
 
@@ -282,7 +279,7 @@ function resolveFilterMode(filter: ResolvedQueryFilter): QueryFilterMode {
     return filter.added.length === 0 && filter.changed.length === 0 ? "structural" : "change";
 }
 
-/** Chooses the scan store and packages the resolved plan for required queries. */
+/** Packages the resolved plan for required queries. */
 function createQueryPlan(
     stores: readonly SparseSet<unknown>[],
     filterStores: ResolvedQueryFilter
@@ -290,12 +287,11 @@ function createQueryPlan(
     return {
         stores,
         filterStores,
-        baseStore: chooseSmallestStore(stores, filterStores.with),
         filterMode: resolveFilterMode(filterStores),
     };
 }
 
-/** Chooses the scan store and packages the resolved plan for optional queries. */
+/** Packages the resolved plan for optional queries. */
 function createOptionalQueryPlan(
     requiredStores: readonly SparseSet<unknown>[],
     optionalStores: readonly (SparseSet<unknown> | undefined)[],
@@ -305,7 +301,6 @@ function createOptionalQueryPlan(
         requiredStores,
         optionalStores,
         filterStores,
-        baseStore: chooseSmallestStore(requiredStores, filterStores.with),
         filterMode: resolveFilterMode(filterStores),
     };
 }

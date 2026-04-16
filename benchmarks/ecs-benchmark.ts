@@ -1,5 +1,6 @@
 import {
     Entity,
+    QueryState,
     World,
     anyMatch,
     defineComponent,
@@ -30,6 +31,12 @@ interface BenchmarkResult {
 interface MovementWorld {
     readonly world: World;
     readonly entities: readonly Entity[];
+}
+
+interface SkewedQueryStateWorld {
+    readonly world: World;
+    readonly query: QueryState<readonly [typeof Position, typeof Velocity]>;
+    readonly matches: number;
 }
 
 interface BenchmarkConfig {
@@ -182,6 +189,33 @@ function createSchedulerWorld(enabled: boolean): World {
     }
 
     return world;
+}
+
+function createSkewedQueryStateWorld(count: number): SkewedQueryStateWorld {
+    const world = new World();
+    const matches = Math.max(64, Math.floor(count / 50));
+    const extraVelocityOnly = Math.max(256, Math.floor(count / 4));
+    const extraPositionOnly = extraVelocityOnly * 8;
+    const moving = queryState([Position, Velocity]);
+
+    for (let index = 0; index < matches; index++) {
+        world.spawn(
+            withComponent(Position, { x: index, y: index }),
+            withComponent(Velocity, { x: 1, y: -1 })
+        );
+    }
+
+    for (let index = 0; index < extraVelocityOnly; index++) {
+        world.spawn(withComponent(Velocity, { x: index, y: -index }));
+    }
+
+    moving.each(world, () => {});
+
+    for (let index = 0; index < extraPositionOnly; index++) {
+        world.spawn(withComponent(Position, { x: -index, y: index }));
+    }
+
+    return { world, query: moving, matches };
 }
 
 function createQueryRunIfSchedulerWorld(matching: boolean): World {
@@ -372,6 +406,7 @@ function printUsage(): void {
 
 const movement = createMovementWorld(ENTITY_COUNT);
 const movingQuery = queryState([Position, Velocity]);
+const skewedQueryStateWorld = createSkewedQueryStateWorld(ENTITY_COUNT);
 const results: BenchmarkResult[] = [];
 
 pushBenchmark(results, "spawn position+velocity", () => {
@@ -431,6 +466,23 @@ pushBenchmark(results, "queryState.each Position+Velocity", () => {
             checksum += position.y + (entity % 2);
             operations++;
         });
+    }
+
+    return operations;
+});
+
+pushBenchmark(results, "queryState.each after base-store skew", () => {
+    let operations = 0;
+
+    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+        skewedQueryStateWorld.query.each(
+            skewedQueryStateWorld.world,
+            (entity, position, velocity) => {
+                position.x += velocity.x * 0.001;
+                checksum += position.y + (entity % 2);
+                operations++;
+            }
+        );
     }
 
     return operations;

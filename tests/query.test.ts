@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+    SparseSet,
     World,
     defineComponent,
     optionalQueryState,
@@ -233,4 +234,74 @@ test("query state tracks structural filter changes through cached plans", () => 
 
     assert.deepEqual(matchedEntities(), []);
     assert.equal(filtered.matchesNone(world), true);
+});
+
+test("query state refreshes the base store when store sizes skew after cache resolution", () => {
+    const Position = defineComponent<{ x: number; y: number }>("SkewedBasePosition");
+    const Velocity = defineComponent<{ x: number; y: number }>("SkewedBaseVelocity");
+    const moving = queryState([Position, Velocity]);
+    const world = new World();
+
+    for (let index = 0; index < 5; index++) {
+        world.spawn(
+            withComponent(Position, { x: index, y: index }),
+            withComponent(Velocity, { x: 1, y: -1 })
+        );
+    }
+
+    for (let index = 0; index < 50; index++) {
+        world.spawn(withComponent(Velocity, { x: index, y: index }));
+    }
+
+    moving.each(world, () => {});
+
+    for (let index = 0; index < 100; index++) {
+        world.spawn(withComponent(Position, { x: index, y: index }));
+    }
+
+    const stores = (world as unknown as {
+        readonly componentStoreContext: {
+            readonly stores: Map<number, SparseSet<unknown>>;
+        };
+    }).componentStoreContext.stores;
+    const positionStore = stores.get(Position.id);
+    const velocityStore = stores.get(Velocity.id);
+
+    assert.ok(positionStore !== undefined);
+    assert.ok(velocityStore !== undefined);
+
+    const positionEntities = positionStore.entities;
+    const velocityEntities = velocityStore.entities;
+    let positionEntityReads = 0;
+    let velocityEntityReads = 0;
+
+    Object.defineProperty(positionStore, "entities", {
+        configurable: true,
+        get() {
+            positionEntityReads++;
+            return positionEntities;
+        },
+    });
+    Object.defineProperty(velocityStore, "entities", {
+        configurable: true,
+        get() {
+            velocityEntityReads++;
+            return velocityEntities;
+        },
+    });
+
+    try {
+        let matches = 0;
+
+        moving.each(world, () => {
+            matches++;
+        });
+
+        assert.equal(matches, 5);
+        assert.equal(positionEntityReads, 0);
+        assert.equal(velocityEntityReads, 1);
+    } finally {
+        delete (positionStore as unknown as { entities?: unknown }).entities;
+        delete (velocityStore as unknown as { entities?: unknown }).entities;
+    }
 });

@@ -10,6 +10,7 @@ import type {
     QueryRow,
     QueryState,
 } from "../query";
+import { chooseSmallestStore } from "../query";
 import { fillComponents, fillOptionalComponents, hasComponents } from "./query-components";
 import { matchesPlanFilter } from "./query-filter";
 import {
@@ -249,12 +250,14 @@ function* iterateResolvedQuery<const TComponents extends readonly AnyComponentTy
         return;
     }
 
+    const baseStore = currentRequiredBaseStore(plan);
+
     // Keep common arities branchless for callers by yielding rows directly.
     // Specialize the hottest small-arity cases so iteration avoids temporary arrays/spreads.
     if (plan.stores.length === 1) {
         const store0 = plan.stores[0]!;
 
-        for (const entity of plan.baseStore.entities) {
+        for (const entity of baseStore.entities) {
             if (!context.isAlive(entity)) {
                 continue;
             }
@@ -279,7 +282,7 @@ function* iterateResolvedQuery<const TComponents extends readonly AnyComponentTy
         const store0 = plan.stores[0]!;
         const store1 = plan.stores[1]!;
 
-        for (const entity of plan.baseStore.entities) {
+        for (const entity of baseStore.entities) {
             if (!context.isAlive(entity)) {
                 continue;
             }
@@ -311,7 +314,7 @@ function* iterateResolvedQuery<const TComponents extends readonly AnyComponentTy
         const store1 = plan.stores[1]!;
         const store2 = plan.stores[2]!;
 
-        for (const entity of plan.baseStore.entities) {
+        for (const entity of baseStore.entities) {
             if (!context.isAlive(entity)) {
                 continue;
             }
@@ -346,7 +349,7 @@ function* iterateResolvedQuery<const TComponents extends readonly AnyComponentTy
 
     const components: unknown[] = new Array(plan.stores.length);
 
-    for (const entity of plan.baseStore.entities) {
+    for (const entity of baseStore.entities) {
         if (!context.isAlive(entity)) {
             continue;
         }
@@ -374,13 +377,14 @@ function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]
     }
 
     const callVisitor = visitor as (entity: Entity, ...components: unknown[]) => void;
+    const baseStore = currentRequiredBaseStore(plan);
 
     // Match the iterator fast paths so `each()` stays allocation-free in common cases.
     // Mirror iterateResolvedQuery fast paths so each() can call the visitor directly.
     if (plan.stores.length === 1) {
         const store0 = plan.stores[0]!;
 
-        for (const entity of plan.baseStore.entities) {
+        for (const entity of baseStore.entities) {
             if (!context.isAlive(entity)) {
                 continue;
             }
@@ -405,7 +409,7 @@ function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]
         const store0 = plan.stores[0]!;
         const store1 = plan.stores[1]!;
 
-        for (const entity of plan.baseStore.entities) {
+        for (const entity of baseStore.entities) {
             if (!context.isAlive(entity)) {
                 continue;
             }
@@ -437,7 +441,7 @@ function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]
         const store1 = plan.stores[1]!;
         const store2 = plan.stores[2]!;
 
-        for (const entity of plan.baseStore.entities) {
+        for (const entity of baseStore.entities) {
             if (!context.isAlive(entity)) {
                 continue;
             }
@@ -472,7 +476,7 @@ function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]
 
     const components: unknown[] = new Array(plan.stores.length);
 
-    for (const entity of plan.baseStore.entities) {
+    for (const entity of baseStore.entities) {
         if (!context.isAlive(entity)) {
             continue;
         }
@@ -496,8 +500,9 @@ function countResolvedQueryMatches(
     limit: number
 ): number {
     let matches = 0;
+    const baseStore = currentRequiredBaseStore(plan);
 
-    for (const entity of plan.baseStore.entities) {
+    for (const entity of baseStore.entities) {
         if (!context.isAlive(entity)) {
             continue;
         }
@@ -533,11 +538,13 @@ function* iterateResolvedOptionalQuery<
         return;
     }
 
+    const baseStore = currentOptionalBaseStore(plan);
+
     if (plan.requiredStores.length === 1 && plan.optionalStores.length === 1) {
         const requiredStore0 = plan.requiredStores[0]!;
         const optionalStore0 = plan.optionalStores[0];
 
-        for (const entity of plan.baseStore.entities) {
+        for (const entity of baseStore.entities) {
             if (!context.isAlive(entity)) {
                 continue;
             }
@@ -566,7 +573,7 @@ function* iterateResolvedOptionalQuery<
         plan.requiredStores.length + plan.optionalStores.length
     );
 
-    for (const entity of plan.baseStore.entities) {
+    for (const entity of baseStore.entities) {
         if (!context.isAlive(entity)) {
             continue;
         }
@@ -603,12 +610,13 @@ function eachResolvedOptionalQuery<
     }
 
     const callVisitor = visitor as (entity: Entity, ...components: unknown[]) => void;
+    const baseStore = currentOptionalBaseStore(plan);
 
     if (plan.requiredStores.length === 1 && plan.optionalStores.length === 1) {
         const requiredStore0 = plan.requiredStores[0]!;
         const optionalStore0 = plan.optionalStores[0];
 
-        for (const entity of plan.baseStore.entities) {
+        for (const entity of baseStore.entities) {
             if (!context.isAlive(entity)) {
                 continue;
             }
@@ -633,7 +641,7 @@ function eachResolvedOptionalQuery<
         plan.requiredStores.length + plan.optionalStores.length
     );
 
-    for (const entity of plan.baseStore.entities) {
+    for (const entity of baseStore.entities) {
         if (!context.isAlive(entity)) {
             continue;
         }
@@ -665,8 +673,9 @@ function countResolvedOptionalQueryMatches(
     limit: number
 ): number {
     let matches = 0;
+    const baseStore = currentOptionalBaseStore(plan);
 
-    for (const entity of plan.baseStore.entities) {
+    for (const entity of baseStore.entities) {
         if (!context.isAlive(entity)) {
             continue;
         }
@@ -687,4 +696,12 @@ function countResolvedOptionalQueryMatches(
     }
 
     return matches;
+}
+
+function currentRequiredBaseStore(plan: ResolvedQueryPlan) {
+    return chooseSmallestStore(plan.stores, plan.filterStores.with);
+}
+
+function currentOptionalBaseStore(plan: ResolvedOptionalQueryPlan) {
+    return chooseSmallestStore(plan.requiredStores, plan.filterStores.with);
 }
