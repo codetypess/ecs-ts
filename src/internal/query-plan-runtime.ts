@@ -16,243 +16,252 @@ export interface QueryPlanRuntimeOptions {
     readonly getStoreVersion: () => number;
 }
 
-export class QueryPlanRuntime {
-    private readonly queryStateCaches = new WeakMap<
-        QueryState<readonly AnyComponentType[]>,
-        QueryStateCache
-    >();
-    private readonly optionalQueryStateCaches = new WeakMap<
+export interface QueryPlanRuntimeContext extends QueryPlanRuntimeOptions {
+    readonly queryStateCaches: WeakMap<QueryState<readonly AnyComponentType[]>, QueryStateCache>;
+    readonly optionalQueryStateCaches: WeakMap<
         OptionalQueryState<readonly AnyComponentType[], readonly AnyComponentType[]>,
         OptionalQueryStateCache
-    >();
+    >;
+}
 
-    constructor(private readonly options: QueryPlanRuntimeOptions) {}
+export function createQueryPlanRuntimeContext(
+    options: QueryPlanRuntimeOptions
+): QueryPlanRuntimeContext {
+    return {
+        queryStateCaches: new WeakMap(),
+        optionalQueryStateCaches: new WeakMap(),
+        ...options,
+    };
+}
 
-    resolveQueryPlan(
-        types: readonly AnyComponentType[],
-        filter: QueryFilter
-    ): ResolvedQueryPlan | undefined {
-        const stores = this.resolveQueryStores(types);
+export function resolveQueryPlan(
+    context: QueryPlanRuntimeContext,
+    types: readonly AnyComponentType[],
+    filter: QueryFilter
+): ResolvedQueryPlan | undefined {
+    const stores = resolveQueryStores(context, types);
 
-        if (stores === undefined) {
+    if (stores === undefined) {
+        return undefined;
+    }
+
+    const filterStores = resolveFilterStores(context, filter);
+
+    if (filterStores === undefined) {
+        return undefined;
+    }
+
+    return createQueryPlan(stores, filterStores);
+}
+
+export function resolveOptionalQueryPlan(
+    context: QueryPlanRuntimeContext,
+    required: readonly AnyComponentType[],
+    optional: readonly AnyComponentType[],
+    filter: QueryFilter
+): ResolvedOptionalQueryPlan | undefined {
+    const requiredStores = resolveQueryStores(context, required);
+
+    if (requiredStores === undefined) {
+        return undefined;
+    }
+
+    const filterStores = resolveFilterStores(context, filter);
+
+    if (filterStores === undefined) {
+        return undefined;
+    }
+
+    return createOptionalQueryPlan(
+        requiredStores,
+        resolveOptionalStores(context, optional),
+        filterStores
+    );
+}
+
+export function resolveQueryStateCache<const TComponents extends readonly AnyComponentType[]>(
+    context: QueryPlanRuntimeContext,
+    state: QueryState<TComponents>
+): ResolvedQueryPlan | undefined {
+    const key = state as QueryState<readonly AnyComponentType[]>;
+    const existing = context.queryStateCaches.get(key);
+
+    if (existing?.storeVersion === context.getStoreVersion()) {
+        return existing.plan;
+    }
+
+    const plan = resolveQueryPlan(context, state.types, state.filter);
+    const cache = {
+        storeVersion: context.getStoreVersion(),
+        plan,
+    } satisfies QueryStateCache;
+
+    context.queryStateCaches.set(key, cache);
+
+    return cache.plan;
+}
+
+export function resolveOptionalQueryStateCache<
+    const TRequiredComponents extends readonly AnyComponentType[],
+    const TOptionalComponents extends readonly AnyComponentType[],
+>(
+    context: QueryPlanRuntimeContext,
+    state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
+): ResolvedOptionalQueryPlan | undefined {
+    const key = state as OptionalQueryState<readonly AnyComponentType[], readonly AnyComponentType[]>;
+    const existing = context.optionalQueryStateCaches.get(key);
+
+    if (existing?.storeVersion === context.getStoreVersion()) {
+        return existing.plan;
+    }
+
+    const plan = resolveOptionalQueryPlan(context, state.required, state.optional, state.filter);
+    const cache = {
+        storeVersion: context.getStoreVersion(),
+        plan,
+    } satisfies OptionalQueryStateCache;
+
+    context.optionalQueryStateCaches.set(key, cache);
+
+    return cache.plan;
+}
+
+function resolveQueryStores(
+    context: QueryPlanRuntimeContext,
+    types: readonly AnyComponentType[]
+): SparseSet<unknown>[] | undefined {
+    if (types.length === 0) {
+        throw new Error("Query requires at least one component type");
+    }
+
+    const stores: SparseSet<unknown>[] = new Array(types.length);
+
+    for (let index = 0; index < types.length; index++) {
+        const store = context.stores.get(types[index]!.id);
+
+        if (store === undefined) {
             return undefined;
         }
 
-        const filterStores = this.resolveFilterStores(filter);
+        stores[index] = store;
+    }
 
-        if (filterStores === undefined) {
+    return stores;
+}
+
+function resolveOptionalStores(
+    context: QueryPlanRuntimeContext,
+    types: readonly AnyComponentType[]
+): (SparseSet<unknown> | undefined)[] {
+    const stores: (SparseSet<unknown> | undefined)[] = new Array(types.length);
+
+    for (let index = 0; index < types.length; index++) {
+        stores[index] = context.stores.get(types[index]!.id);
+    }
+
+    return stores;
+}
+
+function resolveFilterStores(
+    context: QueryPlanRuntimeContext,
+    filter: QueryFilter
+): ResolvedQueryFilter | undefined {
+    const withStores: SparseSet<unknown>[] = [];
+    const withoutStores: SparseSet<unknown>[] = [];
+    const orStores: SparseSet<unknown>[] = [];
+    const addedStores: SparseSet<unknown>[] = [];
+    const changedStores: SparseSet<unknown>[] = [];
+
+    for (const type of filter.with ?? []) {
+        const store = context.stores.get(type.id);
+
+        if (store === undefined) {
             return undefined;
         }
 
-        return this.createQueryPlan(stores, filterStores);
+        withStores.push(store);
     }
 
-    resolveOptionalQueryPlan(
-        required: readonly AnyComponentType[],
-        optional: readonly AnyComponentType[],
-        filter: QueryFilter
-    ): ResolvedOptionalQueryPlan | undefined {
-        const requiredStores = this.resolveQueryStores(required);
+    for (const type of filter.without ?? []) {
+        const store = context.stores.get(type.id);
 
-        if (requiredStores === undefined) {
+        // Missing stores satisfy negative filters, so only track stores that actually exist.
+        if (store !== undefined) {
+            withoutStores.push(store);
+        }
+    }
+
+    for (const type of filter.or ?? []) {
+        const store = context.stores.get(type.id);
+
+        if (store !== undefined) {
+            orStores.push(store);
+        }
+    }
+
+    if (filter.or !== undefined && filter.or.length > 0 && orStores.length === 0) {
+        return undefined;
+    }
+
+    for (const type of filter.added ?? []) {
+        const store = context.stores.get(type.id);
+
+        if (store === undefined) {
             return undefined;
         }
 
-        const filterStores = this.resolveFilterStores(filter);
+        addedStores.push(store);
+    }
 
-        if (filterStores === undefined) {
+    for (const type of filter.changed ?? []) {
+        const store = context.stores.get(type.id);
+
+        if (store === undefined) {
             return undefined;
         }
 
-        return this.createOptionalQueryPlan(
-            requiredStores,
-            this.resolveOptionalStores(optional),
-            filterStores
-        );
+        changedStores.push(store);
     }
 
-    resolveQueryStateCache<const TComponents extends readonly AnyComponentType[]>(
-        state: QueryState<TComponents>
-    ): ResolvedQueryPlan | undefined {
-        const key = state as QueryState<readonly AnyComponentType[]>;
-        const existing = this.queryStateCaches.get(key);
+    return {
+        with: withStores,
+        without: withoutStores,
+        or: orStores,
+        added: addedStores,
+        changed: changedStores,
+    };
+}
 
-        if (existing?.storeVersion === this.options.getStoreVersion()) {
-            return existing.plan;
-        }
-
-        const plan = this.resolveQueryPlan(state.types, state.filter);
-        const cache = {
-            storeVersion: this.options.getStoreVersion(),
-            plan,
-        } satisfies QueryStateCache;
-
-        this.queryStateCaches.set(key, cache);
-
-        return cache.plan;
+function resolveFilterMode(filter: ResolvedQueryFilter): QueryFilterMode {
+    if (filter.with.length === 0 && filter.without.length === 0 && filter.or.length === 0) {
+        return filter.added.length === 0 && filter.changed.length === 0 ? "unfiltered" : "change";
     }
 
-    resolveOptionalQueryStateCache<
-        const TRequiredComponents extends readonly AnyComponentType[],
-        const TOptionalComponents extends readonly AnyComponentType[],
-    >(
-        state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
-    ): ResolvedOptionalQueryPlan | undefined {
-        const key = state as OptionalQueryState<
-            readonly AnyComponentType[],
-            readonly AnyComponentType[]
-        >;
-        const existing = this.optionalQueryStateCaches.get(key);
+    return filter.added.length === 0 && filter.changed.length === 0 ? "structural" : "change";
+}
 
-        if (existing?.storeVersion === this.options.getStoreVersion()) {
-            return existing.plan;
-        }
+function createQueryPlan(
+    stores: readonly SparseSet<unknown>[],
+    filterStores: ResolvedQueryFilter
+): ResolvedQueryPlan {
+    return {
+        stores,
+        filterStores,
+        baseStore: chooseSmallestStore(stores, filterStores.with),
+        filterMode: resolveFilterMode(filterStores),
+    };
+}
 
-        const plan = this.resolveOptionalQueryPlan(state.required, state.optional, state.filter);
-        const cache = {
-            storeVersion: this.options.getStoreVersion(),
-            plan,
-        } satisfies OptionalQueryStateCache;
-
-        this.optionalQueryStateCaches.set(key, cache);
-
-        return cache.plan;
-    }
-
-    private resolveQueryStores(
-        types: readonly AnyComponentType[]
-    ): SparseSet<unknown>[] | undefined {
-        if (types.length === 0) {
-            throw new Error("Query requires at least one component type");
-        }
-
-        const stores: SparseSet<unknown>[] = new Array(types.length);
-
-        for (let index = 0; index < types.length; index++) {
-            const store = this.options.stores.get(types[index]!.id);
-
-            if (store === undefined) {
-                return undefined;
-            }
-
-            stores[index] = store;
-        }
-
-        return stores;
-    }
-
-    private resolveOptionalStores(
-        types: readonly AnyComponentType[]
-    ): (SparseSet<unknown> | undefined)[] {
-        const stores: (SparseSet<unknown> | undefined)[] = new Array(types.length);
-
-        for (let index = 0; index < types.length; index++) {
-            stores[index] = this.options.stores.get(types[index]!.id);
-        }
-
-        return stores;
-    }
-
-    private resolveFilterStores(filter: QueryFilter): ResolvedQueryFilter | undefined {
-        const withStores: SparseSet<unknown>[] = [];
-        const withoutStores: SparseSet<unknown>[] = [];
-        const orStores: SparseSet<unknown>[] = [];
-        const addedStores: SparseSet<unknown>[] = [];
-        const changedStores: SparseSet<unknown>[] = [];
-
-        for (const type of filter.with ?? []) {
-            const store = this.options.stores.get(type.id);
-
-            if (store === undefined) {
-                return undefined;
-            }
-
-            withStores.push(store);
-        }
-
-        for (const type of filter.without ?? []) {
-            const store = this.options.stores.get(type.id);
-
-            // Missing stores satisfy negative filters, so only track stores that actually exist.
-            if (store !== undefined) {
-                withoutStores.push(store);
-            }
-        }
-
-        for (const type of filter.or ?? []) {
-            const store = this.options.stores.get(type.id);
-
-            if (store !== undefined) {
-                orStores.push(store);
-            }
-        }
-
-        if (filter.or !== undefined && filter.or.length > 0 && orStores.length === 0) {
-            return undefined;
-        }
-
-        for (const type of filter.added ?? []) {
-            const store = this.options.stores.get(type.id);
-
-            if (store === undefined) {
-                return undefined;
-            }
-
-            addedStores.push(store);
-        }
-
-        for (const type of filter.changed ?? []) {
-            const store = this.options.stores.get(type.id);
-
-            if (store === undefined) {
-                return undefined;
-            }
-
-            changedStores.push(store);
-        }
-
-        return {
-            with: withStores,
-            without: withoutStores,
-            or: orStores,
-            added: addedStores,
-            changed: changedStores,
-        };
-    }
-
-    private resolveFilterMode(filter: ResolvedQueryFilter): QueryFilterMode {
-        if (filter.with.length === 0 && filter.without.length === 0 && filter.or.length === 0) {
-            return filter.added.length === 0 && filter.changed.length === 0
-                ? "unfiltered"
-                : "change";
-        }
-
-        return filter.added.length === 0 && filter.changed.length === 0 ? "structural" : "change";
-    }
-
-    private createQueryPlan(
-        stores: readonly SparseSet<unknown>[],
-        filterStores: ResolvedQueryFilter
-    ): ResolvedQueryPlan {
-        return {
-            stores,
-            filterStores,
-            baseStore: chooseSmallestStore(stores, filterStores.with),
-            filterMode: this.resolveFilterMode(filterStores),
-        };
-    }
-
-    private createOptionalQueryPlan(
-        requiredStores: readonly SparseSet<unknown>[],
-        optionalStores: readonly (SparseSet<unknown> | undefined)[],
-        filterStores: ResolvedQueryFilter
-    ): ResolvedOptionalQueryPlan {
-        return {
-            requiredStores,
-            optionalStores,
-            filterStores,
-            baseStore: chooseSmallestStore(requiredStores, filterStores.with),
-            filterMode: this.resolveFilterMode(filterStores),
-        };
-    }
+function createOptionalQueryPlan(
+    requiredStores: readonly SparseSet<unknown>[],
+    optionalStores: readonly (SparseSet<unknown> | undefined)[],
+    filterStores: ResolvedQueryFilter
+): ResolvedOptionalQueryPlan {
+    return {
+        requiredStores,
+        optionalStores,
+        filterStores,
+        baseStore: chooseSmallestStore(requiredStores, filterStores.with),
+        filterMode: resolveFilterMode(filterStores),
+    };
 }

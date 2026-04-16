@@ -13,10 +13,16 @@ import type {
 } from "../query";
 import { fillComponents, fillOptionalComponents, hasComponents } from "./query-component-runtime";
 import { matchesPlanFilter } from "./query-filter-runtime";
-import type { QueryPlanRuntime } from "./query-plan-runtime";
+import {
+    resolveOptionalQueryPlan,
+    resolveOptionalQueryStateCache,
+    resolveQueryPlan,
+    resolveQueryStateCache,
+    type QueryPlanRuntimeContext,
+} from "./query-plan-runtime";
 
 export interface QueryRuntimeContext {
-    readonly planRuntime: QueryPlanRuntime;
+    readonly planRuntime: QueryPlanRuntimeContext;
     readonly isAlive: (entity: Entity) => boolean;
 }
 
@@ -42,11 +48,7 @@ export function query<const TComponents extends readonly AnyComponentType[]>(
     filter: QueryFilter,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<TComponents>> {
-    return iterateResolvedQuery(
-        context,
-        context.planRuntime.resolveQueryPlan(types, filter),
-        changeDetection
-    );
+    return iterateResolvedQuery(context, resolveQueryPlan(context.planRuntime, types, filter), changeDetection);
 }
 
 export function queryOptional<
@@ -61,7 +63,7 @@ export function queryOptional<
 ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
     return iterateResolvedOptionalQuery(
         context,
-        context.planRuntime.resolveOptionalQueryPlan(required, optional, filter),
+        resolveOptionalQueryPlan(context.planRuntime, required, optional, filter),
         changeDetection
     );
 }
@@ -71,11 +73,7 @@ export function queryWithState<const TComponents extends readonly AnyComponentTy
     state: QueryState<TComponents>,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<TComponents>> {
-    return iterateResolvedQuery(
-        context,
-        context.planRuntime.resolveQueryStateCache(state),
-        changeDetection
-    );
+    return iterateResolvedQuery(context, resolveQueryStateCache(context.planRuntime, state), changeDetection);
 }
 
 export function queryOptionalWithState<
@@ -88,7 +86,7 @@ export function queryOptionalWithState<
 ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
     return iterateResolvedOptionalQuery(
         context,
-        context.planRuntime.resolveOptionalQueryStateCache(state),
+        resolveOptionalQueryStateCache(context.planRuntime, state),
         changeDetection
     );
 }
@@ -98,7 +96,7 @@ export function matchesAnyWithState<const TComponents extends readonly AnyCompon
     state: QueryState<TComponents>,
     changeDetection: ChangeDetectionRange
 ): boolean {
-    const plan = context.planRuntime.resolveQueryStateCache(state);
+    const plan = resolveQueryStateCache(context.planRuntime, state);
 
     if (plan === undefined) {
         return false;
@@ -112,7 +110,7 @@ export function matchesSingleWithState<const TComponents extends readonly AnyCom
     state: QueryState<TComponents>,
     changeDetection: ChangeDetectionRange
 ): boolean {
-    const plan = context.planRuntime.resolveQueryStateCache(state);
+    const plan = resolveQueryStateCache(context.planRuntime, state);
 
     if (plan === undefined) {
         return false;
@@ -129,7 +127,7 @@ export function matchesAnyOptionalWithState<
     state: OptionalQueryState<TRequiredComponents, TOptionalComponents>,
     changeDetection: ChangeDetectionRange
 ): boolean {
-    const plan = context.planRuntime.resolveOptionalQueryStateCache(state);
+    const plan = resolveOptionalQueryStateCache(context.planRuntime, state);
 
     if (plan === undefined) {
         return false;
@@ -146,7 +144,7 @@ export function matchesSingleOptionalWithState<
     state: OptionalQueryState<TRequiredComponents, TOptionalComponents>,
     changeDetection: ChangeDetectionRange
 ): boolean {
-    const plan = context.planRuntime.resolveOptionalQueryStateCache(state);
+    const plan = resolveOptionalQueryStateCache(context.planRuntime, state);
 
     if (plan === undefined) {
         return false;
@@ -164,7 +162,7 @@ export function each<const TComponents extends readonly AnyComponentType[]>(
 ): void {
     eachResolvedQuery(
         context,
-        context.planRuntime.resolveQueryPlan(types, filter),
+        resolveQueryPlan(context.planRuntime, types, filter),
         changeDetection,
         visitor
     );
@@ -183,7 +181,7 @@ export function eachOptional<
 ): void {
     eachResolvedOptionalQuery(
         context,
-        context.planRuntime.resolveOptionalQueryPlan(required, optional, filter),
+        resolveOptionalQueryPlan(context.planRuntime, required, optional, filter),
         changeDetection,
         visitor
     );
@@ -197,7 +195,7 @@ export function eachWithState<const TComponents extends readonly AnyComponentTyp
 ): void {
     eachResolvedQuery(
         context,
-        context.planRuntime.resolveQueryStateCache(state),
+        resolveQueryStateCache(context.planRuntime, state),
         changeDetection,
         visitor
     );
@@ -214,7 +212,7 @@ export function eachOptionalWithState<
 ): void {
     eachResolvedOptionalQuery(
         context,
-        context.planRuntime.resolveOptionalQueryStateCache(state),
+        resolveOptionalQueryStateCache(context.planRuntime, state),
         changeDetection,
         visitor
     );

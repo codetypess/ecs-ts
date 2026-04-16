@@ -44,7 +44,7 @@ import {
     updateMessages as updateStoredMessages,
     writeMessage as writeStoredMessage,
 } from "./internal/message-runtime";
-import { QueryPlanRuntime } from "./internal/query-plan-runtime";
+import { createQueryPlanRuntimeContext } from "./internal/query-plan-runtime";
 import {
     each as eachQuery,
     eachOptional as eachOptionalQuery,
@@ -165,7 +165,7 @@ export class World {
     private readonly eventContext = createEventRuntimeContext();
     private readonly messageContext = createMessageRuntimeContext();
     private readonly queryContext: QueryRuntimeContext = {
-        planRuntime: new QueryPlanRuntime({
+        planRuntime: createQueryPlanRuntimeContext({
             stores: this.componentStoreContext.stores,
             getStoreVersion: () => this.componentStoreContext.storeVersion,
         }),
