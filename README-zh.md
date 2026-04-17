@@ -6,7 +6,7 @@ English README: [README.md](README.md).
 
 - Entity 是数字形式的 `index + generation` 句柄，因此旧实体 ID 不会误命中新复用的实体。
 - Component 通过 `createRegistry(...)` 创建的 registry 注册；marker component 默认使用 `{}` payload，并可通过 `withMarker(...)` 添加；component value 不能包含 `null` 或 `undefined`。
-- 每个 `World` / `App` 都绑定到单一 registry，误用其它 registry 的 component 会立刻抛错。
+- 每个 `World` 都绑定到单一 registry，误用其它 registry 的 component 会立刻抛错。
 - Bundle 用来把多个 component entry 组合起来，供 spawn、insert、remove 调用复用。
 - Component 存储使用 `SparseSet`：`get/has/add/remove` 接近 O(1)，迭代走 dense 数组，删除使用 swap-remove。
 - Query 会选择最小的组件存储作为基础循环，再按 entity 检查其它组件存储。
@@ -20,7 +20,6 @@ English README: [README.md](README.md).
 - Component 可以声明 required components，在组件缺失时自动插入依赖组件。
 - Resource 支持 per-system 的 added/changed 检测。
 - System 可以使用 `Commands` 做延迟结构修改。
-- `App` 和 `Plugin` 在 `World` 之上提供了轻量的模块化注册层。
 - Component 支持 lifecycle hooks：`onAdd`、`onInsert`、`onReplace`、`onRemove` 和 `onDespawn`。
 - System 是带生命周期方法的 object/class，例如 `onPreStartup`、`onStartup`、`onPostStartup`、`onFixedUpdate`、`onUpdate`、`onPostUpdate` 和 `onShutdown`。
 - System 支持 label、system set、按 stage 配置 set、`before`/`after` 排序、可组合的 `runIf` 条件以及 fixed update 阶段。
@@ -109,6 +108,5 @@ npm run benchmark:compare -- --baseline /tmp/ecs-baseline.json --current /tmp/ec
 ## 后续可做
 
 - Scheduler 增强：增加更直接的 scheduler 单元测试和更丰富的诊断信息。
-- App / Plugin：增加 plugin 依赖、plugin 排序以及更丰富的 app 生命周期钩子。
 - 测试和 benchmark：继续扩展边界场景覆盖，并增加更稳定的 benchmark 基线。
 - 存储策略扩展：当前是 SparseSet；后续可以探索 Archetype/Table 存储或混合存储，用于优化多组件 query。

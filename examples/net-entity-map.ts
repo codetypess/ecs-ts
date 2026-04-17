@@ -1,8 +1,6 @@
 import {
-    App,
     Commands,
     Entity,
-    Plugin,
     World,
     createRegistry,
     defineResource,
@@ -105,25 +103,23 @@ class PrintLogSystem {
     }
 }
 
-class NetReplicationPlugin implements Plugin {
-    build(app: App): void {
-        app.setResource(NetEntities, new NetEntityMap());
-        app.setResource(Log, []);
-        app.setResource(SnapshotFrames, [
-            [
-                { id: 1001, x: 10, y: 20, hp: 100 },
-                { id: 1002, x: 30, y: 40, hp: 50 },
-            ],
-            [{ id: 1001, x: 12, y: 20, hp: 90 }],
-        ]);
-        app.addSystem(new NetSyncSystem(), { set: "net" });
-        app.addSystem(new PrintLogSystem());
-    }
+function setupNetReplication(world: World): void {
+    world.setResource(NetEntities, new NetEntityMap());
+    world.setResource(Log, []);
+    world.setResource(SnapshotFrames, [
+        [
+            { id: 1001, x: 10, y: 20, hp: 100 },
+            { id: 1002, x: 30, y: 40, hp: 50 },
+        ],
+        [{ id: 1001, x: 12, y: 20, hp: 90 }],
+    ]);
+    world.addSystem(new NetSyncSystem(), { set: "net" });
+    world.addSystem(new PrintLogSystem());
 }
 
-const app = new App(registry);
+const world = new World(registry);
 
-app.configureSet("net", { runIf: () => true });
-app.addPlugin(new NetReplicationPlugin());
-app.update(0);
-app.update(0);
+world.configureSet("net", { runIf: () => true });
+setupNetReplication(world);
+world.update(0);
+world.update(0);

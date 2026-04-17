@@ -15,11 +15,9 @@
 
 ## Open Performance And Design Follow-Ups
 
-- [ ] 压缩 App 的代理层：src/app.ts 大部分代码只是转发到 world。如果目标是简化实现，App 可以只保留 plugin 安装和生命周期入口，其他高级 API 直接让调用方走
-      app.world。这样能少维护一套几乎等价的表面 API。
 - [ ] 命令队列改成结构化命令，而不是 closure 队列：src/commands.ts 每个命令都会生成一个闭包，runSystemWithCommands() 还会为每次系统执行新建
       Commands。这次已经补了 benchmark，但暂时还没有拿到足够确定的收益证据，因此先保留现状，后续再评估 {kind, payload} 的紧凑命令缓冲区是否值得。
 - [ ] 把 scheduler 再按职责拆一下：src/scheduler.ts 里既有 stage 定义，也有 set 配置、排序、拓扑检测；src/internal/schedule-engine.ts
       才是运行时。把“声明/类型”和“排序/依赖解析”再拆开，scheduler 这块会明显更好读，也更容易单测。
 
-如果只按收益/风险比排优先级：先做 App / scheduler 的职责压缩，最后继续用 benchmark 决定命令队列是否值得结构化。
+如果只按收益/风险比排优先级：先做 scheduler 的职责压缩，最后继续用 benchmark 决定命令队列是否值得结构化。

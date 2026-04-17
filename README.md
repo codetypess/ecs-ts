@@ -6,7 +6,7 @@ A small TypeScript ECS prototype based on the design discussion:
 
 - Entities are numeric `index + generation` handles, so stale entity IDs do not accidentally hit recycled entities.
 - Components are owned by a `createRegistry(...)` schema; marker components default to `{}` payloads and can use `withMarker(...)`, and component values cannot include `null` or `undefined`.
-- Each `World` / `App` is bound to one registry, and using components from a different registry throws immediately.
+- Each `World` is bound to one registry, and using components from a different registry throws immediately.
 - Bundles group multiple component entries for spawn/insert/remove calls.
 - Component storage uses `SparseSet`: O(1)-ish `get/has/add/remove`, dense iteration, and swap-remove deletion.
 - Queries choose the smallest component store as the base loop, then check other component stores by entity.
@@ -20,7 +20,6 @@ A small TypeScript ECS prototype based on the design discussion:
 - Components can declare required components that are inserted automatically when missing.
 - Resources support per-system added/changed detection.
 - Systems can use `Commands` for deferred structural edits.
-- `App` and `Plugin` provide a lightweight module layer above `World`.
 - Components support lifecycle hooks: `onAdd`, `onInsert`, `onReplace`, `onRemove`, and `onDespawn`.
 - Systems are lifecycle objects/classes with methods such as `onPreStartup`, `onStartup`, `onPostStartup`, `onFixedUpdate`, `onUpdate`, `onPostUpdate`, and `onShutdown`.
 - Systems can use labels, system sets, stage-specific set config, `before`/`after` ordering, composable `runIf` predicates, and a fixed update stage.
@@ -109,6 +108,5 @@ Tests use Node's built-in `node:test` runner through `tsx`. `npm run examples:ch
 ## Future Work
 
 - Scheduler improvements: add more direct scheduler unit tests and richer diagnostics.
-- App / Plugin: add plugin dependencies, plugin ordering, and richer app lifecycle hooks.
 - Tests and benchmarks: expand coverage for edge cases and add more stable benchmark baselines.
 - Storage strategy experiments: keep SparseSet as the current baseline, then explore Archetype/Table or hybrid storage for faster multi-component queries.
