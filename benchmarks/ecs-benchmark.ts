@@ -76,6 +76,11 @@ interface BenchmarkOptions {
     readonly only: readonly string[];
 }
 
+interface PreparedBenchmark<TState> {
+    readonly setup: () => TState;
+    readonly run: (state: TState) => number;
+}
+
 const DEFAULT_BENCHMARK_CONFIG: BenchmarkConfig = {
     entityCount: 50_000,
     queryLoops: 20,
@@ -131,6 +136,44 @@ function measure(name: string, run: () => number): BenchmarkResult {
     for (let sample = 0; sample < SAMPLE_ROUNDS; sample++) {
         const start = globalThis.performance.now();
         const currentOperations = run();
+        const elapsedMs = globalThis.performance.now() - start;
+
+        samples.push(elapsedMs);
+        operations = currentOperations;
+    }
+
+    const minMs = Math.min(...samples);
+    const maxMs = Math.max(...samples);
+    const medianMs = median(samples);
+    const opsPerSecond = operations / (medianMs / 1000);
+
+    return {
+        name,
+        operations,
+        samplesMs: Object.freeze([...samples]),
+        minMs,
+        medianMs,
+        maxMs,
+        opsPerSecond,
+    };
+}
+
+function measurePrepared<TState>(
+    name: string,
+    setup: () => TState,
+    run: (state: TState) => number
+): BenchmarkResult {
+    for (let warmup = 0; warmup < WARMUP_ROUNDS; warmup++) {
+        run(setup());
+    }
+
+    const samples: number[] = [];
+    let operations = 0;
+
+    for (let sample = 0; sample < SAMPLE_ROUNDS; sample++) {
+        const state = setup();
+        const start = globalThis.performance.now();
+        const currentOperations = run(state);
         const elapsedMs = globalThis.performance.now() - start;
 
         samples.push(elapsedMs);
@@ -422,6 +465,18 @@ function pushBenchmark(results: BenchmarkResult[], name: string, run: () => numb
     results.push(measure(name, run));
 }
 
+function pushPreparedBenchmark<TState>(
+    results: BenchmarkResult[],
+    name: string,
+    benchmark: PreparedBenchmark<TState>
+): void {
+    if (!shouldRunBenchmark(name)) {
+        return;
+    }
+
+    results.push(measurePrepared(name, benchmark.setup, benchmark.run));
+}
+
 function resolveConfig(profile: string): BenchmarkConfig {
     if (profile === "default") {
         return DEFAULT_BENCHMARK_CONFIG;
@@ -440,11 +495,7 @@ function printUsage(): void {
     );
 }
 
-const movement = createMovementWorld(ENTITY_COUNT);
 const movingQuery = queryState([Position, Velocity]);
-const removedReaderWorld = createRemovedReaderWorld(EVENT_COUNT);
-const removedSteadyStateWorld = createRemovedSteadyStateWorld();
-const skewedQueryStateWorld = createSkewedQueryStateWorld(ENTITY_COUNT);
 const results: BenchmarkResult[] = [];
 
 pushBenchmark(results, "spawn position+velocity", () => {
@@ -454,207 +505,252 @@ pushBenchmark(results, "spawn position+velocity", () => {
     return ENTITY_COUNT;
 });
 
-pushBenchmark(results, "direct get(Position)", () => {
-    let operations = 0;
+pushPreparedBenchmark(results, "direct get(Position)", {
+    setup: () => createMovementWorld(ENTITY_COUNT),
+    run: (movement) => {
+        let operations = 0;
 
-    for (let loop = 0; loop < DIRECT_GET_LOOPS; loop++) {
-        for (const entity of movement.entities) {
-            checksum += movement.world.get(entity, Position)?.x ?? 0;
-            operations++;
+        for (let loop = 0; loop < DIRECT_GET_LOOPS; loop++) {
+            for (const entity of movement.entities) {
+                checksum += movement.world.get(entity, Position)?.x ?? 0;
+                operations++;
+            }
         }
-    }
 
-    return operations;
+        return operations;
+    },
 });
 
-pushBenchmark(results, "query Position+Velocity", () => {
-    let operations = 0;
+pushPreparedBenchmark(results, "query Position+Velocity", {
+    setup: () => createMovementWorld(ENTITY_COUNT),
+    run: (movement) => {
+        let operations = 0;
 
-    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-        for (const [, position, velocity] of movement.world.query(Position, Velocity)) {
-            position.x += velocity.x * 0.001;
-            checksum += position.y;
-            operations++;
+        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+            for (const [, position, velocity] of movement.world.query(Position, Velocity)) {
+                position.x += velocity.x * 0.001;
+                checksum += position.y;
+                operations++;
+            }
         }
-    }
 
-    return operations;
+        return operations;
+    },
 });
 
-pushBenchmark(results, "queryState.iter Position+Velocity", () => {
-    let operations = 0;
+pushPreparedBenchmark(results, "queryState.iter Position+Velocity", {
+    setup: () => createMovementWorld(ENTITY_COUNT),
+    run: (movement) => {
+        let operations = 0;
 
-    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-        for (const [, position, velocity] of movingQuery.iter(movement.world)) {
-            position.x += velocity.x * 0.001;
-            checksum += position.y;
-            operations++;
+        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+            for (const [, position, velocity] of movingQuery.iter(movement.world)) {
+                position.x += velocity.x * 0.001;
+                checksum += position.y;
+                operations++;
+            }
         }
-    }
 
-    return operations;
+        return operations;
+    },
 });
 
-pushBenchmark(results, "queryState.each Position+Velocity", () => {
-    let operations = 0;
+pushPreparedBenchmark(results, "queryState.each Position+Velocity", {
+    setup: () => createMovementWorld(ENTITY_COUNT),
+    run: (movement) => {
+        let operations = 0;
 
-    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-        movingQuery.each(movement.world, (entity, position, velocity) => {
-            position.x += velocity.x * 0.001;
-            checksum += position.y + (entity % 2);
-            operations++;
-        });
-    }
-
-    return operations;
-});
-
-pushBenchmark(results, "queryState.each after base-store skew", () => {
-    let operations = 0;
-
-    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-        skewedQueryStateWorld.query.each(
-            skewedQueryStateWorld.world,
-            (entity, position, velocity) => {
+        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+            movingQuery.each(movement.world, (entity, position, velocity) => {
                 position.x += velocity.x * 0.001;
                 checksum += position.y + (entity % 2);
                 operations++;
-            }
-        );
-    }
-
-    return operations;
-});
-
-pushBenchmark(results, "filtered query Player not Sleeping", () => {
-    let operations = 0;
-
-    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-        for (const [, position] of movement.world.queryWhere([Position], {
-            with: [Player],
-            without: [Sleeping],
-        })) {
-            checksum += position.x;
-            operations++;
+            });
         }
-    }
 
-    return operations;
+        return operations;
+    },
 });
 
-pushBenchmark(results, "optional query Velocity", () => {
-    let operations = 0;
+pushPreparedBenchmark(results, "queryState.each after base-store skew", {
+    setup: () => createSkewedQueryStateWorld(ENTITY_COUNT),
+    run: (skewedQueryStateWorld) => {
+        let operations = 0;
 
-    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-        for (const [, position, velocity] of movement.world.queryOptional([Position], [Velocity], {
-            without: [Sleeping],
-        })) {
-            checksum += position.x + (velocity?.x ?? 0);
-            operations++;
-        }
-    }
-
-    return operations;
-});
-
-pushBenchmark(results, "message write+read", () => {
-    const world = new World(registry);
-    const target = world.spawn(withComponent(Health, { value: 100 }));
-    const reader = messageReader(DamageMessage);
-
-    world.addMessage(DamageMessage);
-
-    for (let index = 0; index < EVENT_COUNT; index++) {
-        world.writeMessage(DamageMessage, { target, amount: 1 });
-    }
-
-    checksum += reader.read(world).length;
-
-    return EVENT_COUNT;
-});
-
-pushBenchmark(results, "removed reader empty read", () => {
-    let operations = 0;
-
-    for (let index = 0; index < DIRECT_GET_LOOPS * 10; index++) {
-        checksum += removedReaderWorld.reader.read().length;
-        operations++;
-    }
-
-    return operations;
-});
-
-pushBenchmark(results, "removed reader steady-state remove+read", () => {
-    let operations = 0;
-
-    for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-        for (let index = 0; index < ENTITY_COUNT; index++) {
-            const entity = removedSteadyStateWorld.world.spawn(
-                withComponent(Health, { value: index + loop })
+        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+            skewedQueryStateWorld.query.each(
+                skewedQueryStateWorld.world,
+                (entity, position, velocity) => {
+                    position.x += velocity.x * 0.001;
+                    checksum += position.y + (entity % 2);
+                    operations++;
+                }
             );
+        }
 
-            removedSteadyStateWorld.world.remove(entity, Health);
-            checksum += removedSteadyStateWorld.reader.read().length;
+        return operations;
+    },
+});
+
+pushPreparedBenchmark(results, "filtered query Player not Sleeping", {
+    setup: () => createMovementWorld(ENTITY_COUNT),
+    run: (movement) => {
+        let operations = 0;
+
+        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+            for (const [, position] of movement.world.queryWhere([Position], {
+                with: [Player],
+                without: [Sleeping],
+            })) {
+                checksum += position.x;
+                operations++;
+            }
+        }
+
+        return operations;
+    },
+});
+
+pushPreparedBenchmark(results, "optional query Velocity", {
+    setup: () => createMovementWorld(ENTITY_COUNT),
+    run: (movement) => {
+        let operations = 0;
+
+        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+            for (const [, position, velocity] of movement.world.queryOptional(
+                [Position],
+                [Velocity],
+                {
+                    without: [Sleeping],
+                }
+            )) {
+                checksum += position.x + (velocity?.x ?? 0);
+                operations++;
+            }
+        }
+
+        return operations;
+    },
+});
+
+pushPreparedBenchmark(results, "message write+read", {
+    setup: () => {
+        const world = new World(registry);
+        const target = world.spawn(withComponent(Health, { value: 100 }));
+        const reader = messageReader(DamageMessage);
+
+        world.addMessage(DamageMessage);
+
+        return { world, target, reader };
+    },
+    run: ({ world, target, reader }) => {
+        for (let index = 0; index < EVENT_COUNT; index++) {
+            world.writeMessage(DamageMessage, { target, amount: 1 });
+        }
+
+        checksum += reader.read(world).length;
+
+        return EVENT_COUNT;
+    },
+});
+
+pushPreparedBenchmark(results, "removed reader empty read", {
+    setup: () => createRemovedReaderWorld(EVENT_COUNT),
+    run: (removedReaderWorld) => {
+        let operations = 0;
+
+        for (let index = 0; index < DIRECT_GET_LOOPS * 10; index++) {
+            checksum += removedReaderWorld.reader.read().length;
             operations++;
         }
-    }
 
-    return operations;
+        return operations;
+    },
 });
 
-pushBenchmark(results, "observer trigger", () => {
-    const world = new World(registry);
-    const target = world.spawn(withComponent(Health, { value: 100 }));
+pushPreparedBenchmark(results, "removed reader steady-state remove+read", {
+    setup: () => createRemovedSteadyStateWorld(),
+    run: (removedSteadyStateWorld) => {
+        let operations = 0;
 
-    world.observe(DamageEvent, (damage, currentWorld) => {
-        checksum += currentWorld.mustGet(damage.target, Health).value;
-    });
+        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
+            for (let index = 0; index < ENTITY_COUNT; index++) {
+                const entity = removedSteadyStateWorld.world.spawn(
+                    withComponent(Health, { value: index + loop })
+                );
 
-    for (let index = 0; index < EVENT_COUNT; index++) {
-        world.trigger(DamageEvent, { target, amount: 1 });
-    }
+                removedSteadyStateWorld.world.remove(entity, Health);
+                checksum += removedSteadyStateWorld.reader.read().length;
+                operations++;
+            }
+        }
 
-    return EVENT_COUNT;
+        return operations;
+    },
 });
 
-pushBenchmark(results, "scheduler runIf composed (pass)", () => {
-    const world = createSchedulerWorld(true);
+pushPreparedBenchmark(results, "observer trigger", {
+    setup: () => {
+        const world = new World(registry);
+        const target = world.spawn(withComponent(Health, { value: 100 }));
 
-    for (let index = 0; index < SCHEDULER_UPDATES; index++) {
-        world.update(0);
-    }
+        world.observe(DamageEvent, (damage, currentWorld) => {
+            checksum += currentWorld.mustGet(damage.target, Health).value;
+        });
 
-    return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+        return { world, target };
+    },
+    run: ({ world, target }) => {
+        for (let index = 0; index < EVENT_COUNT; index++) {
+            world.trigger(DamageEvent, { target, amount: 1 });
+        }
+
+        return EVENT_COUNT;
+    },
 });
 
-pushBenchmark(results, "scheduler runIf composed (skip)", () => {
-    const world = createSchedulerWorld(false);
+pushPreparedBenchmark(results, "scheduler runIf composed (pass)", {
+    setup: () => createSchedulerWorld(true),
+    run: (world) => {
+        for (let index = 0; index < SCHEDULER_UPDATES; index++) {
+            world.update(0);
+        }
 
-    for (let index = 0; index < SCHEDULER_UPDATES; index++) {
-        world.update(0);
-    }
-
-    return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+        return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+    },
 });
 
-pushBenchmark(results, "scheduler runIf anyMatch query (pass)", () => {
-    const world = createQueryRunIfSchedulerWorld(true);
+pushPreparedBenchmark(results, "scheduler runIf composed (skip)", {
+    setup: () => createSchedulerWorld(false),
+    run: (world) => {
+        for (let index = 0; index < SCHEDULER_UPDATES; index++) {
+            world.update(0);
+        }
 
-    for (let index = 0; index < SCHEDULER_UPDATES; index++) {
-        world.update(0);
-    }
-
-    return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+        return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+    },
 });
 
-pushBenchmark(results, "scheduler runIf anyMatch query (skip)", () => {
-    const world = createQueryRunIfSchedulerWorld(false);
+pushPreparedBenchmark(results, "scheduler runIf anyMatch query (pass)", {
+    setup: () => createQueryRunIfSchedulerWorld(true),
+    run: (world) => {
+        for (let index = 0; index < SCHEDULER_UPDATES; index++) {
+            world.update(0);
+        }
 
-    for (let index = 0; index < SCHEDULER_UPDATES; index++) {
-        world.update(0);
-    }
+        return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+    },
+});
 
-    return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+pushPreparedBenchmark(results, "scheduler runIf anyMatch query (skip)", {
+    setup: () => createQueryRunIfSchedulerWorld(false),
+    run: (world) => {
+        for (let index = 0; index < SCHEDULER_UPDATES; index++) {
+            world.update(0);
+        }
+
+        return SCHEDULER_UPDATES * SCHEDULER_SYSTEMS;
+    },
 });
 
 if (results.length === 0) {
