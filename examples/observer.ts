@@ -2,13 +2,14 @@ import {
     Commands,
     Entity,
     World,
-    defineComponent,
+    createRegistry,
     defineEvent,
     formatEntity,
     withComponent,
 } from "../src";
 
-const Health = defineComponent<{ value: number }>("Health");
+const registry = createRegistry("example-observer");
+const Health = registry.defineComponent<{ value: number }>("Health");
 const Damage = defineEvent<{ target: Entity; amount: number }>("Damage");
 const Died = defineEvent<{ entity: Entity }>("Died");
 
@@ -20,7 +21,7 @@ class AttackSystem {
     }
 }
 
-const world = new World();
+const world = new World(registry);
 const enemy = world.spawn(withComponent(Health, { value: 15 }));
 
 world.observe(Damage, (damage, currentWorld, commands) => {

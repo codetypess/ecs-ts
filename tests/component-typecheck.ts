@@ -1,22 +1,24 @@
 import {
     World,
-    defineComponent,
+    createRegistry,
     requireComponent,
     withComponent,
     withMarker,
     type ComponentData,
 } from "../src";
 
+const registry = createRegistry("component-typecheck");
+
 function expectType<T>(value: T): void {
     void value;
 }
 
-const Marker = defineComponent("ComponentTypecheckDefaultMarker");
-const RequiredValue = defineComponent<number>("ComponentTypecheckRequiredValue");
-const MarkerWithRequired = defineComponent("ComponentTypecheckMarkerWithRequired", {
+const Marker = registry.defineComponent("ComponentTypecheckDefaultMarker");
+const RequiredValue = registry.defineComponent<number>("ComponentTypecheckRequiredValue");
+const MarkerWithRequired = registry.defineComponent("ComponentTypecheckMarkerWithRequired", {
     require: [requireComponent(RequiredValue, () => 1)],
 });
-const Value = defineComponent<{ value: number }>("ComponentTypecheckValue");
+const Value = registry.defineComponent<{ value: number }>("ComponentTypecheckValue");
 
 expectType<Record<string, never>>({} satisfies ComponentData<typeof Marker>);
 expectType<Record<string, never>>({} satisfies ComponentData<typeof MarkerWithRequired>);
@@ -39,7 +41,7 @@ withComponent(Value, {});
 // @ts-expect-error value components are not markers
 withMarker(Value);
 
-const world = new World();
+const world = new World(registry);
 const entity = world.spawn(withMarker(Marker), withComponent(Value, { value: 1 }));
 
 for (const [matched, marker, value] of world.query(Marker, Value)) {
@@ -53,7 +55,7 @@ expectType<readonly [Record<string, never>, { value: number }] | undefined>(
 );
 
 // @ts-expect-error component values cannot be null
-defineComponent<null>("ComponentTypecheckInvalidNull");
+registry.defineComponent<null>("ComponentTypecheckInvalidNull");
 
 // @ts-expect-error component values cannot include undefined
-defineComponent<string | undefined>("ComponentTypecheckInvalid");
+registry.defineComponent<string | undefined>("ComponentTypecheckInvalid");

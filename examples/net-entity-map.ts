@@ -4,11 +4,13 @@ import {
     Entity,
     Plugin,
     World,
-    defineComponent,
+    createRegistry,
     defineResource,
     formatEntity,
     withComponent,
 } from "../src";
+
+const registry = createRegistry("example-net-entity-map");
 
 interface UnitSnapshot {
     readonly id: number;
@@ -37,9 +39,9 @@ class NetEntityMap {
     }
 }
 
-const Unit = defineComponent<{ serverId: number }>("Unit");
-const Position = defineComponent<{ x: number; y: number }>("Position");
-const Health = defineComponent<{ value: number }>("Health");
+const Unit = registry.defineComponent<{ serverId: number }>("Unit");
+const Position = registry.defineComponent<{ x: number; y: number }>("Position");
+const Health = registry.defineComponent<{ value: number }>("Health");
 
 const NetEntities = defineResource<NetEntityMap>("NetEntities");
 const SnapshotFrames = defineResource<UnitSnapshot[][]>("SnapshotFrames");
@@ -119,7 +121,7 @@ class NetReplicationPlugin implements Plugin {
     }
 }
 
-const app = new App();
+const app = new App(registry);
 
 app.configureSet("net", { runIf: () => true });
 app.addPlugin(new NetReplicationPlugin());

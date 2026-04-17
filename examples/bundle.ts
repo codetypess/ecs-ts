@@ -1,19 +1,20 @@
 import {
     World,
     bundle,
-    defineComponent,
+    createRegistry,
     formatEntity,
     requireComponent,
     withComponent,
     withMarker,
 } from "../src";
 
-const Position = defineComponent<{ x: number; y: number }>("Position");
-const Velocity = defineComponent<{ x: number; y: number }>("Velocity", {
+const registry = createRegistry("example-bundle");
+const Position = registry.defineComponent<{ x: number; y: number }>("Position");
+const Velocity = registry.defineComponent<{ x: number; y: number }>("Velocity", {
     require: [requireComponent(Position, () => ({ x: 0, y: 0 }))],
 });
-const Health = defineComponent<{ value: number }>("Health");
-const Player = defineComponent("Player");
+const Health = registry.defineComponent<{ value: number }>("Health");
+const Player = registry.defineComponent("Player");
 
 function playerBundle(x: number, y: number) {
     return bundle(
@@ -24,7 +25,7 @@ function playerBundle(x: number, y: number) {
     );
 }
 
-const world = new World();
+const world = new World(registry);
 const player = world.spawnBundle(playerBundle(10, 20));
 
 world.each([Position, Velocity, Health, Player], (entity, position, velocity, health) => {

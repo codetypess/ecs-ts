@@ -4,7 +4,7 @@ import {
     Entity,
     World,
     anyMatch,
-    defineComponent,
+    createRegistry,
     defineEvent,
     defineResource,
     defineState,
@@ -24,6 +24,8 @@ import {
     withMarker,
 } from "../src";
 
+const registry = createRegistry("scheduler-observer-test");
+
 test("scheduler runs fixed update, ordering, and runIf", () => {
     const calls: string[] = [];
 
@@ -41,7 +43,7 @@ test("scheduler runs fixed update, ordering, and runIf", () => {
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.setFixedTimeStep(0.5);
     world.addSystem(new FixedStepSystem());
@@ -66,7 +68,7 @@ test("scheduler rejects cyclic ordering inside a stage", () => {
         onUpdate(): void {}
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.addSystem(new NamedSystem(), { label: "a", after: ["b"] });
     world.addSystem(new NamedSystem(), { label: "b", after: ["a"] });
@@ -87,7 +89,7 @@ test("scheduler supports set run conditions and ordering", () => {
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.configureSet("gameplay", {
         after: ["input"],
@@ -148,7 +150,7 @@ test("scheduler supports stage-specific set ordering", () => {
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.configureSet("gameplay", { before: ["late"] });
     world.configureSetForStage("startup", "gameplay", { after: ["boot"] });
@@ -183,7 +185,7 @@ test("scheduler stage-specific set runIf only affects that stage", () => {
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.configureSet("conditional", { runIf: () => true });
     world.configureSetForStage("startup", "conditional", { runIf: () => false });
@@ -206,7 +208,7 @@ test("scheduler applies stage-specific set ordering in fixedUpdate", () => {
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.setFixedTimeStep(0.5);
     world.configureSetForStage("fixedUpdate", "physics", {
@@ -240,7 +242,7 @@ test("scheduler applies stage-specific set ordering in shutdown", () => {
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.configureSetForStage("shutdown", "cleanup", { after: ["save"] });
     world.addSystem(new NamedSystem("cleanup"), { set: "cleanup" });
@@ -263,7 +265,7 @@ test("scheduler combines multiple sets for ordering and runIf", () => {
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.setResource(Gate, { enabled: false });
     world.configureSet("gameplay", { after: ["input"] });
@@ -288,10 +290,10 @@ test("scheduler combines multiple sets for ordering and runIf", () => {
 });
 
 test("scheduler supports query-backed runIf helpers", () => {
-    const Position = defineComponent<{ x: number; y: number }>("RunIfQueryPosition");
-    const Velocity = defineComponent<{ x: number; y: number }>("RunIfQueryVelocity");
-    const Player = defineComponent("RunIfQueryPlayer");
-    const Sleeping = defineComponent("RunIfQuerySleeping");
+    const Position = registry.defineComponent<{ x: number; y: number }>("RunIfQueryPosition");
+    const Velocity = registry.defineComponent<{ x: number; y: number }>("RunIfQueryVelocity");
+    const Player = registry.defineComponent("RunIfQueryPlayer");
+    const Sleeping = registry.defineComponent("RunIfQuerySleeping");
     const moving = queryState([Position, Velocity], { without: [Sleeping] });
     const players = queryState([Player]);
     const calls: string[] = [];
@@ -304,7 +306,7 @@ test("scheduler supports query-backed runIf helpers", () => {
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.addSystem(new NamedSystem("move"), {
         runIf: anyMatch(moving),
@@ -354,7 +356,7 @@ test("scheduler invalidates sort cache when ordered systems are added later", ()
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.addSystem(new NamedSystem("A"), { label: "a" });
     world.addSystem(new NamedSystem("C"), { label: "c", before: ["a"] });
@@ -380,7 +382,7 @@ test("scheduler invalidates stage-specific set ordering cache when reconfigured"
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.addSystem(new NamedSystem("input"), { label: "input" });
     world.addSystem(new NamedSystem("gameplay"), { set: "gameplay" });
@@ -409,7 +411,7 @@ test("scheduler composes runIf helpers for resources and state", () => {
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.setResource(Flags, { enabled: true, paused: false });
     world.initState(Mode);
@@ -470,7 +472,7 @@ test("scheduler runIf resource helpers respect per-system change detection", () 
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.addSystem(new SeedSystem(), { label: "seed" });
     world.addSystem(new NamedSystem("added"), {
@@ -494,7 +496,7 @@ test("scheduler rejects ambiguous system and set labels inside a stage", () => {
         onUpdate(): void {}
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.addSystem(new NamedSystem(), { label: "gameplay" });
     world.addSystem(new NamedSystem(), { set: "gameplay", after: ["gameplay"] });
@@ -505,10 +507,10 @@ test("scheduler rejects ambiguous system and set labels inside a stage", () => {
 });
 
 test("observers dispatch immediate events and can queue commands", () => {
-    const Health = defineComponent<{ value: number }>("ObserverHealth");
+    const Health = registry.defineComponent<{ value: number }>("ObserverHealth");
     const Damage = defineEvent<{ target: Entity; amount: number }>("ObserverDamage");
     const Died = defineEvent<{ entity: Entity }>("ObserverDied");
-    const world = new World();
+    const world = new World(registry);
     const enemy = world.spawn(withComponent(Health, { value: 10 }));
     const log: string[] = [];
 
@@ -537,7 +539,7 @@ test("observers dispatch immediate events and can queue commands", () => {
 
 test("observer unsubscribe removes the registered callback", () => {
     const Ping = defineEvent<number>("ObserverPing");
-    const world = new World();
+    const world = new World(registry);
     let count = 0;
     const unsubscribe = world.observe(Ping, (value) => {
         count += value;

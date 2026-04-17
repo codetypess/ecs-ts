@@ -3,12 +3,13 @@ import {
     Entity,
     RemovedReader,
     World,
-    defineComponent,
+    createRegistry,
     formatEntity,
     withComponent,
 } from "../src";
 
-const Position = defineComponent<{ x: number; y: number }>("Position");
+const registry = createRegistry("example-removed-reader");
+const Position = registry.defineComponent<{ x: number; y: number }>("Position");
 
 class RemovePositionSystem {
     private entity: Entity | undefined;
@@ -51,7 +52,7 @@ class RemovedCleanupSystem {
     }
 }
 
-const world = new World();
+const world = new World(registry);
 world.addSystem(new RemovePositionSystem());
 world.addSystem(new RemovedLogSystem(world.removedReader(Position)));
 world.addSystem(new RemovedCleanupSystem(world.removedReader(Position)));

@@ -1,6 +1,7 @@
-import { Commands, Entity, World, defineComponent, formatEntity, withComponent } from "../src";
+import { Commands, Entity, World, createRegistry, formatEntity, withComponent } from "../src";
 
-const Health = defineComponent<{ value: number }>("Health", {
+const registry = createRegistry("example-lifecycle");
+const Health = registry.defineComponent<{ value: number }>("Health", {
     onAdd(entity, health) {
         console.log(`component onAdd Health(${health.value}) -> ${formatEntity(entity)}`);
     },
@@ -64,7 +65,7 @@ class LifecycleDemoSystem {
     }
 }
 
-const world = new World();
+const world = new World(registry);
 
 world.addSystem(new LifecycleDemoSystem());
 

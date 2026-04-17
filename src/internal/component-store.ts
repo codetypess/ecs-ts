@@ -1,18 +1,18 @@
-import type { AnyComponentType, ComponentType } from "../component";
+import type { ComponentRegistry, ComponentType } from "../component";
 import { SparseSet } from "../sparse-set";
 
-/** Registry of component stores keyed by component id. */
+/** Registry of component stores keyed by registry-local component ids. */
 export interface ComponentStoreContext {
-    readonly stores: Map<number, SparseSet<unknown>>;
-    readonly componentTypes: Map<number, AnyComponentType>;
+    readonly registry: ComponentRegistry;
+    readonly stores: (SparseSet<unknown> | undefined)[];
     storeVersion: number;
 }
 
 /** Creates the component-store registry used by a world. */
-export function createComponentStoreContext(): ComponentStoreContext {
+export function createComponentStoreContext(registry: ComponentRegistry): ComponentStoreContext {
     return {
-        stores: new Map(),
-        componentTypes: new Map(),
+        registry,
+        stores: [],
         storeVersion: 0,
     };
 }
@@ -22,16 +22,14 @@ export function ensureComponentStore<T>(
     context: ComponentStoreContext,
     type: ComponentType<T>
 ): SparseSet<T> {
-    context.componentTypes.set(type.id, type);
-
-    const existing = context.stores.get(type.id);
+    const existing = context.stores[type.id];
 
     if (existing !== undefined) {
         return existing as SparseSet<T>;
     }
 
     const store = new SparseSet<T>();
-    context.stores.set(type.id, store as SparseSet<unknown>);
+    context.stores[type.id] = store as SparseSet<unknown>;
     context.storeVersion++;
 
     return store;
@@ -42,20 +40,23 @@ export function getComponentStore<T>(
     context: ComponentStoreContext,
     type: ComponentType<T>
 ): SparseSet<T> | undefined {
-    return context.stores.get(type.id) as SparseSet<T> | undefined;
+    return context.stores[type.id] as SparseSet<T> | undefined;
 }
 
 /** Looks up the runtime component metadata for a numeric component id. */
-export function getComponentType(
-    context: ComponentStoreContext,
-    componentId: number
-): AnyComponentType | undefined {
-    return context.componentTypes.get(componentId);
+export function getComponentType(context: ComponentStoreContext, componentId: number) {
+    return context.registry.componentType(componentId);
 }
 
 /** Iterates every registered component store. */
-export function getComponentStoreEntries(
+export function* getComponentStoreEntries(
     context: ComponentStoreContext
 ): IterableIterator<[number, SparseSet<unknown>]> {
-    return context.stores.entries();
+    for (let componentId = 0; componentId < context.stores.length; componentId++) {
+        const store = context.stores[componentId];
+
+        if (store !== undefined) {
+            yield [componentId, store];
+        }
+    }
 }

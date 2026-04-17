@@ -1,4 +1,6 @@
-import { Commands, Entity, World, defineComponent, defineResource, withComponent } from "../src";
+import { Commands, Entity, World, createRegistry, defineResource, withComponent } from "../src";
+
+const registry = createRegistry("example-ui-lifecycle");
 
 interface UiHandle {
     readonly id: number;
@@ -85,13 +87,13 @@ class UiRuntime {
 
 const UiRuntimeResource = defineResource<UiRuntime>("UiRuntime");
 
-const UiSource = defineComponent<UiSourceData>("UiSource");
-const UiLoading = defineComponent<UiLoadingData>("UiLoading", {
+const UiSource = registry.defineComponent<UiSourceData>("UiSource");
+const UiLoading = registry.defineComponent<UiLoadingData>("UiLoading", {
     onRemove(_entity, loading) {
         loading.abort.abort();
     },
 });
-const UiInstance = defineComponent<UiInstanceData>("UiInstance", {
+const UiInstance = registry.defineComponent<UiInstanceData>("UiInstance", {
     onRemove(_entity, instance, world) {
         world.resource(UiRuntimeResource).destroy(instance.handle);
     },
@@ -170,7 +172,7 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function main(): Promise<void> {
-    const world = new World();
+    const world = new World(registry);
     installUiLifecycle(world);
 
     const mainMenu = world.spawn(

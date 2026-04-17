@@ -5,14 +5,16 @@ import {
     Commands,
     Plugin,
     World,
-    defineComponent,
+    createRegistry,
     defineResource,
     defineState,
     withComponent,
 } from "../src";
 
+const registry = createRegistry("app-test");
+
 test("app plugins can register systems, resources, states, and drive updates", () => {
-    const Position = defineComponent<{ x: number; y: number }>("AppPosition");
+    const Position = registry.defineComponent<{ x: number; y: number }>("AppPosition");
     const Log = defineResource<string[]>("AppLog");
     const Mode = defineState<"boot" | "running">("AppMode", "boot");
 
@@ -52,7 +54,7 @@ test("app plugins can register systems, resources, states, and drive updates", (
         }
     }
 
-    const app = new App();
+    const app = new App(registry);
 
     app.addPlugin(new GameplayPlugin());
     app.update(0);
@@ -69,7 +71,7 @@ test("app only builds the same plugin instance once", () => {
             builds++;
         },
     };
-    const app = new App();
+    const app = new App(registry);
 
     app.addPlugin(plugin);
     app.addPlugin(plugin);

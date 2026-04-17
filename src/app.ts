@@ -5,6 +5,7 @@ import type { ScheduleStage, SystemOptions, SystemSetLabel, SystemSetOptions } f
 import type { StateType, StateValue } from "./state";
 import type { StateSystem, System, TransitionSystem } from "./system";
 import type { Commands } from "./commands";
+import type { ComponentRegistry } from "./component";
 import { World } from "./world";
 
 /** Small extension unit that can register systems, resources, and observers on an app. */
@@ -18,8 +19,16 @@ type AppSystemCallback = (world: World, dt: number, commands: Commands) => void;
 export class App {
     private readonly installedPlugins = new Set<Plugin>();
     readonly world: World;
+    readonly registry: ComponentRegistry;
 
-    constructor(world = new World()) {
+    constructor(registry: ComponentRegistry, world = new World(registry)) {
+        if (world.registry !== registry) {
+            throw new Error(
+                `App registry mismatch: world uses ${world.registry.name}, app uses ${registry.name}`
+            );
+        }
+
+        this.registry = registry;
         this.world = world;
     }
 

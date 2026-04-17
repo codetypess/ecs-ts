@@ -1,22 +1,23 @@
 import {
     World,
-    defineComponent,
+    createRegistry,
     formatEntity,
     requireComponent,
     withComponent,
     withMarker,
 } from "../src";
 
-const Transform = defineComponent<{ x: number; y: number }>("Transform");
-const Velocity = defineComponent<{ x: number; y: number }>("Velocity", {
+const registry = createRegistry("example-required-components");
+const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
+const Velocity = registry.defineComponent<{ x: number; y: number }>("Velocity", {
     require: [requireComponent(Transform, () => ({ x: 0, y: 0 }))],
 });
-const Mass = defineComponent<number>("Mass");
-const RigidBody = defineComponent("RigidBody", {
+const Mass = registry.defineComponent<number>("Mass");
+const RigidBody = registry.defineComponent("RigidBody", {
     require: [requireComponent(Mass, () => 1), requireComponent(Velocity, () => ({ x: 0, y: 0 }))],
 });
 
-const world = new World();
+const world = new World(registry);
 
 const defaultBody = world.spawn(withMarker(RigidBody));
 const customBody = world.spawn(

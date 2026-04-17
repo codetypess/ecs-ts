@@ -3,22 +3,24 @@ import { test } from "node:test";
 import {
     SparseSet,
     World,
-    defineComponent,
+    createRegistry,
     optionalQueryState,
     queryState,
     withComponent,
     withMarker,
 } from "../src";
 
+const registry = createRegistry("query-test");
+
 test("advanced query filters support or and optional components", () => {
-    const Position = defineComponent<{ x: number; y: number }>("QueryPosition");
-    const Velocity = defineComponent<{ x: number; y: number }>("QueryVelocity");
-    const Player = defineComponent("QueryPlayer");
-    const Npc = defineComponent("QueryNpc");
-    const Sleeping = defineComponent("QuerySleeping");
-    const Frozen = defineComponent("QueryFrozen");
-    const Name = defineComponent<{ value: string }>("QueryName");
-    const world = new World();
+    const Position = registry.defineComponent<{ x: number; y: number }>("QueryPosition");
+    const Velocity = registry.defineComponent<{ x: number; y: number }>("QueryVelocity");
+    const Player = registry.defineComponent("QueryPlayer");
+    const Npc = registry.defineComponent("QueryNpc");
+    const Sleeping = registry.defineComponent("QuerySleeping");
+    const Frozen = registry.defineComponent("QueryFrozen");
+    const Name = registry.defineComponent<{ value: string }>("QueryName");
+    const world = new World(registry);
 
     world.spawn(
         withComponent(Position, { x: 0, y: 0 }),
@@ -76,9 +78,9 @@ test("advanced query filters support or and optional components", () => {
 });
 
 test("single query helpers report none, one, and multiple matches", () => {
-    const Position = defineComponent<{ x: number; y: number }>("SinglePosition");
-    const Player = defineComponent("SinglePlayer");
-    const world = new World();
+    const Position = registry.defineComponent<{ x: number; y: number }>("SinglePosition");
+    const Player = registry.defineComponent("SinglePlayer");
+    const world = new World(registry);
 
     assert.equal(world.trySingle([Position]), undefined);
     assert.throws(() => world.single([Position]), /Expected exactly one query result/);
@@ -94,11 +96,11 @@ test("single query helpers report none, one, and multiple matches", () => {
 });
 
 test("query state caches resolved stores and invalidates when stores are created", () => {
-    const Position = defineComponent<{ x: number; y: number }>("QueryStatePosition");
-    const Velocity = defineComponent<{ x: number; y: number }>("QueryStateVelocity");
-    const Player = defineComponent("QueryStatePlayer");
-    const Sleeping = defineComponent("QueryStateSleeping");
-    const world = new World();
+    const Position = registry.defineComponent<{ x: number; y: number }>("QueryStatePosition");
+    const Velocity = registry.defineComponent<{ x: number; y: number }>("QueryStateVelocity");
+    const Player = registry.defineComponent("QueryStatePlayer");
+    const Sleeping = registry.defineComponent("QueryStateSleeping");
+    const world = new World(registry);
     const movingPlayers = queryState([Position, Velocity], {
         or: [Player],
         without: [Sleeping],
@@ -142,9 +144,9 @@ test("query state caches resolved stores and invalidates when stores are created
 });
 
 test("optional query state sees optional stores created after the cache was resolved", () => {
-    const Position = defineComponent<{ x: number; y: number }>("OptionalStatePosition");
-    const Name = defineComponent<{ value: string }>("OptionalStateName");
-    const world = new World();
+    const Position = registry.defineComponent<{ x: number; y: number }>("OptionalStatePosition");
+    const Name = registry.defineComponent<{ value: string }>("OptionalStateName");
+    const world = new World(registry);
     const namedPositions = optionalQueryState([Position], [Name]);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
 
@@ -170,15 +172,15 @@ test("optional query state sees optional stores created after the cache was reso
 });
 
 test("query state tracks structural filter changes through cached plans", () => {
-    const Position = defineComponent<{ x: number; y: number }>("SignatureStatePosition");
+    const Position = registry.defineComponent<{ x: number; y: number }>("SignatureStatePosition");
     const markers = Array.from({ length: 40 }, (_value, index) =>
-        defineComponent(`SignatureStateMarker${index}`)
+        registry.defineComponent(`SignatureStateMarker${index}`)
     );
     const Required = markers[35]!;
     const OrMatch = markers[36]!;
     const Banned = markers[37]!;
     const Excluded = markers[38]!;
-    const world = new World();
+    const world = new World(registry);
     const filtered = queryState([Position], {
         with: [Required],
         or: [OrMatch, Banned],
@@ -237,10 +239,10 @@ test("query state tracks structural filter changes through cached plans", () => 
 });
 
 test("query state refreshes the base store when store sizes skew after cache resolution", () => {
-    const Position = defineComponent<{ x: number; y: number }>("SkewedBasePosition");
-    const Velocity = defineComponent<{ x: number; y: number }>("SkewedBaseVelocity");
+    const Position = registry.defineComponent<{ x: number; y: number }>("SkewedBasePosition");
+    const Velocity = registry.defineComponent<{ x: number; y: number }>("SkewedBaseVelocity");
     const moving = queryState([Position, Velocity]);
-    const world = new World();
+    const world = new World(registry);
 
     for (let index = 0; index < 5; index++) {
         world.spawn(
@@ -261,11 +263,11 @@ test("query state refreshes the base store when store sizes skew after cache res
 
     const stores = (world as unknown as {
         readonly componentStoreContext: {
-            readonly stores: Map<number, SparseSet<unknown>>;
+            readonly stores: readonly (SparseSet<unknown> | undefined)[];
         };
     }).componentStoreContext.stores;
-    const positionStore = stores.get(Position.id);
-    const velocityStore = stores.get(Velocity.id);
+    const positionStore = stores[Position.id];
+    const velocityStore = stores[Velocity.id];
 
     assert.ok(positionStore !== undefined);
     assert.ok(velocityStore !== undefined);

@@ -2,7 +2,7 @@ import {
     Commands,
     Entity,
     World,
-    defineComponent,
+    createRegistry,
     defineMessage,
     formatEntity,
     messageReader,
@@ -10,8 +10,9 @@ import {
     withMarker,
 } from "../src";
 
-const Enemy = defineComponent("Enemy");
-const Health = defineComponent<{ value: number }>("Health");
+const registry = createRegistry("example-messages");
+const Enemy = registry.defineComponent("Enemy");
+const Health = registry.defineComponent<{ value: number }>("Health");
 const Damage = defineMessage<{ target: Entity; amount: number }>("Damage");
 
 class AttackSystem {
@@ -46,7 +47,7 @@ class DamageSystem {
     }
 }
 
-const world = new World();
+const world = new World(registry);
 world.addMessage(Damage);
 world.addSystem(new AttackSystem());
 world.addSystem(new DamageSystem());

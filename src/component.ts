@@ -1,8 +1,6 @@
 import type { Entity } from "./entity";
 import type { World } from "./world";
 
-let nextComponentId = 0;
-
 /** Callback used by component lifecycle hooks. */
 export type ComponentHook<T> = {
     bivarianceHack(entity: Entity, component: T, world: World): void;
@@ -35,6 +33,7 @@ export type ComponentLifecycleStage = keyof ComponentLifecycle<unknown>;
 export interface ComponentType<T> {
     readonly id: number;
     readonly name: string;
+    readonly registry: ComponentRegistry;
     readonly lifecycle: Readonly<ComponentLifecycle<T>>;
     readonly required: readonly RequiredComponent<unknown>[];
 }
@@ -53,6 +52,7 @@ export interface ComponentEntry<T> {
 /** Immutable group of component entries that can be reused across entity operations. */
 export interface Bundle {
     readonly entries: readonly ComponentEntry<unknown>[];
+    readonly registry: ComponentRegistry | undefined;
 }
 
 type DefineComponentArgs<T> = null extends T
@@ -62,28 +62,64 @@ type DefineComponentArgs<T> = null extends T
       : [name: string, options?: ComponentOptions<T>];
 
 /**
- * Defines a marker component whose payload is always `{}`.
+ * Registry that owns a set of component definitions for one ECS domain.
  */
-export function defineComponent(
-    name: string,
-    options?: ComponentOptions<Record<string, never>>
-): ComponentType<Record<string, never>>;
-/**
- * Defines a component type and freezes its runtime metadata.
- */
-export function defineComponent<T>(...args: DefineComponentArgs<T>): ComponentType<T>;
-export function defineComponent<T>(
-    name: string,
-    options: ComponentOptions<T> = {} as ComponentOptions<T>
-): ComponentType<T> {
-    const { require = [], ...lifecycle } = options;
+export class ComponentRegistry {
+    private nextComponentId = 0;
+    private readonly componentTypes: AnyComponentType[] = [];
 
-    return Object.freeze({
-        id: nextComponentId++,
-        name,
-        lifecycle: Object.freeze({ ...lifecycle }),
-        required: Object.freeze([...require]),
-    });
+    constructor(readonly name: string) {}
+
+    /** Defines a marker component whose payload is always `{}`. */
+    defineComponent(
+        name: string,
+        options?: ComponentOptions<Record<string, never>>
+    ): ComponentType<Record<string, never>>;
+
+    /** Defines a component type and freezes its runtime metadata. */
+    defineComponent<T>(...args: DefineComponentArgs<T>): ComponentType<T>;
+    defineComponent<T>(
+        name: string,
+        options: ComponentOptions<T> = {} as ComponentOptions<T>
+    ): ComponentType<T> {
+        const { require = [], ...lifecycle } = options;
+        const normalizedRequired = Object.freeze([...require]);
+
+        for (const dependency of normalizedRequired) {
+            if (!this.isRegistered(dependency.type)) {
+                throw new Error(
+                    `Component ${dependency.type.name} is not registered in ${this.name}`
+                );
+            }
+        }
+
+        const component = Object.freeze({
+            id: this.nextComponentId++,
+            name,
+            registry: this,
+            lifecycle: Object.freeze({ ...lifecycle }),
+            required: normalizedRequired,
+        }) satisfies ComponentType<T>;
+
+        this.componentTypes[component.id] = component;
+
+        return component;
+    }
+
+    /** Returns whether the component belongs to this registry. */
+    isRegistered(type: AnyComponentType): boolean {
+        return type.registry === this && this.componentTypes[type.id] === type;
+    }
+
+    /** Looks up the component registered for the numeric id. */
+    componentType(id: number): AnyComponentType | undefined {
+        return this.componentTypes[id];
+    }
+}
+
+/** Creates a component registry for one ECS domain. */
+export function createRegistry(name: string): ComponentRegistry {
+    return new ComponentRegistry(name);
 }
 
 /** Creates a component entry with runtime validation for spawn/insert helpers. */
@@ -104,8 +140,21 @@ export function withMarker<TComponent extends AnyComponentType>(
 
 /** Freezes a reusable bundle so callers can safely share it across spawn/insert calls. */
 export function bundle(...entries: ComponentEntry<unknown>[]): Bundle {
+    const registry = entries[0]?.type.registry;
+
+    if (registry !== undefined) {
+        for (const entry of entries) {
+            if (entry.type.registry !== registry) {
+                throw new Error(
+                    `Bundle entries must belong to one registry, got ${entry.type.registry.name} and ${registry.name}`
+                );
+            }
+        }
+    }
+
     return Object.freeze({
         entries: Object.freeze([...entries]),
+        registry,
     });
 }
 
@@ -118,5 +167,31 @@ export function requireComponent<T>(type: ComponentType<T>, create: () => T): Re
 export function assertComponentValue<T>(type: ComponentType<T>, value: T): void {
     if (value === null || value === undefined) {
         throw new TypeError(`Component ${type.name} value cannot be ${String(value)}`);
+    }
+}
+
+/** Throws unless the component belongs to the expected registry. */
+export function assertRegisteredComponent(
+    registry: ComponentRegistry,
+    type: AnyComponentType,
+    action: string
+): void {
+    if (type.registry === registry) {
+        return;
+    }
+
+    throw new Error(
+        `Cannot ${action} component ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
+    );
+}
+
+/** Throws unless every component belongs to the expected registry. */
+export function assertRegisteredComponents(
+    registry: ComponentRegistry,
+    types: readonly AnyComponentType[],
+    action: string
+): void {
+    for (const type of types) {
+        assertRegisteredComponent(registry, type, action);
     }
 }

@@ -3,16 +3,18 @@ import { test } from "node:test";
 import {
     World,
     bundle,
-    defineComponent,
+    createRegistry,
     formatEntity,
     requireComponent,
     withComponent,
     withMarker,
 } from "../src";
 
+const registry = createRegistry("world-test");
+
 test("entity generation prevents stale handles from reading recycled entities", () => {
-    const Position = defineComponent<{ x: number; y: number }>("TestPosition");
-    const world = new World();
+    const Position = registry.defineComponent<{ x: number; y: number }>("TestPosition");
+    const world = new World(registry);
 
     const first = world.spawn(withComponent(Position, { x: 1, y: 2 }));
 
@@ -28,10 +30,10 @@ test("entity generation prevents stale handles from reading recycled entities", 
 });
 
 test("bundles insert and remove reusable component groups", () => {
-    const Player = defineComponent("TestPlayer");
-    const Health = defineComponent<{ value: number }>("TestHealth");
+    const Player = registry.defineComponent("TestPlayer");
+    const Health = registry.defineComponent<{ value: number }>("TestHealth");
     const PlayerBundle = bundle(withMarker(Player), withComponent(Health, { value: 100 }));
-    const world = new World();
+    const world = new World(registry);
 
     const entity = world.spawnBundle(PlayerBundle);
 
@@ -41,9 +43,9 @@ test("bundles insert and remove reusable component groups", () => {
 });
 
 test("commands flush queued structural edits in order", () => {
-    const Position = defineComponent<{ x: number; y: number }>("CommandPosition");
-    const Velocity = defineComponent<{ x: number; y: number }>("CommandVelocity");
-    const world = new World();
+    const Position = registry.defineComponent<{ x: number; y: number }>("CommandPosition");
+    const Velocity = registry.defineComponent<{ x: number; y: number }>("CommandVelocity");
+    const world = new World(registry);
     const commands = world.commands();
     const entity = commands.spawn(withComponent(Position, { x: 1, y: 2 }));
 
@@ -63,14 +65,14 @@ test("commands flush queued structural edits in order", () => {
 
 test("component lifecycle hooks fire in order and can be unsubscribed", () => {
     const events: string[] = [];
-    const Position = defineComponent<{ x: number }>("LifecycleHookPosition", {
+    const Position = registry.defineComponent<{ x: number }>("LifecycleHookPosition", {
         onAdd: (_entity, position) => events.push(`type:add:${position.x}`),
         onInsert: (_entity, position) => events.push(`type:insert:${position.x}`),
         onReplace: (_entity, position) => events.push(`type:replace:${position.x}`),
         onRemove: (_entity, position) => events.push(`type:remove:${position.x}`),
         onDespawn: (_entity, position) => events.push(`type:despawn:${position.x}`),
     });
-    const world = new World();
+    const world = new World(registry);
     const offAdd = world.onAdd(Position, (_entity, position) =>
         events.push(`world:add:${position.x}`)
     );
@@ -123,11 +125,11 @@ test("component lifecycle hooks fire in order and can be unsubscribed", () => {
 });
 
 test("component values reject null and undefined at runtime", () => {
-    const Position = defineComponent<{ x: number; y: number }>("InvalidValuePosition");
-    const RequiredPosition = defineComponent("InvalidValueRequiredPosition", {
+    const Position = registry.defineComponent<{ x: number; y: number }>("InvalidValuePosition");
+    const RequiredPosition = registry.defineComponent("InvalidValueRequiredPosition", {
         require: [requireComponent(Position, () => null as unknown as { x: number; y: number })],
     });
-    const world = new World();
+    const world = new World(registry);
     const entity = world.spawn();
 
     assert.throws(
@@ -148,18 +150,18 @@ test("component values reject null and undefined at runtime", () => {
 });
 
 test("required components are inserted transitively without overwriting existing data", () => {
-    const Transform = defineComponent<{ x: number; y: number }>("TestTransform");
-    const Velocity = defineComponent<{ x: number; y: number }>("TestVelocity", {
+    const Transform = registry.defineComponent<{ x: number; y: number }>("TestTransform");
+    const Velocity = registry.defineComponent<{ x: number; y: number }>("TestVelocity", {
         require: [requireComponent(Transform, () => ({ x: 0, y: 0 }))],
     });
-    const Mass = defineComponent<number>("TestMass");
-    const RigidBody = defineComponent("TestRigidBody", {
+    const Mass = registry.defineComponent<number>("TestMass");
+    const RigidBody = registry.defineComponent("TestRigidBody", {
         require: [
             requireComponent(Mass, () => 1),
             requireComponent(Velocity, () => ({ x: 0, y: 0 })),
         ],
     });
-    const world = new World();
+    const world = new World(registry);
     const entity = world.spawn(withComponent(Transform, { x: 5, y: 6 }));
 
     world.add(entity, RigidBody, {});
@@ -167,4 +169,29 @@ test("required components are inserted transitively without overwriting existing
     assert.equal(world.hasAll(entity, [RigidBody, Mass, Velocity, Transform]), true);
     assert.deepEqual(world.mustGet(entity, Transform), { x: 5, y: 6 });
     assert.equal(world.mustGet(entity, Mass), 1);
+});
+
+test("world rejects components from a different registry", () => {
+    const local = registry.defineComponent("LocalRegistryOnly");
+    const otherRegistry = createRegistry("other-world-test");
+    const foreign = otherRegistry.defineComponent("ForeignRegistryOnly");
+    const world = new World(registry);
+    const entity = world.spawn(withMarker(local));
+
+    assert.throws(() => world.add(entity, foreign, {}), /other-world-test, not world-test/);
+    assert.throws(() => world.has(entity, foreign), /other-world-test, not world-test/);
+    assert.throws(() => Array.from(world.query(foreign)), /other-world-test, not world-test/);
+});
+
+test("component definitions reject required dependencies from another registry", () => {
+    const otherRegistry = createRegistry("other-required-test");
+    const foreign = otherRegistry.defineComponent<{ value: number }>("ForeignRequired");
+
+    assert.throws(
+        () =>
+            registry.defineComponent("InvalidCrossRegistryRequired", {
+                require: [requireComponent(foreign, () => ({ value: 1 }))],
+            }),
+        /ForeignRequired is not registered in world-test/
+    );
 });

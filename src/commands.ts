@@ -21,7 +21,7 @@ export class Commands {
 
     /** Queues an entity spawn using the same component-entry format as `World.spawn`. */
     spawn(...entries: ComponentEntry<unknown>[]): Entity {
-        return this.spawnBundle({ entries });
+        return this.spawnBundle({ entries, registry: entries[0]?.type.registry });
     }
 
     /** Reserves an entity immediately, then queues component insertion into it. */

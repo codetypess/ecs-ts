@@ -1,4 +1,4 @@
-import type { AnyComponentType, ComponentData } from "./component";
+import type { AnyComponentType, ComponentData, ComponentRegistry } from "./component";
 import type { Entity } from "./entity";
 import type { SparseSet } from "./sparse-set";
 import type { World } from "./world";
@@ -46,10 +46,12 @@ export interface ChangeDetectionRange {
 
 /** Cached query definition for repeated required-component queries. */
 export class QueryState<TComponents extends readonly AnyComponentType[]> {
+    readonly registry: ComponentRegistry;
     readonly types: TComponents;
     readonly filter: QueryFilter;
 
     constructor(types: TComponents, filter: QueryFilter = {}) {
+        this.registry = resolveQueryRegistry(types, filter, "query state");
         this.types = cloneComponentTypes(types);
         this.filter = cloneQueryFilter(filter);
     }
@@ -88,6 +90,7 @@ export class OptionalQueryState<
     TRequiredComponents extends readonly AnyComponentType[],
     TOptionalComponents extends readonly AnyComponentType[],
 > {
+    readonly registry: ComponentRegistry;
     readonly required: TRequiredComponents;
     readonly optional: TOptionalComponents;
     readonly filter: QueryFilter;
@@ -97,6 +100,7 @@ export class OptionalQueryState<
         optional: TOptionalComponents,
         filter: QueryFilter = {}
     ) {
+        this.registry = resolveOptionalQueryRegistry(required, optional, filter);
         this.required = cloneComponentTypes(required);
         this.optional = cloneComponentTypes(optional);
         this.filter = cloneQueryFilter(filter);
@@ -179,6 +183,100 @@ function cloneFilterTypes(
     types: readonly AnyComponentType[] | undefined
 ): readonly AnyComponentType[] | undefined {
     return types === undefined ? undefined : Object.freeze([...types]);
+}
+
+function resolveQueryRegistry(
+    types: readonly AnyComponentType[],
+    filter: QueryFilter,
+    label: string
+): ComponentRegistry {
+    if (types.length === 0) {
+        throw new Error("Query requires at least one component type");
+    }
+
+    const registry = types[0]!.registry;
+    assertFilterRegistry(registry, filter, label);
+
+    for (const type of types) {
+        if (type.registry !== registry) {
+            throw new Error(
+                `Cannot create ${label} with components from ${registry.name} and ${type.registry.name}`
+            );
+        }
+    }
+
+    return registry;
+}
+
+function resolveOptionalQueryRegistry(
+    required: readonly AnyComponentType[],
+    optional: readonly AnyComponentType[],
+    filter: QueryFilter
+): ComponentRegistry {
+    if (required.length === 0) {
+        throw new Error("Optional query requires at least one required component type");
+    }
+
+    const registry = required[0]!.registry;
+    assertFilterRegistry(registry, filter, "optional query state");
+
+    for (const type of required) {
+        if (type.registry !== registry) {
+            throw new Error(
+                `Cannot create optional query state with components from ${registry.name} and ${type.registry.name}`
+            );
+        }
+    }
+
+    for (const type of optional) {
+        if (type.registry !== registry) {
+            throw new Error(
+                `Cannot create optional query state with components from ${registry.name} and ${type.registry.name}`
+            );
+        }
+    }
+
+    return registry;
+}
+
+function assertFilterRegistry(
+    registry: ComponentRegistry,
+    filter: QueryFilter,
+    label: string
+): void {
+    for (const type of filter.with ?? []) {
+        assertRegistryMatch(registry, type, label);
+    }
+
+    for (const type of filter.without ?? []) {
+        assertRegistryMatch(registry, type, label);
+    }
+
+    for (const type of filter.or ?? []) {
+        assertRegistryMatch(registry, type, label);
+    }
+
+    for (const type of filter.added ?? []) {
+        assertRegistryMatch(registry, type, label);
+    }
+
+    for (const type of filter.changed ?? []) {
+        assertRegistryMatch(registry, type, label);
+    }
+}
+
+function assertRegistryMatch(
+    registry: ComponentRegistry,
+    type: AnyComponentType,
+    label: string
+): void {
+    if (type.registry === registry) {
+        return;
+    }
+
+    throw new Error(
+        `Cannot create ${label} with components from ${registry.name} and ${type.registry.name}`
+    );
 }
 
 /** Checks whether a change tick falls inside the current system's visible window. */

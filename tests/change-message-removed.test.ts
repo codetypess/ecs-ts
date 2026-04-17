@@ -4,15 +4,17 @@ import {
     Commands,
     Entity,
     World,
-    defineComponent,
+    createRegistry,
     defineMessage,
     defineState,
     messageReader,
     withComponent,
 } from "../src";
 
+const registry = createRegistry("change-message-removed-test");
+
 test("per-system change detection lets state systems see earlier changes", () => {
-    const Position = defineComponent<{ x: number; y: number }>("ChangedPosition");
+    const Position = registry.defineComponent<{ x: number; y: number }>("ChangedPosition");
     const Mode = defineState<"editing" | "watching">("ChangedMode", "editing");
     const seen: number[] = [];
 
@@ -47,7 +49,7 @@ test("per-system change detection lets state systems see earlier changes", () =>
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.initState(Mode);
     world.addSystem(new MutationSystem());
@@ -60,9 +62,9 @@ test("per-system change detection lets state systems see earlier changes", () =>
 });
 
 test("message readers keep independent cursors", () => {
-    const Health = defineComponent<{ value: number }>("MessageHealth");
+    const Health = registry.defineComponent<{ value: number }>("MessageHealth");
     const Damage = defineMessage<{ target: Entity; amount: number }>("MessageDamage");
-    const world = new World();
+    const world = new World(registry);
     const target = world.spawn(withComponent(Health, { value: 100 }));
     const readerA = messageReader(Damage);
     const readerB = messageReader(Damage);
@@ -84,7 +86,7 @@ test("message readers keep independent cursors", () => {
 
 test("messages expire after the next message update window", () => {
     const Damage = defineMessage<{ amount: number }>("ExpiringDamage");
-    const world = new World();
+    const world = new World(registry);
     const timelyReader = messageReader(Damage);
     const lateReader = messageReader(Damage);
 
@@ -100,8 +102,8 @@ test("messages expire after the next message update window", () => {
 });
 
 test("removed readers can inspect records without draining them", () => {
-    const Position = defineComponent<{ x: number; y: number }>("RemovedPosition");
-    const world = new World();
+    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedPosition");
+    const world = new World(registry);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
     const readerA = world.removedReader(Position);
     const readerB = world.removedReader(Position);
@@ -120,8 +122,8 @@ test("removed readers can inspect records without draining them", () => {
 });
 
 test("removed readers only see removals still buffered after drain", () => {
-    const Position = defineComponent<{ x: number; y: number }>("RemovedAfterDrainPosition");
-    const world = new World();
+    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedAfterDrainPosition");
+    const world = new World(registry);
     const reader = world.removedReader(Position);
     const first = world.spawn(withComponent(Position, { x: 1, y: 2 }));
 
@@ -140,8 +142,8 @@ test("removed readers only see removals still buffered after drain", () => {
 });
 
 test("removed readers hide fully consumed history from drainRemoved immediately", () => {
-    const Position = defineComponent<{ x: number; y: number }>("RemovedConsumedPosition");
-    const world = new World();
+    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedConsumedPosition");
+    const world = new World(registry);
     const reader = world.removedReader(Position);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
 
@@ -152,8 +154,8 @@ test("removed readers hide fully consumed history from drainRemoved immediately"
 });
 
 test("drainRemoved keeps working even when no removed reader exists", () => {
-    const Position = defineComponent<{ x: number; y: number }>("RemovedDrainOnlyPosition");
-    const world = new World();
+    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedDrainOnlyPosition");
+    const world = new World(registry);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
 
     world.remove(entity, Position);
@@ -166,8 +168,8 @@ test("drainRemoved keeps working even when no removed reader exists", () => {
 });
 
 test("removed history compacts once every live reader advances past it", () => {
-    const Position = defineComponent<{ x: number; y: number }>("RemovedCompactionPosition");
-    const world = new World();
+    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedCompactionPosition");
+    const world = new World(registry);
     const readerA = world.removedReader(Position);
     const readerB = world.removedReader(Position);
     const first = world.spawn(withComponent(Position, { x: 1, y: 2 }));
@@ -194,8 +196,8 @@ test("removed history compacts once every live reader advances past it", () => {
 });
 
 test("closing a removed reader releases any history pinned by its cursor", () => {
-    const Position = defineComponent<{ x: number; y: number }>("RemovedClosePosition");
-    const world = new World();
+    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedClosePosition");
+    const world = new World(registry);
     const readerA = world.removedReader(Position);
     const readerB = world.removedReader(Position);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
@@ -211,8 +213,8 @@ test("closing a removed reader releases any history pinned by its cursor", () =>
 });
 
 test("late removed readers only see history retained by currently live readers", () => {
-    const Position = defineComponent<{ x: number; y: number }>("RemovedLateReaderPosition");
-    const world = new World();
+    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedLateReaderPosition");
+    const world = new World(registry);
     const earlyReader = world.removedReader(Position);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
 

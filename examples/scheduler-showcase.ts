@@ -3,7 +3,7 @@ import {
     type Entity,
     World,
     anyMatch,
-    defineComponent,
+    createRegistry,
     defineResource,
     defineState,
     queryState,
@@ -14,6 +14,7 @@ import {
     withMarker,
 } from "../src";
 
+const registry = createRegistry("example-scheduler-showcase");
 const Log = defineResource<string[]>("SchedulerShowcaseLog");
 const Frame = defineResource<{ value: number }>("SchedulerShowcaseFrame");
 const FeatureFlags = defineResource<{ physicsEnabled: boolean }>("SchedulerShowcaseFlags");
@@ -22,10 +23,10 @@ const ControlledEntity = defineResource<{ value: Entity | undefined }>(
 );
 const GameMode = defineState<"running" | "paused">("SchedulerShowcaseMode", "running");
 
-const Transform = defineComponent<{ x: number; y: number }>("SchedulerShowcaseTransform");
-const Velocity = defineComponent<{ x: number; y: number }>("SchedulerShowcaseVelocity");
-const RigidBody = defineComponent("SchedulerShowcaseRigidBody");
-const Sleeping = defineComponent("SchedulerShowcaseSleeping");
+const Transform = registry.defineComponent<{ x: number; y: number }>("SchedulerShowcaseTransform");
+const Velocity = registry.defineComponent<{ x: number; y: number }>("SchedulerShowcaseVelocity");
+const RigidBody = registry.defineComponent("SchedulerShowcaseRigidBody");
+const Sleeping = registry.defineComponent("SchedulerShowcaseSleeping");
 
 const activeBodies = queryState([Transform, Velocity, RigidBody], {
     without: [Sleeping],
@@ -163,7 +164,7 @@ class CleanupSystem {
     }
 }
 
-const world = new World();
+const world = new World(registry);
 
 world.setFixedTimeStep(0.5);
 world.configureSet("gameplay", {

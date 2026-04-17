@@ -1,5 +1,6 @@
-import { Commands, World, defineState } from "../src";
+import { Commands, World, createRegistry, defineState } from "../src";
 
+const registry = createRegistry("example-state");
 const GameState = defineState("GameState", "menu" as "menu" | "playing" | "paused");
 
 class MenuStateSystem {
@@ -46,7 +47,7 @@ class StateDriverSystem {
     }
 }
 
-const world = new World();
+const world = new World(registry);
 
 world
     .initState(GameState)

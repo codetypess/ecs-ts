@@ -1,4 +1,4 @@
-import type { AnyComponentType } from "../component";
+import type { AnyComponentType, ComponentRegistry } from "../component";
 import type { OptionalQueryState, QueryFilter, QueryState } from "../query";
 import { SparseSet } from "../sparse-set";
 
@@ -43,7 +43,8 @@ export interface OptionalQueryStateCache {
 
 /** Inputs needed to resolve component types into concrete stores. */
 export interface QueryPlanContextOptions {
-    readonly stores: ReadonlyMap<number, SparseSet<unknown>>;
+    readonly registry: ComponentRegistry;
+    readonly stores: readonly (SparseSet<unknown> | undefined)[];
     readonly getStoreVersion: () => number;
 }
 
@@ -175,7 +176,10 @@ function resolveQueryStores(
     const stores: SparseSet<unknown>[] = new Array(types.length);
 
     for (let index = 0; index < types.length; index++) {
-        const store = context.stores.get(types[index]!.id);
+        const type = types[index]!;
+
+        assertRegisteredQueryComponent(context.registry, type);
+        const store = context.stores[type.id];
 
         if (store === undefined) {
             return undefined;
@@ -194,7 +198,10 @@ function resolveOptionalStores(
     const stores: (SparseSet<unknown> | undefined)[] = new Array(types.length);
 
     for (let index = 0; index < types.length; index++) {
-        stores[index] = context.stores.get(types[index]!.id);
+        const type = types[index]!;
+
+        assertRegisteredQueryComponent(context.registry, type);
+        stores[index] = context.stores[type.id];
     }
 
     return stores;
@@ -211,7 +218,8 @@ function resolveFilterStores(
     const changedStores: SparseSet<unknown>[] = [];
 
     for (const type of filter.with ?? []) {
-        const store = context.stores.get(type.id);
+        assertRegisteredQueryComponent(context.registry, type);
+        const store = context.stores[type.id];
 
         if (store === undefined) {
             return undefined;
@@ -221,7 +229,8 @@ function resolveFilterStores(
     }
 
     for (const type of filter.without ?? []) {
-        const store = context.stores.get(type.id);
+        assertRegisteredQueryComponent(context.registry, type);
+        const store = context.stores[type.id];
 
         // Missing stores satisfy negative filters, so only track stores that actually exist.
         if (store !== undefined) {
@@ -230,7 +239,8 @@ function resolveFilterStores(
     }
 
     for (const type of filter.or ?? []) {
-        const store = context.stores.get(type.id);
+        assertRegisteredQueryComponent(context.registry, type);
+        const store = context.stores[type.id];
 
         if (store !== undefined) {
             orStores.push(store);
@@ -242,7 +252,8 @@ function resolveFilterStores(
     }
 
     for (const type of filter.added ?? []) {
-        const store = context.stores.get(type.id);
+        assertRegisteredQueryComponent(context.registry, type);
+        const store = context.stores[type.id];
 
         if (store === undefined) {
             return undefined;
@@ -252,7 +263,8 @@ function resolveFilterStores(
     }
 
     for (const type of filter.changed ?? []) {
-        const store = context.stores.get(type.id);
+        assertRegisteredQueryComponent(context.registry, type);
+        const store = context.stores[type.id];
 
         if (store === undefined) {
             return undefined;
@@ -303,4 +315,17 @@ function createOptionalQueryPlan(
         filterStores,
         filterMode: resolveFilterMode(filterStores),
     };
+}
+
+function assertRegisteredQueryComponent(
+    registry: ComponentRegistry,
+    type: AnyComponentType
+): void {
+    if (type.registry === registry) {
+        return;
+    }
+
+    throw new Error(
+        `Cannot query component ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
+    );
 }

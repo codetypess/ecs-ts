@@ -2,13 +2,14 @@ import {
     Commands,
     Entity,
     World,
-    defineComponent,
+    createRegistry,
     defineState,
     formatEntity,
     withComponent,
 } from "../src";
 
-const Position = defineComponent<{ x: number; y: number }>("Position");
+const registry = createRegistry("example-per-system-change");
+const Position = registry.defineComponent<{ x: number; y: number }>("Position");
 const Mode = defineState<"editing" | "watching">("Mode", "editing");
 
 class MutationSystem {
@@ -44,7 +45,7 @@ class WatchingEnterSystem {
     }
 }
 
-const world = new World();
+const world = new World(registry);
 world.initState(Mode);
 world.addSystem(new MutationSystem());
 world.addStateSystem(Mode, "watching", new WatchingEnterSystem());

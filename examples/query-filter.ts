@@ -1,11 +1,12 @@
-import { World, defineComponent, formatEntity, withComponent, withMarker } from "../src";
+import { World, createRegistry, formatEntity, withComponent, withMarker } from "../src";
 
-const Position = defineComponent<{ x: number; y: number }>("Position");
-const Velocity = defineComponent<{ x: number; y: number }>("Velocity");
-const Player = defineComponent("Player");
-const Sleeping = defineComponent("Sleeping");
+const registry = createRegistry("example-query-filter");
+const Position = registry.defineComponent<{ x: number; y: number }>("Position");
+const Velocity = registry.defineComponent<{ x: number; y: number }>("Velocity");
+const Player = registry.defineComponent("Player");
+const Sleeping = registry.defineComponent("Sleeping");
 
-const world = new World();
+const world = new World(registry);
 
 world.spawn(
     withComponent(Position, { x: 0, y: 0 }),

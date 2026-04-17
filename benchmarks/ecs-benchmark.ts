@@ -4,7 +4,7 @@ import {
     RemovedReader,
     World,
     anyMatch,
-    defineComponent,
+    createRegistry,
     defineEvent,
     defineMessage,
     defineResource,
@@ -18,6 +18,8 @@ import {
     withComponent,
     withMarker,
 } from "../src";
+
+const registry = createRegistry("benchmark");
 
 interface BenchmarkResult {
     readonly name: string;
@@ -96,11 +98,11 @@ const SMOKE_BENCHMARK_CONFIG: BenchmarkConfig = {
     sampleRounds: 2,
 };
 
-const Position = defineComponent<{ x: number; y: number }>("BenchPosition");
-const Velocity = defineComponent<{ x: number; y: number }>("BenchVelocity");
-const Player = defineComponent("BenchPlayer");
-const Sleeping = defineComponent("BenchSleeping");
-const Health = defineComponent<{ value: number }>("BenchHealth");
+const Position = registry.defineComponent<{ x: number; y: number }>("BenchPosition");
+const Velocity = registry.defineComponent<{ x: number; y: number }>("BenchVelocity");
+const Player = registry.defineComponent("BenchPlayer");
+const Sleeping = registry.defineComponent("BenchSleeping");
+const Health = registry.defineComponent<{ value: number }>("BenchHealth");
 const DamageMessage = defineMessage<{ target: Entity; amount: number }>("BenchDamageMessage");
 const DamageEvent = defineEvent<{ target: Entity; amount: number }>("BenchDamageEvent");
 const FeatureFlags = defineResource<{ enabled: boolean; paused: boolean }>("BenchFeatureFlags");
@@ -152,7 +154,7 @@ function measure(name: string, run: () => number): BenchmarkResult {
 }
 
 function createMovementWorld(count: number): MovementWorld {
-    const world = new World();
+    const world = new World(registry);
     const entities: Entity[] = [];
 
     for (let index = 0; index < count; index++) {
@@ -184,7 +186,7 @@ function createSchedulerWorld(enabled: boolean): World {
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     world.setResource(FeatureFlags, { enabled, paused: false });
     world.initState(Mode);
@@ -203,7 +205,7 @@ function createSchedulerWorld(enabled: boolean): World {
 }
 
 function createRemovedReaderWorld(removalCount: number): RemovedReaderWorld {
-    const world = new World();
+    const world = new World(registry);
     const reader = world.removedReader(Health);
 
     for (let index = 0; index < removalCount; index++) {
@@ -217,7 +219,7 @@ function createRemovedReaderWorld(removalCount: number): RemovedReaderWorld {
 }
 
 function createRemovedSteadyStateWorld(): RemovedSteadyStateWorld {
-    const world = new World();
+    const world = new World(registry);
     const reader = world.removedReader(Health);
 
     reader.read();
@@ -226,7 +228,7 @@ function createRemovedSteadyStateWorld(): RemovedSteadyStateWorld {
 }
 
 function createSkewedQueryStateWorld(count: number): SkewedQueryStateWorld {
-    const world = new World();
+    const world = new World(registry);
     const matches = Math.max(64, Math.floor(count / 50));
     const extraVelocityOnly = Math.max(256, Math.floor(count / 4));
     const extraPositionOnly = extraVelocityOnly * 8;
@@ -259,7 +261,7 @@ function createQueryRunIfSchedulerWorld(matching: boolean): World {
         }
     }
 
-    const world = new World();
+    const world = new World(registry);
 
     if (matching) {
         world.spawn(
@@ -556,7 +558,7 @@ pushBenchmark(results, "optional query Velocity", () => {
 });
 
 pushBenchmark(results, "message write+read", () => {
-    const world = new World();
+    const world = new World(registry);
     const target = world.spawn(withComponent(Health, { value: 100 }));
     const reader = messageReader(DamageMessage);
 
@@ -601,7 +603,7 @@ pushBenchmark(results, "removed reader steady-state remove+read", () => {
 });
 
 pushBenchmark(results, "observer trigger", () => {
-    const world = new World();
+    const world = new World(registry);
     const target = world.spawn(withComponent(Health, { value: 100 }));
 
     world.observe(DamageEvent, (damage, currentWorld) => {

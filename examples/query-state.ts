@@ -1,15 +1,16 @@
 import {
     World,
-    defineComponent,
+    createRegistry,
     formatEntity,
     queryState,
     withComponent,
     withMarker,
 } from "../src";
 
-const Position = defineComponent<{ x: number; y: number }>("Position");
-const Velocity = defineComponent<{ x: number; y: number }>("Velocity");
-const Sleeping = defineComponent("Sleeping");
+const registry = createRegistry("example-query-state");
+const Position = registry.defineComponent<{ x: number; y: number }>("Position");
+const Velocity = registry.defineComponent<{ x: number; y: number }>("Velocity");
+const Sleeping = registry.defineComponent("Sleeping");
 
 class MovementSystem {
     private readonly moving = queryState([Position, Velocity], {
@@ -25,7 +26,7 @@ class MovementSystem {
     }
 }
 
-const world = new World();
+const world = new World(registry);
 
 world.spawn(withComponent(Position, { x: 0, y: 0 }), withComponent(Velocity, { x: 1, y: 0 }));
 

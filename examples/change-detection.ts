@@ -1,6 +1,7 @@
-import { Commands, Entity, World, defineComponent, formatEntity, withComponent } from "../src";
+import { Commands, Entity, World, createRegistry, formatEntity, withComponent } from "../src";
 
-const Position = defineComponent<{ x: number; y: number }>("Position");
+const registry = createRegistry("example-change-detection");
+const Position = registry.defineComponent<{ x: number; y: number }>("Position");
 
 class ChangeDetectionSystem {
     private entity: Entity | undefined;
@@ -48,7 +49,7 @@ class ChangeDetectionSystem {
     }
 }
 
-const world = new World();
+const world = new World(registry);
 world.addSystem(new ChangeDetectionSystem());
 
 world.update(0);

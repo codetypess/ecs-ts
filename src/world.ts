@@ -4,6 +4,7 @@ import type {
     ComponentEntry,
     ComponentHook,
     ComponentLifecycleStage,
+    ComponentRegistry,
     ComponentType,
 } from "./component";
 import { Commands } from "./commands";
@@ -19,14 +20,18 @@ import {
     removeBundle as removeComponentBundle,
     type ComponentOpsContext,
 } from "./internal/component-ops";
-import { createComponentStoreContext } from "./internal/component-store";
+import {
+    createComponentStoreContext,
+    type ComponentStoreContext,
+} from "./internal/component-store";
 import {
     addComponentHook as registerComponentHook,
     createComponentHookContext,
     runComponentHooks as dispatchComponentHooks,
+    type ComponentHookContext,
 } from "./internal/component-hooks";
 import { runSystemWithCommands } from "./internal/command-execution";
-import { createEventContext, observeEvent, triggerEvent } from "./internal/events";
+import { createEventContext, observeEvent, triggerEvent, type EventContext } from "./internal/events";
 import {
     addMessageType,
     clearMessages as clearStoredMessages,
@@ -35,6 +40,7 @@ import {
     readMessages as readStoredMessages,
     updateMessages as updateStoredMessages,
     writeMessage as writeStoredMessage,
+    type MessageContext,
 } from "./internal/messages";
 import { createQueryPlanContext } from "./internal/query-plan";
 import {
@@ -57,6 +63,7 @@ import {
     createRemovedStoreContext,
     drainRemoved as drainRemovedComponents,
     recordRemoved as recordRemovedComponent,
+    type RemovedStoreContext,
 } from "./internal/removed-store";
 import {
     createResourceContext,
@@ -68,6 +75,7 @@ import {
     matchesResource as matchesStoredResource,
     removeResource as removeStoredResource,
     setResource as setStoredResource,
+    type ResourceContext,
 } from "./internal/resources";
 import {
     addSystemRunner as addScheduledSystemRunner,
@@ -163,51 +171,69 @@ export class World {
     ): void => {
         this.runSystems(systems, "update", dt);
     };
-    private readonly entities = new EntityManager();
-    private readonly componentStoreContext = createComponentStoreContext();
-    private readonly resourceContext = createResourceContext({
-        getChangeTick: () => this.changeTick,
-        getChangeDetectionRange: () => this.changeDetectionRange(),
-    });
-    private readonly removedContext = createRemovedStoreContext({
-        getChangeTick: () => this.changeTick,
-    });
-    private readonly componentHookContext = createComponentHookContext();
-    private readonly componentContext: ComponentOpsContext = createComponentOpsContext({
-        entities: this.entities,
-        componentStores: this.componentStoreContext,
-        getChangeTick: () => this.changeTick,
-        getChangeDetectionRange: () => this.changeDetectionRange(),
-        runComponentHooks: (type, stage, entity, component) => {
-            dispatchComponentHooks(this.componentHookContext, type, stage, entity, component, this);
-        },
-        recordRemoved: (type, entity, component) => {
-            recordRemovedComponent(this.removedContext, type, entity, component);
-        },
-    });
-    private readonly stateContext: StateMachineContext = createStateMachineContext();
-    private readonly eventContext = createEventContext();
-    private readonly messageContext = createMessageContext();
-    private readonly queryContext: QueryExecutorContext = {
-        planContext: createQueryPlanContext({
-            stores: this.componentStoreContext.stores,
-            getStoreVersion: () => this.componentStoreContext.storeVersion,
-        }),
-        isAlive: (entity) => this.entities.isAlive(entity),
-    };
-    private readonly scheduleContext: ScheduleEngineContext = createScheduleEngineContext();
+    readonly registry: ComponentRegistry;
+    private readonly entities: EntityManager;
+    private readonly componentStoreContext: ComponentStoreContext;
+    private readonly resourceContext: ResourceContext;
+    private readonly removedContext: RemovedStoreContext;
+    private readonly componentHookContext: ComponentHookContext;
+    private readonly componentContext: ComponentOpsContext;
+    private readonly stateContext: StateMachineContext;
+    private readonly eventContext: EventContext;
+    private readonly messageContext: MessageContext;
+    private readonly queryContext: QueryExecutorContext;
+    private readonly scheduleContext: ScheduleEngineContext;
     private activeChangeDetection: ChangeDetectionRange | undefined;
     private changeTick = 1;
     private didStartup = false;
     private didShutdown = false;
 
+    constructor(registry: ComponentRegistry) {
+        this.registry = registry;
+        this.entities = new EntityManager();
+        this.componentStoreContext = createComponentStoreContext(registry);
+        this.resourceContext = createResourceContext({
+            getChangeTick: () => this.changeTick,
+            getChangeDetectionRange: () => this.changeDetectionRange(),
+        });
+        this.removedContext = createRemovedStoreContext({
+            getChangeTick: () => this.changeTick,
+        });
+        this.componentHookContext = createComponentHookContext();
+        this.componentContext = createComponentOpsContext({
+            entities: this.entities,
+            componentStores: this.componentStoreContext,
+            getChangeTick: () => this.changeTick,
+            getChangeDetectionRange: () => this.changeDetectionRange(),
+            runComponentHooks: (type, stage, entity, component) => {
+                dispatchComponentHooks(this.componentHookContext, type, stage, entity, component, this);
+            },
+            recordRemoved: (type, entity, component) => {
+                recordRemovedComponent(this.removedContext, type, entity, component);
+            },
+        });
+        this.stateContext = createStateMachineContext();
+        this.eventContext = createEventContext();
+        this.messageContext = createMessageContext();
+        this.queryContext = {
+            planContext: createQueryPlanContext({
+                registry,
+                stores: this.componentStoreContext.stores,
+                getStoreVersion: () => this.componentStoreContext.storeVersion,
+            }),
+            isAlive: (entity) => this.entities.isAlive(entity),
+        };
+        this.scheduleContext = createScheduleEngineContext();
+    }
+
     /** Creates a new entity and inserts the provided component entries immediately. */
     spawn(...entries: ComponentEntry<unknown>[]): Entity {
-        return this.spawnBundle({ entries });
+        return this.spawnBundle({ entries, registry: entries[0]?.type.registry });
     }
 
     /** Creates a new entity and inserts a reusable bundle into it. */
     spawnBundle(bundle: Bundle): Entity {
+        this.assertBundleRegistered(bundle, "spawn");
         const entity = this.entities.create();
         this.insertBundle(entity, bundle);
 
@@ -216,6 +242,7 @@ export class World {
 
     /** Inserts or replaces every component entry from the bundle on an existing entity. */
     insertBundle(entity: Entity, bundle: Bundle): this {
+        this.assertBundleRegistered(bundle, "insert");
         insertComponentBundle(this.componentContext, entity, bundle);
 
         return this;
@@ -223,6 +250,7 @@ export class World {
 
     /** Removes every component listed by the bundle and returns whether any removal happened. */
     removeBundle(entity: Entity, bundle: Bundle): boolean {
+        this.assertBundleRegistered(bundle, "remove");
         return removeComponentBundle(this.componentContext, entity, bundle);
     }
 
@@ -233,6 +261,7 @@ export class World {
 
     /** Inserts or replaces a component value on a live entity. */
     add<T>(entity: Entity, type: ComponentType<T>, value: T): this {
+        this.assertComponentRegistered(type, "add");
         addComponent(this.componentContext, entity, type, value);
 
         return this;
@@ -240,6 +269,7 @@ export class World {
 
     /** Marks an existing component as changed without replacing its value. */
     markChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
+        this.assertComponentRegistered(type, "mark changed");
         return markComponentChanged(this.componentContext, entity, type);
     }
 
@@ -249,20 +279,24 @@ export class World {
     // the flattened internal helpers.
     /** Returns whether the entity currently has the requested component. */
     has<T>(entity: Entity, type: ComponentType<T>): boolean {
+        this.assertComponentRegistered(type, "read");
+
         return (
             this.entities.isAlive(entity) &&
-            (this.componentStoreContext.stores.get(type.id)?.has(entity) ?? false)
+            (this.componentStoreContext.stores[type.id]?.has(entity) ?? false)
         );
     }
 
     /** Returns whether the entity has every component in the provided list. */
     hasAll(entity: Entity, types: readonly AnyComponentType[]): boolean {
+        this.assertComponentsRegistered(types, "read");
+
         if (!this.entities.isAlive(entity)) {
             return false;
         }
 
         for (const type of types) {
-            if (!this.componentStoreContext.stores.get(type.id)?.has(entity)) {
+            if (!this.componentStoreContext.stores[type.id]?.has(entity)) {
                 return false;
             }
         }
@@ -272,12 +306,14 @@ export class World {
 
     /** Returns whether the entity has at least one component in the provided list. */
     hasAny(entity: Entity, types: readonly AnyComponentType[]): boolean {
+        this.assertComponentsRegistered(types, "read");
+
         if (!this.entities.isAlive(entity)) {
             return false;
         }
 
         for (const type of types) {
-            if (this.componentStoreContext.stores.get(type.id)?.has(entity)) {
+            if (this.componentStoreContext.stores[type.id]?.has(entity)) {
                 return true;
             }
         }
@@ -287,11 +323,13 @@ export class World {
 
     /** Returns the component value for the entity, or `undefined` when absent. */
     get<T>(entity: Entity, type: ComponentType<T>): T | undefined {
+        this.assertComponentRegistered(type, "read");
+
         if (!this.entities.isAlive(entity)) {
             return undefined;
         }
 
-        return this.componentStoreContext.stores.get(type.id)?.get(entity) as T | undefined;
+        return this.componentStoreContext.stores[type.id]?.get(entity) as T | undefined;
     }
 
     /** Returns the component value or throws when the entity does not have it. */
@@ -310,6 +348,8 @@ export class World {
         entity: Entity,
         ...types: TComponents
     ): ComponentTuple<TComponents> | undefined {
+        this.assertComponentsRegistered(types, "read");
+
         if (!this.entities.isAlive(entity)) {
             return undefined;
         }
@@ -318,7 +358,7 @@ export class World {
 
         for (let index = 0; index < types.length; index++) {
             const type = types[index]!;
-            const store = this.componentStoreContext.stores.get(type.id);
+            const store = this.componentStoreContext.stores[type.id];
 
             if (!store?.has(entity)) {
                 return undefined;
@@ -332,28 +372,33 @@ export class World {
 
     /** Returns whether the component was added inside the current change-detection window. */
     isAdded<T>(entity: Entity, type: ComponentType<T>): boolean {
+        this.assertComponentRegistered(type, "read");
+
         if (!this.entities.isAlive(entity)) {
             return false;
         }
 
-        const tick = this.componentStoreContext.stores.get(type.id)?.getAddedTick(entity);
+        const tick = this.componentStoreContext.stores[type.id]?.getAddedTick(entity);
 
         return tick !== undefined && isTickInRange(tick, this.changeDetectionRange());
     }
 
     /** Returns whether the component changed inside the current change-detection window. */
     isChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
+        this.assertComponentRegistered(type, "read");
+
         if (!this.entities.isAlive(entity)) {
             return false;
         }
 
-        const tick = this.componentStoreContext.stores.get(type.id)?.getChangedTick(entity);
+        const tick = this.componentStoreContext.stores[type.id]?.getChangedTick(entity);
 
         return tick !== undefined && isTickInRange(tick, this.changeDetectionRange());
     }
 
     /** Removes a single component and records lifecycle hooks plus removed data. */
     remove<T>(entity: Entity, type: ComponentType<T>): boolean {
+        this.assertComponentRegistered(type, "remove");
         return removeComponent(this.componentContext, entity, type);
     }
 
@@ -626,6 +671,7 @@ export class World {
 
     /** Drains and clears the removed-component buffer for the given component type. */
     drainRemoved<T>(type: ComponentType<T>): RemovedComponent<T>[] {
+        this.assertComponentRegistered(type, "read removed");
         return drainRemovedComponents(this.removedContext, type);
     }
 
@@ -634,6 +680,7 @@ export class World {
         type: ComponentType<T>,
         options: RemovedReaderOptions = {}
     ): RemovedReader<T> {
+        this.assertComponentRegistered(type, "create removed reader");
         return createBoundRemovedReader(this.removedContext, type, options);
     }
 
@@ -776,6 +823,7 @@ export class World {
         stage: ComponentLifecycleStage,
         hook: ComponentHook<T>
     ): () => void {
+        this.assertComponentRegistered(type, "register hook for");
         return registerComponentHook(this.componentHookContext, type, stage, hook);
     }
 
@@ -914,6 +962,34 @@ export class World {
     /** Returns whether the resource changed inside the current change-detection window. */
     isResourceChanged<T>(type: ResourceType<T>): boolean {
         return isStoredResourceChanged(this.resourceContext, type);
+    }
+
+    private assertComponentRegistered(type: AnyComponentType, action: string): void {
+        if (type.registry === this.registry) {
+            return;
+        }
+
+        throw new Error(
+            `Cannot ${action} component ${type.name}: it is registered in ${type.registry.name}, not ${this.registry.name}`
+        );
+    }
+
+    private assertComponentsRegistered(types: readonly AnyComponentType[], action: string): void {
+        for (const type of types) {
+            this.assertComponentRegistered(type, action);
+        }
+    }
+
+    private assertBundleRegistered(bundle: Bundle, action: string): void {
+        if (bundle.registry !== undefined && bundle.registry !== this.registry) {
+            throw new Error(
+                `Cannot ${action} bundle from ${bundle.registry.name} in world ${this.registry.name}`
+            );
+        }
+
+        for (const entry of bundle.entries) {
+            this.assertComponentRegistered(entry.type, action);
+        }
     }
 
     /** Falls back to a frame-local change window when no system-specific window is active. */

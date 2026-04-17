@@ -1,5 +1,6 @@
 import {
     World,
+    createRegistry,
     defineResource,
     defineState,
     resourceMatches,
@@ -8,6 +9,7 @@ import {
     stateIs,
 } from "../src";
 
+const registry = createRegistry("example-scheduler");
 const Log = defineResource<string[]>("Log");
 const FeatureEnabled = defineResource<{ value: boolean }>("FeatureEnabled");
 const GameMode = defineState<"running" | "paused">("GameMode", "running");
@@ -47,7 +49,7 @@ class PrintSystem {
     }
 }
 
-const world = new World();
+const world = new World(registry);
 
 world.setFixedTimeStep(0.5);
 world.configureSet("gameplay", {
