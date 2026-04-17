@@ -123,10 +123,8 @@ export class RemovedComponents<T> {
 
         // Removed ids are contiguous, so the unread slice can be computed directly
         // instead of scanning the entire append-only buffer every read.
-        const startIndex =
-            this.startIndex + Math.max(0, reader.cursor - this.firstRemovedId);
-        const unread =
-            startIndex >= this.removed.length ? [] : this.removed.slice(startIndex);
+        const startIndex = this.startIndex + Math.max(0, reader.cursor - this.firstRemovedId);
+        const unread = startIndex >= this.removed.length ? [] : this.removed.slice(startIndex);
 
         reader.advanceTo(this.nextRemovedId);
 

@@ -64,7 +64,11 @@ function ensureRemovedComponents<T>(
     context: RemovedStoreContext,
     type: ComponentType<T>
 ): RemovedComponents<T> {
-    return ensureMapEntry(context.removedComponents, type.id, () => new RemovedComponents<unknown>()) as RemovedComponents<T>;
+    return ensureMapEntry(
+        context.removedComponents,
+        type.id,
+        () => new RemovedComponents<unknown>()
+    ) as RemovedComponents<T>;
 }
 
 function getRemovedComponents<T>(

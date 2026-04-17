@@ -61,5 +61,9 @@ export function updateMessages(context: MessageContext): void {
 }
 
 function ensureMessageStore<T>(context: MessageContext, type: MessageType<T>): Messages<T> {
-    return ensureIndexedEntry(context.messageStores, type.id, () => new Messages<unknown>()) as Messages<T>;
+    return ensureIndexedEntry(
+        context.messageStores,
+        type.id,
+        () => new Messages<unknown>()
+    ) as Messages<T>;
 }

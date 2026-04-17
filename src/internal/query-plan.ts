@@ -11,10 +11,7 @@ import type {
 import { chooseSmallestStore } from "../query";
 import { SparseSet } from "../sparse-set";
 import { fillComponents, fillOptionalComponents, hasComponents } from "./query-components";
-import {
-    compileQueryFilterMatcher,
-    type QueryFilterMatcher,
-} from "./query-filter";
+import { compileQueryFilterMatcher, type QueryFilterMatcher } from "./query-filter";
 
 /** Broad buckets that let query execution skip unnecessary filter work. */
 export type QueryFilterMode = "unfiltered" | "structural" | "change";
@@ -368,7 +365,9 @@ function createQueryPlan(
         stores,
         filterStores,
         filterMode,
-        matchesFilter: compileQueryFilterMatcher(filterMode) as QueryFilterMatcher<ResolvedQueryPlan>,
+        matchesFilter: compileQueryFilterMatcher(
+            filterMode
+        ) as QueryFilterMatcher<ResolvedQueryPlan>,
         iterate: compileRequiredQueryIterate(stores.length, filterMode),
         each: compileRequiredQueryEach(stores.length, filterMode),
         countMatches: compileRequiredQueryCount(filterMode),
@@ -391,7 +390,11 @@ function createOptionalQueryPlan(
         matchesFilter: compileQueryFilterMatcher(
             filterMode
         ) as QueryFilterMatcher<ResolvedOptionalQueryPlan>,
-        iterate: compileOptionalQueryIterate(requiredStores.length, optionalStores.length, filterMode),
+        iterate: compileOptionalQueryIterate(
+            requiredStores.length,
+            optionalStores.length,
+            filterMode
+        ),
         each: compileOptionalQueryEach(requiredStores.length, optionalStores.length, filterMode),
         countMatches: compileOptionalQueryCount(filterMode),
     };
@@ -1058,17 +1061,18 @@ function* iterateOptional1x1(
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
-        const requiredValue0 = baseIsRequiredStore0 ? baseValues[index] : requiredStore0.get(entity);
+        const requiredValue0 = baseIsRequiredStore0
+            ? baseValues[index]
+            : requiredStore0.get(entity);
 
         if (requiredValue0 === undefined) {
             continue;
         }
 
-        yield [
-            entity,
-            requiredValue0,
-            optionalStore0?.get(entity),
-        ] as unknown as OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>;
+        yield [entity, requiredValue0, optionalStore0?.get(entity)] as unknown as OptionalQueryRow<
+            readonly AnyComponentType[],
+            readonly AnyComponentType[]
+        >;
     }
 }
 
@@ -1091,17 +1095,18 @@ function* iterateOptional1x1Filtered(
             continue;
         }
 
-        const requiredValue0 = baseIsRequiredStore0 ? baseValues[index] : requiredStore0.get(entity);
+        const requiredValue0 = baseIsRequiredStore0
+            ? baseValues[index]
+            : requiredStore0.get(entity);
 
         if (requiredValue0 === undefined) {
             continue;
         }
 
-        yield [
-            entity,
-            requiredValue0,
-            optionalStore0?.get(entity),
-        ] as unknown as OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>;
+        yield [entity, requiredValue0, optionalStore0?.get(entity)] as unknown as OptionalQueryRow<
+            readonly AnyComponentType[],
+            readonly AnyComponentType[]
+        >;
     }
 }
 
@@ -1114,19 +1119,15 @@ function* iterateOptionalGeneric(
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = new Array(plan.requiredStores.length + plan.optionalStores.length);
+    const components: unknown[] = new Array(
+        plan.requiredStores.length + plan.optionalStores.length
+    );
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
         if (
-            !fillComponents(
-                entity,
-                plan.requiredStores,
-                components,
-                baseStore,
-                baseValues[index]
-            )
+            !fillComponents(entity, plan.requiredStores, components, baseStore, baseValues[index])
         ) {
             continue;
         }
@@ -1148,7 +1149,9 @@ function* iterateOptionalGenericFiltered(
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = new Array(plan.requiredStores.length + plan.optionalStores.length);
+    const components: unknown[] = new Array(
+        plan.requiredStores.length + plan.optionalStores.length
+    );
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
@@ -1158,13 +1161,7 @@ function* iterateOptionalGenericFiltered(
         }
 
         if (
-            !fillComponents(
-                entity,
-                plan.requiredStores,
-                components,
-                baseStore,
-                baseValues[index]
-            )
+            !fillComponents(entity, plan.requiredStores, components, baseStore, baseValues[index])
         ) {
             continue;
         }
@@ -1195,7 +1192,9 @@ function eachOptional1x1(
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
-        const requiredValue0 = baseIsRequiredStore0 ? baseValues[index] : requiredStore0.get(entity);
+        const requiredValue0 = baseIsRequiredStore0
+            ? baseValues[index]
+            : requiredStore0.get(entity);
 
         if (requiredValue0 === undefined) {
             continue;
@@ -1225,7 +1224,9 @@ function eachOptional1x1Filtered(
             continue;
         }
 
-        const requiredValue0 = baseIsRequiredStore0 ? baseValues[index] : requiredStore0.get(entity);
+        const requiredValue0 = baseIsRequiredStore0
+            ? baseValues[index]
+            : requiredStore0.get(entity);
 
         if (requiredValue0 === undefined) {
             continue;
@@ -1245,19 +1246,15 @@ function eachOptionalGeneric(
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = new Array(plan.requiredStores.length + plan.optionalStores.length);
+    const components: unknown[] = new Array(
+        plan.requiredStores.length + plan.optionalStores.length
+    );
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
         if (
-            !fillComponents(
-                entity,
-                plan.requiredStores,
-                components,
-                baseStore,
-                baseValues[index]
-            )
+            !fillComponents(entity, plan.requiredStores, components, baseStore, baseValues[index])
         ) {
             continue;
         }
@@ -1276,7 +1273,9 @@ function eachOptionalGenericFiltered(
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = new Array(plan.requiredStores.length + plan.optionalStores.length);
+    const components: unknown[] = new Array(
+        plan.requiredStores.length + plan.optionalStores.length
+    );
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
@@ -1286,13 +1285,7 @@ function eachOptionalGenericFiltered(
         }
 
         if (
-            !fillComponents(
-                entity,
-                plan.requiredStores,
-                components,
-                baseStore,
-                baseValues[index]
-            )
+            !fillComponents(entity, plan.requiredStores, components, baseStore, baseValues[index])
         ) {
             continue;
         }
@@ -1363,10 +1356,7 @@ function currentOptionalBaseStore(plan: ResolvedOptionalQueryPlan): SparseSet<un
     return chooseSmallestStore(plan.requiredStores, plan.filterStores.with);
 }
 
-function assertRegisteredQueryComponent(
-    registry: ComponentRegistry,
-    type: AnyComponentType
-): void {
+function assertRegisteredQueryComponent(registry: ComponentRegistry, type: AnyComponentType): void {
     if (type.registry === registry) {
         return;
     }

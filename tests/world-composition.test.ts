@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Commands, World, createRegistry, defineResource, defineState, withComponent } from "../src";
+import {
+    Commands,
+    World,
+    createRegistry,
+    defineResource,
+    defineState,
+    withComponent,
+} from "../src";
 
 const registry = createRegistry("world-composition-test");
 

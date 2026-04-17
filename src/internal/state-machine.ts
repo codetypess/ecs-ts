@@ -204,7 +204,11 @@ function addTransitionRunner<T extends StateValue>(
     system: SystemCallback
 ): void {
     const state = ensureState(context, type);
-    const transitionsFrom = ensureMapEntry(state.onTransition, from, () => new Map<T, SystemRunner[]>());
+    const transitionsFrom = ensureMapEntry(
+        state.onTransition,
+        from,
+        () => new Map<T, SystemRunner[]>()
+    );
 
     getStateSystems(transitionsFrom, to).push(createSystemRunner(system));
 }
@@ -214,7 +218,9 @@ function ensureState<T extends StateValue>(
     type: StateType<T>,
     initial = type.initial
 ): StateRecord<T> {
-    return ensureMapEntry(context.states, type.id, () => createStateRecord(type, initial)) as StateRecord<T>;
+    return ensureMapEntry(context.states, type.id, () =>
+        createStateRecord(type, initial)
+    ) as StateRecord<T>;
 }
 
 function requireState<T extends StateValue>(

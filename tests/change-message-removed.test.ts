@@ -122,7 +122,9 @@ test("removed readers can inspect records without draining them", () => {
 });
 
 test("removed readers only see removals still buffered after drain", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedAfterDrainPosition");
+    const Position = registry.defineComponent<{ x: number; y: number }>(
+        "RemovedAfterDrainPosition"
+    );
     const world = new World(registry);
     const reader = world.removedReader(Position);
     const first = world.spawn(withComponent(Position, { x: 1, y: 2 }));
@@ -168,7 +170,9 @@ test("drainRemoved keeps working even when no removed reader exists", () => {
 });
 
 test("removed history compacts once every live reader advances past it", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedCompactionPosition");
+    const Position = registry.defineComponent<{ x: number; y: number }>(
+        "RemovedCompactionPosition"
+    );
     const world = new World(registry);
     const readerA = world.removedReader(Position);
     const readerB = world.removedReader(Position);
@@ -213,7 +217,9 @@ test("closing a removed reader releases any history pinned by its cursor", () =>
 });
 
 test("late removed readers only see history retained by currently live readers", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedLateReaderPosition");
+    const Position = registry.defineComponent<{ x: number; y: number }>(
+        "RemovedLateReaderPosition"
+    );
     const world = new World(registry);
     const earlyReader = world.removedReader(Position);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));

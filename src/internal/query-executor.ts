@@ -261,11 +261,9 @@ function iterateResolvedOptionalQuery<
 ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
     return plan === undefined
         ? emptyQueryIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>>()
-        : (plan.iterate(
-              context,
-              plan,
-              changeDetection
-          ) as IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>>);
+        : (plan.iterate(context, plan, changeDetection) as IterableIterator<
+              OptionalQueryRow<TRequiredComponents, TOptionalComponents>
+          >);
 }
 
 /** Visits a resolved optional query using the same compiled plan strategy as the iterator version. */
