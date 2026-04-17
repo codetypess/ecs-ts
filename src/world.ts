@@ -21,6 +21,13 @@ import {
     type ComponentOpsContext,
 } from "./internal/component-ops";
 import {
+    getManyComponents,
+    hasAllComponents,
+    hasAnyComponents,
+    isComponentAdded,
+    isComponentChanged,
+} from "./internal/component-read";
+import {
     createComponentStoreContext,
     type ComponentStoreContext,
 } from "./internal/component-store";
@@ -116,7 +123,7 @@ import type {
     QueryRow,
     QueryState,
 } from "./query";
-import { isTickInRange, optionalQueryState, queryState } from "./query";
+import { optionalQueryState, queryState } from "./query";
 import type { RemovedComponent, RemovedReader } from "./removed";
 import type { RemovedReaderOptions } from "./removed";
 import type { ResourceType } from "./resource";
@@ -293,35 +300,13 @@ export class World {
     /** Returns whether the entity has every component in the provided list. */
     hasAll(entity: Entity, types: readonly AnyComponentType[]): boolean {
         this.assertComponentsRegistered(types, "read");
-
-        if (!this.entities.isAlive(entity)) {
-            return false;
-        }
-
-        for (const type of types) {
-            if (!this.componentStoreContext.stores[type.id]?.has(entity)) {
-                return false;
-            }
-        }
-
-        return true;
+        return hasAllComponents(this.entities, this.componentStoreContext.stores, entity, types);
     }
 
     /** Returns whether the entity has at least one component in the provided list. */
     hasAny(entity: Entity, types: readonly AnyComponentType[]): boolean {
         this.assertComponentsRegistered(types, "read");
-
-        if (!this.entities.isAlive(entity)) {
-            return false;
-        }
-
-        for (const type of types) {
-            if (this.componentStoreContext.stores[type.id]?.has(entity)) {
-                return true;
-            }
-        }
-
-        return false;
+        return hasAnyComponents(this.entities, this.componentStoreContext.stores, entity, types);
     }
 
     /** Returns the component value for the entity, or `undefined` when absent. */
@@ -352,52 +337,31 @@ export class World {
         ...types: TComponents
     ): ComponentTuple<TComponents> | undefined {
         this.assertComponentsRegistered(types, "read");
-
-        if (!this.entities.isAlive(entity)) {
-            return undefined;
-        }
-
-        const components: unknown[] = new Array(types.length);
-
-        for (let index = 0; index < types.length; index++) {
-            const type = types[index]!;
-            const store = this.componentStoreContext.stores[type.id];
-            const component = store?.get(entity);
-
-            if (component === undefined) {
-                return undefined;
-            }
-
-            components[index] = component;
-        }
-
-        return components as ComponentTuple<TComponents>;
+        return getManyComponents(this.entities, this.componentStoreContext.stores, entity, types);
     }
 
     /** Returns whether the component was added inside the current change-detection window. */
     isAdded<T>(entity: Entity, type: ComponentType<T>): boolean {
         this.assertComponentRegistered(type, "read");
-
-        if (!this.entities.isAlive(entity)) {
-            return false;
-        }
-
-        const tick = this.componentStoreContext.stores[type.id]?.getAddedTick(entity);
-
-        return tick !== undefined && isTickInRange(tick, this.changeDetectionRange());
+        return isComponentAdded(
+            this.entities,
+            this.componentStoreContext.stores,
+            entity,
+            type,
+            this.changeDetectionRange()
+        );
     }
 
     /** Returns whether the component changed inside the current change-detection window. */
     isChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
         this.assertComponentRegistered(type, "read");
-
-        if (!this.entities.isAlive(entity)) {
-            return false;
-        }
-
-        const tick = this.componentStoreContext.stores[type.id]?.getChangedTick(entity);
-
-        return tick !== undefined && isTickInRange(tick, this.changeDetectionRange());
+        return isComponentChanged(
+            this.entities,
+            this.componentStoreContext.stores,
+            entity,
+            type,
+            this.changeDetectionRange()
+        );
     }
 
     /** Removes a single component and records lifecycle hooks plus removed data. */

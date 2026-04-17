@@ -8,13 +8,19 @@ import { assertComponentValue } from "../component";
 import { EntityManager, formatEntity } from "../entity";
 import type { Entity } from "../entity";
 import type { ChangeDetectionRange, ComponentTuple } from "../query";
-import { isTickInRange } from "../query";
 import {
     ensureComponentStore,
     getComponentStore,
     getComponentType,
     type ComponentStoreContext,
 } from "./component-store";
+import {
+    getManyComponents,
+    hasAllComponents,
+    hasAnyComponents,
+    isComponentAdded,
+    isComponentChanged,
+} from "./component-read";
 import {
     takeEntityComponents,
     trackEntityComponent,
@@ -118,17 +124,7 @@ export function hasAll(
     entity: Entity,
     types: readonly AnyComponentType[]
 ): boolean {
-    if (!context.entities.isAlive(entity)) {
-        return false;
-    }
-
-    for (const type of types) {
-        if (!getComponentStore(context.componentStores, type)?.has(entity)) {
-            return false;
-        }
-    }
-
-    return true;
+    return hasAllComponents(context.entities, context.componentStores.stores, entity, types);
 }
 
 /** Returns whether the entity has at least one component in the provided list. */
@@ -137,17 +133,7 @@ export function hasAny(
     entity: Entity,
     types: readonly AnyComponentType[]
 ): boolean {
-    if (!context.entities.isAlive(entity)) {
-        return false;
-    }
-
-    for (const type of types) {
-        if (getComponentStore(context.componentStores, type)?.has(entity)) {
-            return true;
-        }
-    }
-
-    return false;
+    return hasAnyComponents(context.entities, context.componentStores.stores, entity, types);
 }
 
 /** Returns the component value when the entity is alive and the component exists. */
@@ -184,25 +170,7 @@ export function getMany<const TComponents extends readonly AnyComponentType[]>(
     entity: Entity,
     ...types: TComponents
 ): ComponentTuple<TComponents> | undefined {
-    if (!context.entities.isAlive(entity)) {
-        return undefined;
-    }
-
-    const components: unknown[] = new Array(types.length);
-
-    for (let index = 0; index < types.length; index++) {
-        const type = types[index]!;
-        const store = getComponentStore(context.componentStores, type);
-        const component = store?.get(entity);
-
-        if (component === undefined) {
-            return undefined;
-        }
-
-        components[index] = component;
-    }
-
-    return components as ComponentTuple<TComponents>;
+    return getManyComponents(context.entities, context.componentStores.stores, entity, types);
 }
 
 /** Returns whether the component was added inside the current change-detection window. */
@@ -211,13 +179,13 @@ export function isAdded<T>(
     entity: Entity,
     type: ComponentType<T>
 ): boolean {
-    if (!context.entities.isAlive(entity)) {
-        return false;
-    }
-
-    const tick = getComponentStore(context.componentStores, type)?.getAddedTick(entity);
-
-    return tick !== undefined && isTickInRange(tick, context.getChangeDetectionRange());
+    return isComponentAdded(
+        context.entities,
+        context.componentStores.stores,
+        entity,
+        type,
+        context.getChangeDetectionRange()
+    );
 }
 
 /** Returns whether the component changed inside the current change-detection window. */
@@ -226,13 +194,13 @@ export function isChanged<T>(
     entity: Entity,
     type: ComponentType<T>
 ): boolean {
-    if (!context.entities.isAlive(entity)) {
-        return false;
-    }
-
-    const tick = getComponentStore(context.componentStores, type)?.getChangedTick(entity);
-
-    return tick !== undefined && isTickInRange(tick, context.getChangeDetectionRange());
+    return isComponentChanged(
+        context.entities,
+        context.componentStores.stores,
+        entity,
+        type,
+        context.getChangeDetectionRange()
+    );
 }
 
 /** Removes a component and runs replacement/removal lifecycle hooks before deleting it. */

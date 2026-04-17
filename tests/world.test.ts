@@ -29,6 +29,38 @@ test("entity generation prevents stale handles from reading recycled entities", 
     assert.deepEqual(world.mustGet(reused, Position), { x: 3, y: 4 });
 });
 
+test("read helpers keep getMany and change detection aligned with entity liveness", () => {
+    const Position = registry.defineComponent<{ x: number; y: number }>("ReadHelperPosition");
+    const Velocity = registry.defineComponent<{ x: number; y: number }>("ReadHelperVelocity");
+    const world = new World(registry);
+    const entity = world.spawn(
+        withComponent(Position, { x: 1, y: 2 }),
+        withComponent(Velocity, { x: 3, y: 4 })
+    );
+
+    assert.deepEqual(world.getMany(entity, Position, Velocity), [
+        { x: 1, y: 2 },
+        { x: 3, y: 4 },
+    ]);
+    assert.equal(world.isAdded(entity, Position), true);
+    assert.equal(world.isChanged(entity, Velocity), true);
+
+    world.update(0);
+
+    assert.equal(world.isAdded(entity, Position), false);
+    assert.equal(world.isChanged(entity, Velocity), false);
+
+    world.markChanged(entity, Position);
+
+    assert.equal(world.isChanged(entity, Position), true);
+
+    world.despawn(entity);
+
+    assert.equal(world.getMany(entity, Position, Velocity), undefined);
+    assert.equal(world.isAdded(entity, Position), false);
+    assert.equal(world.isChanged(entity, Position), false);
+});
+
 test("bundles insert and remove reusable component groups", () => {
     const Player = registry.defineComponent("TestPlayer");
     const Health = registry.defineComponent<{ value: number }>("TestHealth");
