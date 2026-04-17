@@ -63,6 +63,30 @@ test("commands flush queued structural edits in order", () => {
     assert.deepEqual(world.mustGet(entity, Velocity), { x: 3, y: 4 });
 });
 
+test("commands queued during flush wait for the next flush", () => {
+    const Position = registry.defineComponent<{ x: number; y: number }>("DeferredCommandPosition");
+    const world = new World(registry);
+    const commands = world.commands();
+    const entity = world.spawn();
+    let ranOuterCommand = false;
+
+    commands.run(() => {
+        ranOuterCommand = true;
+        commands.add(entity, Position, { x: 5, y: 6 });
+    });
+
+    commands.flush();
+
+    assert.equal(ranOuterCommand, true);
+    assert.equal(commands.pending, 1);
+    assert.equal(world.has(entity, Position), false);
+
+    commands.flush();
+
+    assert.equal(commands.pending, 0);
+    assert.deepEqual(world.mustGet(entity, Position), { x: 5, y: 6 });
+});
+
 test("component lifecycle hooks fire in order and can be unsubscribed", () => {
     const events: string[] = [];
     const Position = registry.defineComponent<{ x: number }>("LifecycleHookPosition", {

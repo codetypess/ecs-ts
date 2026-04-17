@@ -31,6 +31,7 @@ import {
     type ComponentHookContext,
 } from "./internal/component-hooks";
 import { runSystemWithCommands } from "./internal/command-execution";
+import { createEntityComponentIndexContext } from "./internal/entity-component-index";
 import { createEventContext, observeEvent, triggerEvent, type EventContext } from "./internal/events";
 import {
     addMessageType,
@@ -192,6 +193,7 @@ export class World {
         this.registry = registry;
         this.entities = new EntityManager();
         this.componentStoreContext = createComponentStoreContext(registry);
+        const entityComponents = createEntityComponentIndexContext();
         this.resourceContext = createResourceContext({
             getChangeTick: () => this.changeTick,
             getChangeDetectionRange: () => this.changeDetectionRange(),
@@ -203,6 +205,7 @@ export class World {
         this.componentContext = createComponentOpsContext({
             entities: this.entities,
             componentStores: this.componentStoreContext,
+            entityComponents,
             getChangeTick: () => this.changeTick,
             getChangeDetectionRange: () => this.changeDetectionRange(),
             runComponentHooks: (type, stage, entity, component) => {
@@ -359,12 +362,13 @@ export class World {
         for (let index = 0; index < types.length; index++) {
             const type = types[index]!;
             const store = this.componentStoreContext.stores[type.id];
+            const component = store?.get(entity);
 
-            if (!store?.has(entity)) {
+            if (component === undefined) {
                 return undefined;
             }
 
-            components[index] = store.get(entity);
+            components[index] = component;
         }
 
         return components as ComponentTuple<TComponents>;

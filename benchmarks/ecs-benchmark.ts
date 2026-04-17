@@ -36,6 +36,11 @@ interface MovementWorld {
     readonly entities: readonly Entity[];
 }
 
+interface DespawnWorld {
+    readonly world: World;
+    readonly entities: readonly Entity[];
+}
+
 interface SkewedQueryStateWorld {
     readonly world: World;
     readonly query: QueryState<readonly [typeof Position, typeof Velocity]>;
@@ -50,6 +55,11 @@ interface RemovedReaderWorld {
 interface RemovedSteadyStateWorld {
     readonly world: World;
     readonly reader: RemovedReader<{ value: number }>;
+}
+
+interface CommandQueueWorld {
+    readonly world: World;
+    readonly entity: Entity;
 }
 
 interface BenchmarkConfig {
@@ -108,6 +118,9 @@ const Velocity = registry.defineComponent<{ x: number; y: number }>("BenchVeloci
 const Player = registry.defineComponent("BenchPlayer");
 const Sleeping = registry.defineComponent("BenchSleeping");
 const Health = registry.defineComponent<{ value: number }>("BenchHealth");
+const DespawnNoiseComponents = Array.from({ length: 64 }, (_value, index) =>
+    registry.defineComponent<{ value: number }>(`BenchDespawnNoise${index}`)
+);
 const DamageMessage = defineMessage<{ target: Entity; amount: number }>("BenchDamageMessage");
 const DamageEvent = defineEvent<{ target: Entity; amount: number }>("BenchDamageEvent");
 const FeatureFlags = defineResource<{ enabled: boolean; paused: boolean }>("BenchFeatureFlags");
@@ -222,6 +235,28 @@ function createMovementWorld(count: number): MovementWorld {
     return { world, entities };
 }
 
+function createDespawnWorld(count: number): DespawnWorld {
+    const world = new World(registry);
+    const entities: Entity[] = [];
+    const noiseEntity = world.spawn();
+
+    for (const [index, type] of DespawnNoiseComponents.entries()) {
+        world.add(noiseEntity, type, { value: index });
+    }
+
+    for (let index = 0; index < count; index++) {
+        entities.push(
+            world.spawn(
+                withComponent(Position, { x: index, y: index }),
+                withComponent(Velocity, { x: 1, y: -1 }),
+                withComponent(Health, { value: 100 + index })
+            )
+        );
+    }
+
+    return { world, entities };
+}
+
 function createSchedulerWorld(enabled: boolean): World {
     class NoopSystem {
         onUpdate(): void {
@@ -268,6 +303,13 @@ function createRemovedSteadyStateWorld(): RemovedSteadyStateWorld {
     reader.read();
 
     return { world, reader };
+}
+
+function createCommandQueueWorld(): CommandQueueWorld {
+    const world = new World(registry);
+    const entity = world.spawn(withComponent(Position, { x: 0, y: 0 }));
+
+    return { world, entity };
 }
 
 function createSkewedQueryStateWorld(count: number): SkewedQueryStateWorld {
@@ -505,6 +547,23 @@ pushBenchmark(results, "spawn position+velocity", () => {
     return ENTITY_COUNT;
 });
 
+pushPreparedBenchmark(results, "despawn sparse entity with noisy stores", {
+    setup: () => createDespawnWorld(ENTITY_COUNT),
+    run: (despawnWorld) => {
+        let operations = 0;
+
+        for (const entity of despawnWorld.entities) {
+            despawnWorld.world.despawn(entity);
+            operations++;
+        }
+
+        checksum += despawnWorld.world.drainRemoved(Health).length;
+        checksum += despawnWorld.world.isAlive(despawnWorld.entities[0]!) ? 1 : 0;
+
+        return operations;
+    },
+});
+
 pushPreparedBenchmark(results, "direct get(Position)", {
     setup: () => createMovementWorld(ENTITY_COUNT),
     run: (movement) => {
@@ -518,6 +577,22 @@ pushPreparedBenchmark(results, "direct get(Position)", {
         }
 
         return operations;
+    },
+});
+
+pushPreparedBenchmark(results, "commands markChanged batch flush", {
+    setup: () => createCommandQueueWorld(),
+    run: ({ world, entity }) => {
+        const commands = world.commands();
+
+        for (let index = 0; index < EVENT_COUNT; index++) {
+            commands.markChanged(entity, Position);
+        }
+
+        commands.flush();
+        checksum += world.isChanged(entity, Position) ? 1 : 0;
+
+        return EVENT_COUNT;
     },
 });
 

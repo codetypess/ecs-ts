@@ -12,14 +12,20 @@ import { isTickInRange } from "../query";
 import {
     ensureComponentStore,
     getComponentStore,
-    getComponentStoreEntries,
     getComponentType,
     type ComponentStoreContext,
 } from "./component-store";
+import {
+    takeEntityComponents,
+    trackEntityComponent,
+    untrackEntityComponent,
+    type EntityComponentIndexContext,
+} from "./entity-component-index";
 
 interface ComponentOpsContextOptions {
     readonly entities: EntityManager;
     readonly componentStores: ComponentStoreContext;
+    readonly entityComponents: EntityComponentIndexContext;
     readonly getChangeTick: () => number;
     readonly getChangeDetectionRange: () => ChangeDetectionRange;
     readonly runComponentHooks: <T>(
@@ -187,12 +193,13 @@ export function getMany<const TComponents extends readonly AnyComponentType[]>(
     for (let index = 0; index < types.length; index++) {
         const type = types[index]!;
         const store = getComponentStore(context.componentStores, type);
+        const component = store?.get(entity);
 
-        if (!store?.has(entity)) {
+        if (component === undefined) {
             return undefined;
         }
 
-        components[index] = store.get(entity);
+        components[index] = component;
     }
 
     return components as ComponentTuple<TComponents>;
@@ -235,15 +242,16 @@ export function remove<T>(
     type: ComponentType<T>
 ): boolean {
     const store = getComponentStore(context.componentStores, type);
+    const component = store?.get(entity);
 
-    if (!context.entities.isAlive(entity) || !store?.has(entity)) {
+    if (!context.entities.isAlive(entity) || store === undefined || component === undefined) {
         return false;
     }
 
-    const component = store.get(entity) as T;
     context.runComponentHooks(type, "onReplace", entity, component);
     context.runComponentHooks(type, "onRemove", entity, component);
     context.recordRemoved(type, entity, component);
+    untrackEntityComponent(context.entityComponents, entity, type.id);
     store.delete(entity);
 
     return true;
@@ -255,22 +263,23 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
         return false;
     }
 
-    for (const [componentId, store] of getComponentStoreEntries(context.componentStores)) {
-        if (!store.has(entity)) {
-            continue;
-        }
+    const componentIds = takeEntityComponents(context.entityComponents, entity).sort(
+        (left, right) => left - right
+    );
 
+    for (const componentId of componentIds) {
+        const store = context.componentStores.stores[componentId];
         const type = getComponentType(context.componentStores, componentId);
-        const component = store.get(entity);
+        const component = store?.get(entity);
 
-        if (type !== undefined) {
+        if (type !== undefined && component !== undefined) {
             context.runComponentHooks(type, "onReplace", entity, component);
             context.runComponentHooks(type, "onRemove", entity, component);
             context.runComponentHooks(type, "onDespawn", entity, component);
             context.recordRemoved(type, entity, component);
         }
 
-        store.delete(entity);
+        store?.delete(entity);
     }
 
     return context.entities.destroy(entity);
@@ -329,15 +338,16 @@ function insertComponentOnly<T>(
 ): void {
     assertComponentValue(type, value);
     const store = ensureComponentStore(context.componentStores, type);
-    const hadComponent = store.has(entity);
+    const previous = store.get(entity);
 
-    if (hadComponent) {
-        context.runComponentHooks(type, "onReplace", entity, store.get(entity) as T);
+    if (previous !== undefined) {
+        context.runComponentHooks(type, "onReplace", entity, previous);
     }
 
     store.set(entity, value, context.getChangeTick());
 
-    if (!hadComponent) {
+    if (previous === undefined) {
+        trackEntityComponent(context.entityComponents, entity, type.id);
         context.runComponentHooks(type, "onAdd", entity, value);
     }
 
