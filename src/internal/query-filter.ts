@@ -2,11 +2,29 @@ import type { Entity } from "../entity";
 import type { ChangeDetectionRange } from "../query";
 import { isTickInRange } from "../query";
 import type { SparseSet } from "../sparse-set";
-import { QueryFilterMode, ResolvedQueryFilter } from "./query-plan";
+import type { QueryFilterMode, ResolvedQueryFilter } from "./query-plan";
 
 interface FilteredQueryPlan {
     readonly filterMode: QueryFilterMode;
     readonly filterStores: ResolvedQueryFilter;
+}
+
+export type QueryFilterMatcher<TPlan extends FilteredQueryPlan = FilteredQueryPlan> = (
+    entity: Entity,
+    plan: TPlan,
+    changeDetection: ChangeDetectionRange,
+    knownPresentStore?: SparseSet<unknown>
+) => boolean;
+
+/** Selects the cheapest filter matcher once per resolved query plan. */
+export function compileQueryFilterMatcher(
+    filterMode: QueryFilterMode
+): QueryFilterMatcher<FilteredQueryPlan> {
+    if (filterMode === "unfiltered") {
+        return matchUnfilteredFilter;
+    }
+
+    return filterMode === "structural" ? matchStructuralPlanFilter : matchChangePlanFilter;
 }
 
 /** Applies the cheapest possible filter path for a resolved query plan. */
@@ -16,19 +34,37 @@ export function matchesPlanFilter(
     changeDetection: ChangeDetectionRange,
     knownPresentStore?: SparseSet<unknown>
 ): boolean {
-    if (plan.filterMode === "unfiltered") {
-        return true;
-    }
-
-    // Structural-only filters can skip change-tick lookups entirely.
-    if (plan.filterMode === "structural") {
-        return matchesStructuralFilter(entity, plan.filterStores, knownPresentStore);
-    }
-
-    return matchesFilter(entity, plan.filterStores, changeDetection, knownPresentStore);
+    return compileQueryFilterMatcher(plan.filterMode)(
+        entity,
+        plan,
+        changeDetection,
+        knownPresentStore
+    );
 }
 
-function matchesFilter(
+function matchUnfilteredFilter(): boolean {
+    return true;
+}
+
+function matchStructuralPlanFilter(
+    entity: Entity,
+    plan: FilteredQueryPlan,
+    _changeDetection: ChangeDetectionRange,
+    knownPresentStore?: SparseSet<unknown>
+): boolean {
+    return matchesStructuralFilter(entity, plan.filterStores, knownPresentStore);
+}
+
+function matchChangePlanFilter(
+    entity: Entity,
+    plan: FilteredQueryPlan,
+    changeDetection: ChangeDetectionRange,
+    knownPresentStore?: SparseSet<unknown>
+): boolean {
+    return matchesChangeFilter(entity, plan.filterStores, changeDetection, knownPresentStore);
+}
+
+function matchesChangeFilter(
     entity: Entity,
     filter: ResolvedQueryFilter,
     changeDetection: ChangeDetectionRange,
