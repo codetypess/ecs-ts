@@ -2,6 +2,7 @@ import type { ComponentType } from "../component";
 import type { Entity } from "../entity";
 import type { RemovedComponent, RemovedReader, RemovedReaderOptions } from "../removed";
 import { RemovedComponents, RemovedReader as BoundRemovedReader } from "../removed";
+import { ensureMapEntry } from "./collection-utils";
 
 interface RemovedStoreOptions {
     readonly getChangeTick: () => number;
@@ -63,16 +64,7 @@ function ensureRemovedComponents<T>(
     context: RemovedStoreContext,
     type: ComponentType<T>
 ): RemovedComponents<T> {
-    const existing = context.removedComponents.get(type.id);
-
-    if (existing !== undefined) {
-        return existing as RemovedComponents<T>;
-    }
-
-    const removed = new RemovedComponents<T>();
-    context.removedComponents.set(type.id, removed as RemovedComponents<unknown>);
-
-    return removed;
+    return ensureMapEntry(context.removedComponents, type.id, () => new RemovedComponents<unknown>()) as RemovedComponents<T>;
 }
 
 function getRemovedComponents<T>(

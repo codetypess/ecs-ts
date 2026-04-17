@@ -1,5 +1,6 @@
 import { Messages } from "../message";
 import type { MessageId, MessageReader, MessageType } from "../message";
+import { ensureIndexedEntry } from "./collection-utils";
 
 /** Indexed storage for every registered message channel. */
 export interface MessageContext {
@@ -60,14 +61,5 @@ export function updateMessages(context: MessageContext): void {
 }
 
 function ensureMessageStore<T>(context: MessageContext, type: MessageType<T>): Messages<T> {
-    const existing = context.messageStores[type.id];
-
-    if (existing !== undefined) {
-        return existing as Messages<T>;
-    }
-
-    const messages = new Messages<T>();
-    context.messageStores[type.id] = messages as Messages<unknown>;
-
-    return messages;
+    return ensureIndexedEntry(context.messageStores, type.id, () => new Messages<unknown>()) as Messages<T>;
 }

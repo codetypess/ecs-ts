@@ -3,6 +3,7 @@ import type { SystemCallback, SystemRunner } from "../scheduler";
 import type { Commands } from "../commands";
 import type { StateType, StateValue } from "../state";
 import type { World } from "../world";
+import { ensureMapEntry } from "./collection-utils";
 
 /** Runtime record for a single registered state machine. */
 export interface StateRecord<T extends StateValue> {
@@ -27,17 +28,13 @@ export function createStateMachineContext(): StateMachineContext {
     };
 }
 
-/** Initializes a state machine explicitly and rejects duplicate initialization. */
+/** Ensures a state machine exists and applies the provided initial value on first creation only. */
 export function initState<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>,
     initial = type.initial
 ): void {
-    if (context.states.has(type.id)) {
-        throw new Error(`State is already initialized: ${type.name}`);
-    }
-
-    context.states.set(type.id, createStateRecord(type, initial));
+    ensureState(context, type, initial);
 }
 
 /** Returns whether the state machine has been initialized. */
@@ -207,30 +204,17 @@ function addTransitionRunner<T extends StateValue>(
     system: SystemCallback
 ): void {
     const state = ensureState(context, type);
-    let transitionsFrom = state.onTransition.get(from);
-
-    if (transitionsFrom === undefined) {
-        transitionsFrom = new Map<T, SystemRunner[]>();
-        state.onTransition.set(from, transitionsFrom);
-    }
+    const transitionsFrom = ensureMapEntry(state.onTransition, from, () => new Map<T, SystemRunner[]>());
 
     getStateSystems(transitionsFrom, to).push(createSystemRunner(system));
 }
 
 function ensureState<T extends StateValue>(
     context: StateMachineContext,
-    type: StateType<T>
+    type: StateType<T>,
+    initial = type.initial
 ): StateRecord<T> {
-    const state = context.states.get(type.id);
-
-    if (state !== undefined) {
-        return state as StateRecord<T>;
-    }
-
-    const created = createStateRecord(type, type.initial);
-    context.states.set(type.id, created);
-
-    return created;
+    return ensureMapEntry(context.states, type.id, () => createStateRecord(type, initial)) as StateRecord<T>;
 }
 
 function requireState<T extends StateValue>(
@@ -262,14 +246,5 @@ function getStateSystems<T extends StateValue>(
     systemsByValue: Map<T, SystemRunner[]>,
     value: T
 ): SystemRunner[] {
-    const existing = systemsByValue.get(value);
-
-    if (existing !== undefined) {
-        return existing;
-    }
-
-    const systems: SystemRunner[] = [];
-    systemsByValue.set(value, systems);
-
-    return systems;
+    return ensureMapEntry(systemsByValue, value, () => []);
 }

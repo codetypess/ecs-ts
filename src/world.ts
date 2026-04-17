@@ -1,4 +1,6 @@
-import type {
+import {
+    assertRegisteredComponent,
+    assertRegisteredComponents,
     AnyComponentType,
     Bundle,
     ComponentEntry,
@@ -270,7 +272,7 @@ export class World {
 
     /** Inserts or replaces a component value on a live entity. */
     add<T>(entity: Entity, type: ComponentType<T>, value: T): this {
-        this.assertComponentRegistered(type, "add");
+        assertRegisteredComponent(this.registry, type, "add");
         addComponent(this.componentContext, entity, type, value);
 
         return this;
@@ -278,7 +280,7 @@ export class World {
 
     /** Marks an existing component as changed without replacing its value. */
     markChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
-        this.assertComponentRegistered(type, "mark changed");
+        assertRegisteredComponent(this.registry, type, "mark changed");
         return markComponentChanged(this.componentContext, entity, type);
     }
 
@@ -288,7 +290,7 @@ export class World {
     // the flattened internal helpers.
     /** Returns whether the entity currently has the requested component. */
     has<T>(entity: Entity, type: ComponentType<T>): boolean {
-        this.assertComponentRegistered(type, "read");
+        assertRegisteredComponent(this.registry, type, "read");
 
         return (
             this.entities.isAlive(entity) &&
@@ -298,19 +300,19 @@ export class World {
 
     /** Returns whether the entity has every component in the provided list. */
     hasAll(entity: Entity, types: readonly AnyComponentType[]): boolean {
-        this.assertComponentsRegistered(types, "read");
+        assertRegisteredComponents(this.registry, types, "read");
         return hasAllComponents(this.entities, this.componentStoreContext.stores, entity, types);
     }
 
     /** Returns whether the entity has at least one component in the provided list. */
     hasAny(entity: Entity, types: readonly AnyComponentType[]): boolean {
-        this.assertComponentsRegistered(types, "read");
+        assertRegisteredComponents(this.registry, types, "read");
         return hasAnyComponents(this.entities, this.componentStoreContext.stores, entity, types);
     }
 
     /** Returns the component value for the entity, or `undefined` when absent. */
     get<T>(entity: Entity, type: ComponentType<T>): T | undefined {
-        this.assertComponentRegistered(type, "read");
+        assertRegisteredComponent(this.registry, type, "read");
 
         if (!this.entities.isAlive(entity)) {
             return undefined;
@@ -335,13 +337,13 @@ export class World {
         entity: Entity,
         ...types: TComponents
     ): ComponentTuple<TComponents> | undefined {
-        this.assertComponentsRegistered(types, "read");
+        assertRegisteredComponents(this.registry, types, "read");
         return getManyComponents(this.entities, this.componentStoreContext.stores, entity, types);
     }
 
     /** Returns whether the component was added inside the current change-detection window. */
     isAdded<T>(entity: Entity, type: ComponentType<T>): boolean {
-        this.assertComponentRegistered(type, "read");
+        assertRegisteredComponent(this.registry, type, "read");
         return isComponentAdded(
             this.entities,
             this.componentStoreContext.stores,
@@ -353,7 +355,7 @@ export class World {
 
     /** Returns whether the component changed inside the current change-detection window. */
     isChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
-        this.assertComponentRegistered(type, "read");
+        assertRegisteredComponent(this.registry, type, "read");
         return isComponentChanged(
             this.entities,
             this.componentStoreContext.stores,
@@ -365,7 +367,7 @@ export class World {
 
     /** Removes a single component and records lifecycle hooks plus removed data. */
     remove<T>(entity: Entity, type: ComponentType<T>): boolean {
-        this.assertComponentRegistered(type, "remove");
+        assertRegisteredComponent(this.registry, type, "remove");
         return removeComponent(this.componentContext, entity, type);
     }
 
@@ -638,7 +640,7 @@ export class World {
 
     /** Drains and clears the removed-component buffer for the given component type. */
     drainRemoved<T>(type: ComponentType<T>): RemovedComponent<T>[] {
-        this.assertComponentRegistered(type, "read removed");
+        assertRegisteredComponent(this.registry, type, "read removed");
         return drainRemovedComponents(this.removedContext, type);
     }
 
@@ -647,7 +649,7 @@ export class World {
         type: ComponentType<T>,
         options: RemovedReaderOptions = {}
     ): RemovedReader<T> {
-        this.assertComponentRegistered(type, "create removed reader");
+        assertRegisteredComponent(this.registry, type, "create removed reader");
         return createBoundRemovedReader(this.removedContext, type, options);
     }
 
@@ -790,11 +792,11 @@ export class World {
         stage: ComponentLifecycleStage,
         hook: ComponentHook<T>
     ): () => void {
-        this.assertComponentRegistered(type, "register hook for");
+        assertRegisteredComponent(this.registry, type, "register hook for");
         return registerComponentHook(this.componentHookContext, type, stage, hook);
     }
 
-    /** Initializes a state machine unless it was already created. */
+    /** Ensures a state machine exists, using the provided initial value only on first creation. */
     initState<T extends StateValue>(type: StateType<T>, initial = type.initial): this {
         initState(this.stateContext, type, initial);
 
@@ -931,22 +933,6 @@ export class World {
         return isStoredResourceChanged(this.resourceContext, type);
     }
 
-    private assertComponentRegistered(type: AnyComponentType, action: string): void {
-        if (type.registry === this.registry) {
-            return;
-        }
-
-        throw new Error(
-            `Cannot ${action} component ${type.name}: it is registered in ${type.registry.name}, not ${this.registry.name}`
-        );
-    }
-
-    private assertComponentsRegistered(types: readonly AnyComponentType[], action: string): void {
-        for (const type of types) {
-            this.assertComponentRegistered(type, action);
-        }
-    }
-
     private assertBundleRegistered(bundle: Bundle, action: string): void {
         if (bundle.registry !== undefined && bundle.registry !== this.registry) {
             throw new Error(
@@ -955,7 +941,7 @@ export class World {
         }
 
         for (const entry of bundle.entries) {
-            this.assertComponentRegistered(entry.type, action);
+            assertRegisteredComponent(this.registry, entry.type, action);
         }
     }
 

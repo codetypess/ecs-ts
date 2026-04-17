@@ -48,3 +48,18 @@ test("world can register systems, resources, states, and drive updates together"
     assert.deepEqual(world.single([Position])[1], { x: 1, y: 0 });
     assert.equal(world.state(Mode), "running");
 });
+
+test("state registration lazily initializes and initState becomes a no-op afterward", () => {
+    const Mode = defineState<"boot" | "running">("WorldCompositionLazyMode", "boot");
+    const log: string[] = [];
+    const world = new World(registry);
+
+    world.onEnter(Mode, "boot", () => {
+        log.push("enter:boot");
+    });
+    world.initState(Mode, "running");
+    world.update(0);
+
+    assert.equal(world.state(Mode), "boot");
+    assert.deepEqual(log, ["enter:boot"]);
+});
