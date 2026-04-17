@@ -231,7 +231,6 @@ export class World {
                 stores: this.componentStoreContext.stores,
                 getStoreVersion: () => this.componentStoreContext.storeVersion,
             }),
-            isAlive: (entity) => this.entities.isAlive(entity),
         };
         this.scheduleContext = createScheduleEngineContext();
     }

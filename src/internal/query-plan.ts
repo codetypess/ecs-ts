@@ -29,9 +29,7 @@ export interface ResolvedQueryFilter {
 }
 
 /** Inputs needed to execute resolved query plans. */
-export interface QueryExecutionContext {
-    readonly isAlive: (entity: Entity) => boolean;
-}
+export type QueryExecutionContext = Record<never, never>;
 
 type QueryEachVisitor = (entity: Entity, ...components: unknown[]) => void;
 
@@ -490,10 +488,6 @@ function* iterateRequired1(
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
 
         if (value0 === undefined) {
@@ -517,10 +511,6 @@ function* iterateRequired1Filtered(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
@@ -553,10 +543,6 @@ function* iterateRequired2(
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
 
         if (value0 === undefined) {
@@ -588,10 +574,6 @@ function* iterateRequired2Filtered(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
@@ -631,10 +613,6 @@ function* iterateRequired3(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
 
@@ -676,10 +654,6 @@ function* iterateRequired3Filtered(
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
@@ -720,10 +694,6 @@ function* iterateRequiredGeneric(
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         if (!fillComponents(entity, plan.stores, components, baseStore, baseValues[index])) {
             continue;
         }
@@ -744,10 +714,6 @@ function* iterateRequiredGenericFiltered(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
@@ -777,10 +743,6 @@ function eachRequired1(
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
 
         if (value0 === undefined) {
@@ -805,10 +767,6 @@ function eachRequired1Filtered(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
@@ -842,10 +800,6 @@ function eachRequired2(
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
 
         if (value0 === undefined) {
@@ -878,10 +832,6 @@ function eachRequired2Filtered(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
@@ -922,10 +872,6 @@ function eachRequired3(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
 
@@ -968,10 +914,6 @@ function eachRequired3Filtered(
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
@@ -1013,10 +955,6 @@ function eachRequiredGeneric(
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         if (!fillComponents(entity, plan.stores, components, baseStore, baseValues[index])) {
             continue;
         }
@@ -1038,10 +976,6 @@ function eachRequiredGenericFiltered(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
@@ -1066,10 +1000,6 @@ function countRequiredQueryMatches(
     const baseStore = currentRequiredBaseStore(plan);
 
     for (const entity of baseStore.entities) {
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         if (!hasComponents(entity, plan.stores, baseStore)) {
             continue;
         }
@@ -1094,10 +1024,6 @@ function countRequiredQueryMatchesFiltered(
     const baseStore = currentRequiredBaseStore(plan);
 
     for (const entity of baseStore.entities) {
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
@@ -1132,10 +1058,6 @@ function* iterateOptional1x1(
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         const requiredValue0 = baseIsRequiredStore0 ? baseValues[index] : requiredStore0.get(entity);
 
         if (requiredValue0 === undefined) {
@@ -1164,10 +1086,6 @@ function* iterateOptional1x1Filtered(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
@@ -1200,10 +1118,6 @@ function* iterateOptionalGeneric(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         if (
             !fillComponents(
@@ -1238,10 +1152,6 @@ function* iterateOptionalGenericFiltered(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
@@ -1285,10 +1195,6 @@ function eachOptional1x1(
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
 
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         const requiredValue0 = baseIsRequiredStore0 ? baseValues[index] : requiredStore0.get(entity);
 
         if (requiredValue0 === undefined) {
@@ -1314,10 +1220,6 @@ function eachOptional1x1Filtered(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
@@ -1347,10 +1249,6 @@ function eachOptionalGeneric(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         if (
             !fillComponents(
@@ -1382,10 +1280,6 @@ function eachOptionalGenericFiltered(
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
-
-        if (!context.isAlive(entity)) {
-            continue;
-        }
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
@@ -1419,10 +1313,6 @@ function countOptionalQueryMatches(
     const baseStore = currentOptionalBaseStore(plan);
 
     for (const entity of baseStore.entities) {
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         if (!hasComponents(entity, plan.requiredStores, baseStore)) {
             continue;
         }
@@ -1447,10 +1337,6 @@ function countOptionalQueryMatchesFiltered(
     const baseStore = currentOptionalBaseStore(plan);
 
     for (const entity of baseStore.entities) {
-        if (!context.isAlive(entity)) {
-            continue;
-        }
-
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
