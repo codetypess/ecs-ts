@@ -1,3 +1,5 @@
+// 2^20 slots allows up to ~1M live entities while keeping entity handles inside
+// safe JavaScript integer range (max handle ≈ 4095 × 2^20 ≈ 4.3 B < 2^53).
 const ENTITY_INDEX_CAPACITY = 2 ** 20;
 
 /** Packed entity handle composed from an index and a generation counter. */

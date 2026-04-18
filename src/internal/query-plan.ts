@@ -13,6 +13,16 @@ import { SparseSet } from "../sparse-set";
 import { fillComponents, fillOptionalComponents, hasComponents } from "./query-components";
 import { compileQueryFilterMatcher, type QueryFilterMatcher } from "./query-filter";
 
+/**
+ * Query execution is compiled at plan-creation time into specialised functions for
+ * the most common component-count cases (1 / 2 / 3 required components), with a
+ * generic fallback for 4+.  Specialisation removes branching and array-unpacking
+ * overhead from the hot iteration loop.  Each variant is further split into a
+ * "filtered" and "unfiltered" form so filter checks are never paid when no filter
+ * is present.  The compiled executors are stored directly on the resolved plan so
+ * no dispatch indirection occurs at call time.
+ */
+
 /** Broad buckets that let query execution skip unnecessary filter work. */
 export type QueryFilterMode = "unfiltered" | "structural" | "change";
 
@@ -79,6 +89,7 @@ export interface ResolvedQueryPlan {
     readonly iterate: QueryIterateExecutor;
     readonly each: QueryEachExecutor;
     readonly countMatches: QueryCountExecutor;
+    readonly scratchpad: unknown[];
 }
 
 /** Execution plan for a query with required and optional component sections. */
@@ -91,6 +102,7 @@ export interface ResolvedOptionalQueryPlan {
     readonly iterate: OptionalQueryIterateExecutor;
     readonly each: OptionalQueryEachExecutor;
     readonly countMatches: OptionalQueryCountExecutor;
+    readonly scratchpad: unknown[];
 }
 
 /** Cache entry for `QueryState` plans keyed by component-store topology. */
@@ -275,74 +287,76 @@ function resolveFilterStores(
     context: QueryPlanContext,
     filter: QueryFilter
 ): ResolvedQueryFilter | undefined {
-    const withStores: SparseSet<unknown>[] = [];
-    const withoutStores: SparseSet<unknown>[] = [];
-    const orStores: SparseSet<unknown>[] = [];
-    const addedStores: SparseSet<unknown>[] = [];
-    const changedStores: SparseSet<unknown>[] = [];
+    const withStores = resolveRequiredFilterStores(context, filter.with);
+    if (withStores === undefined) return undefined;
 
-    for (const type of filter.with ?? []) {
-        assertRegisteredQueryComponent(context.registry, type);
-        const store = context.stores[type.id];
+    const addedStores = resolveRequiredFilterStores(context, filter.added);
+    if (addedStores === undefined) return undefined;
 
-        if (store === undefined) {
-            return undefined;
-        }
+    const changedStores = resolveRequiredFilterStores(context, filter.changed);
+    if (changedStores === undefined) return undefined;
 
-        withStores.push(store);
-    }
-
-    for (const type of filter.without ?? []) {
-        assertRegisteredQueryComponent(context.registry, type);
-        const store = context.stores[type.id];
-
-        if (store !== undefined) {
-            withoutStores.push(store);
-        }
-    }
-
-    for (const type of filter.or ?? []) {
-        assertRegisteredQueryComponent(context.registry, type);
-        const store = context.stores[type.id];
-
-        if (store !== undefined) {
-            orStores.push(store);
-        }
-    }
+    const orStores = resolveOptionalFilterStores(context, filter.or);
 
     if (filter.or !== undefined && filter.or.length > 0 && orStores.length === 0) {
         return undefined;
     }
 
-    for (const type of filter.added ?? []) {
-        assertRegisteredQueryComponent(context.registry, type);
-        const store = context.stores[type.id];
-
-        if (store === undefined) {
-            return undefined;
-        }
-
-        addedStores.push(store);
-    }
-
-    for (const type of filter.changed ?? []) {
-        assertRegisteredQueryComponent(context.registry, type);
-        const store = context.stores[type.id];
-
-        if (store === undefined) {
-            return undefined;
-        }
-
-        changedStores.push(store);
-    }
-
     return {
         with: withStores,
-        without: withoutStores,
+        without: resolveOptionalFilterStores(context, filter.without),
         or: orStores,
         added: addedStores,
         changed: changedStores,
     };
+}
+
+/**
+ * Resolves stores for filter arrays where a missing store means the filter can
+ * never match — returns `undefined` to short-circuit plan creation.
+ */
+function resolveRequiredFilterStores(
+    context: QueryPlanContext,
+    types: readonly AnyComponentType[] | undefined
+): SparseSet<unknown>[] | undefined {
+    if (!types || types.length === 0) return [];
+
+    const stores: SparseSet<unknown>[] = [];
+
+    for (const type of types) {
+        assertRegisteredQueryComponent(context.registry, type);
+        const store = context.stores[type.id];
+
+        if (store === undefined) return undefined;
+
+        stores.push(store);
+    }
+
+    return stores;
+}
+
+/**
+ * Resolves stores for filter arrays where a missing store is simply omitted
+ * (the filter condition is vacuously false/true for that component).
+ */
+function resolveOptionalFilterStores(
+    context: QueryPlanContext,
+    types: readonly AnyComponentType[] | undefined
+): SparseSet<unknown>[] {
+    if (!types || types.length === 0) return [];
+
+    const stores: SparseSet<unknown>[] = [];
+
+    for (const type of types) {
+        assertRegisteredQueryComponent(context.registry, type);
+        const store = context.stores[type.id];
+
+        if (store !== undefined) {
+            stores.push(store);
+        }
+    }
+
+    return stores;
 }
 
 /** Distinguishes fast structural filters from change-aware filters. */
@@ -371,6 +385,7 @@ function createQueryPlan(
         iterate: compileRequiredQueryIterate(stores.length, filterMode),
         each: compileRequiredQueryEach(stores.length, filterMode),
         countMatches: compileRequiredQueryCount(filterMode),
+        scratchpad: new Array(stores.length),
     };
 }
 
@@ -397,6 +412,7 @@ function createOptionalQueryPlan(
         ),
         each: compileOptionalQueryEach(requiredStores.length, optionalStores.length, filterMode),
         countMatches: compileOptionalQueryCount(filterMode),
+        scratchpad: new Array(requiredStores.length + optionalStores.length),
     };
 }
 
@@ -479,9 +495,8 @@ function compileOptionalQueryCount(filterMode: QueryFilterMode): OptionalQueryCo
 function* iterateRequired1(
     context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
-    void changeDetection;
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -502,7 +517,7 @@ function* iterateRequired1(
 }
 
 function* iterateRequired1Filtered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
@@ -530,11 +545,10 @@ function* iterateRequired1Filtered(
 }
 
 function* iterateRequired2(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
-    void changeDetection;
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -563,7 +577,7 @@ function* iterateRequired2(
 }
 
 function* iterateRequired2Filtered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
@@ -599,11 +613,10 @@ function* iterateRequired2Filtered(
 }
 
 function* iterateRequired3(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
-    void changeDetection;
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -640,7 +653,7 @@ function* iterateRequired3(
 }
 
 function* iterateRequired3Filtered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
@@ -684,15 +697,14 @@ function* iterateRequired3Filtered(
 }
 
 function* iterateRequiredGeneric(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
-    void changeDetection;
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = new Array(plan.stores.length);
+    const components: unknown[] = plan.scratchpad;
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
@@ -706,14 +718,14 @@ function* iterateRequiredGeneric(
 }
 
 function* iterateRequiredGenericFiltered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = new Array(plan.stores.length);
+    const components: unknown[] = plan.scratchpad;
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
@@ -731,12 +743,11 @@ function* iterateRequiredGenericFiltered(
 }
 
 function eachRequired1(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange,
+    _changeDetection: ChangeDetectionRange,
     visitor: QueryEachVisitor
 ): void {
-    void changeDetection;
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -757,7 +768,7 @@ function eachRequired1(
 }
 
 function eachRequired1Filtered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
     changeDetection: ChangeDetectionRange,
     visitor: QueryEachVisitor
@@ -786,12 +797,11 @@ function eachRequired1Filtered(
 }
 
 function eachRequired2(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange,
+    _changeDetection: ChangeDetectionRange,
     visitor: QueryEachVisitor
 ): void {
-    void changeDetection;
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -820,7 +830,7 @@ function eachRequired2(
 }
 
 function eachRequired2Filtered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
     changeDetection: ChangeDetectionRange,
     visitor: QueryEachVisitor
@@ -857,12 +867,11 @@ function eachRequired2Filtered(
 }
 
 function eachRequired3(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange,
+    _changeDetection: ChangeDetectionRange,
     visitor: QueryEachVisitor
 ): void {
-    void changeDetection;
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -899,7 +908,7 @@ function eachRequired3(
 }
 
 function eachRequired3Filtered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
     changeDetection: ChangeDetectionRange,
     visitor: QueryEachVisitor
@@ -944,16 +953,15 @@ function eachRequired3Filtered(
 }
 
 function eachRequiredGeneric(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange,
+    _changeDetection: ChangeDetectionRange,
     visitor: QueryEachVisitor
 ): void {
-    void changeDetection;
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = new Array(plan.stores.length);
+    const components: unknown[] = plan.scratchpad;
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
@@ -967,7 +975,7 @@ function eachRequiredGeneric(
 }
 
 function eachRequiredGenericFiltered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
     changeDetection: ChangeDetectionRange,
     visitor: QueryEachVisitor
@@ -975,7 +983,7 @@ function eachRequiredGenericFiltered(
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = new Array(plan.stores.length);
+    const components: unknown[] = plan.scratchpad;
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
@@ -993,12 +1001,11 @@ function eachRequiredGenericFiltered(
 }
 
 function countRequiredQueryMatches(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange,
+    _changeDetection: ChangeDetectionRange,
     limit: number
 ): number {
-    void changeDetection;
     let matches = 0;
     const baseStore = currentRequiredBaseStore(plan);
 
@@ -1018,7 +1025,7 @@ function countRequiredQueryMatches(
 }
 
 function countRequiredQueryMatchesFiltered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedQueryPlan,
     changeDetection: ChangeDetectionRange,
     limit: number
@@ -1046,11 +1053,10 @@ function countRequiredQueryMatchesFiltered(
 }
 
 function* iterateOptional1x1(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedOptionalQueryPlan,
-    changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange
 ): IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>> {
-    void changeDetection;
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -1077,7 +1083,7 @@ function* iterateOptional1x1(
 }
 
 function* iterateOptional1x1Filtered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedOptionalQueryPlan,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>> {
@@ -1111,17 +1117,14 @@ function* iterateOptional1x1Filtered(
 }
 
 function* iterateOptionalGeneric(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedOptionalQueryPlan,
-    changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange
 ): IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>> {
-    void changeDetection;
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = new Array(
-        plan.requiredStores.length + plan.optionalStores.length
-    );
+    const components: unknown[] = plan.scratchpad;
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
@@ -1142,7 +1145,7 @@ function* iterateOptionalGeneric(
 }
 
 function* iterateOptionalGenericFiltered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedOptionalQueryPlan,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>> {
@@ -1176,12 +1179,11 @@ function* iterateOptionalGenericFiltered(
 }
 
 function eachOptional1x1(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedOptionalQueryPlan,
-    changeDetection: ChangeDetectionRange,
+    _changeDetection: ChangeDetectionRange,
     visitor: QueryEachVisitor
 ): void {
-    void changeDetection;
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -1205,7 +1207,7 @@ function eachOptional1x1(
 }
 
 function eachOptional1x1Filtered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedOptionalQueryPlan,
     changeDetection: ChangeDetectionRange,
     visitor: QueryEachVisitor
@@ -1237,18 +1239,15 @@ function eachOptional1x1Filtered(
 }
 
 function eachOptionalGeneric(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedOptionalQueryPlan,
-    changeDetection: ChangeDetectionRange,
+    _changeDetection: ChangeDetectionRange,
     visitor: QueryEachVisitor
 ): void {
-    void changeDetection;
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = new Array(
-        plan.requiredStores.length + plan.optionalStores.length
-    );
+    const components: unknown[] = plan.scratchpad;
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
@@ -1265,7 +1264,7 @@ function eachOptionalGeneric(
 }
 
 function eachOptionalGenericFiltered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedOptionalQueryPlan,
     changeDetection: ChangeDetectionRange,
     visitor: QueryEachVisitor
@@ -1296,12 +1295,11 @@ function eachOptionalGenericFiltered(
 }
 
 function countOptionalQueryMatches(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedOptionalQueryPlan,
-    changeDetection: ChangeDetectionRange,
+    _changeDetection: ChangeDetectionRange,
     limit: number
 ): number {
-    void changeDetection;
     let matches = 0;
     const baseStore = currentOptionalBaseStore(plan);
 
@@ -1321,7 +1319,7 @@ function countOptionalQueryMatches(
 }
 
 function countOptionalQueryMatchesFiltered(
-    context: QueryExecutionContext,
+    _context: QueryExecutionContext,
     plan: ResolvedOptionalQueryPlan,
     changeDetection: ChangeDetectionRange,
     limit: number

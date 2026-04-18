@@ -27,21 +27,6 @@ export function compileQueryFilterMatcher(
     return filterMode === "structural" ? matchStructuralPlanFilter : matchChangePlanFilter;
 }
 
-/** Applies the cheapest possible filter path for a resolved query plan. */
-export function matchesPlanFilter(
-    entity: Entity,
-    plan: FilteredQueryPlan,
-    changeDetection: ChangeDetectionRange,
-    knownPresentStore?: SparseSet<unknown>
-): boolean {
-    return compileQueryFilterMatcher(plan.filterMode)(
-        entity,
-        plan,
-        changeDetection,
-        knownPresentStore
-    );
-}
-
 function matchUnfilteredFilter(): boolean {
     return true;
 }
@@ -70,19 +55,11 @@ function matchesChangeFilter(
     changeDetection: ChangeDetectionRange,
     knownPresentStore?: SparseSet<unknown>
 ): boolean {
-    if (!matchesStructuralFilter(entity, filter, knownPresentStore)) {
-        return false;
-    }
-
-    if (!matchesAddedStores(entity, filter.added, changeDetection)) {
-        return false;
-    }
-
-    if (!matchesChangedStores(entity, filter.changed, changeDetection)) {
-        return false;
-    }
-
-    return true;
+    return (
+        matchesStructuralFilter(entity, filter, knownPresentStore) &&
+        matchesAddedStores(entity, filter.added, changeDetection) &&
+        matchesChangedStores(entity, filter.changed, changeDetection)
+    );
 }
 
 /** Structural filters depend only on store membership, not change ticks. */

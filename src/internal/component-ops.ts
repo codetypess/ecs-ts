@@ -85,7 +85,8 @@ export function add<T>(
     value: T
 ): void {
     assertAlive(context, entity);
-    addWithRequired(context, entity, type, value, []);
+    const resolving: AnyComponentType[] = [];
+    addWithRequired(context, entity, type, value, resolving);
 }
 
 /** Updates the changed tick for an existing component. */
@@ -259,19 +260,23 @@ function addWithRequired<T>(
     entity: Entity,
     type: ComponentType<T>,
     value: T,
-    resolving: readonly AnyComponentType[]
+    resolving: AnyComponentType[]
 ): void {
     assertComponentValue(type, value);
     addRequiredComponents(context, entity, type, resolving);
     insertComponentOnly(context, entity, type, value);
 }
 
-/** Resolves required-component chains and detects dependency cycles eagerly. */
+/** Resolves required-component chains and detects dependency cycles eagerly.
+ *
+ * Uses a mutable stack (push/pop) instead of spread-cloning on every recursive
+ * call so there are zero extra allocations on the fast path (no required components).
+ */
 function addRequiredComponents(
     context: ComponentOpsContext,
     entity: Entity,
     type: AnyComponentType,
-    resolving: readonly AnyComponentType[]
+    resolving: AnyComponentType[]
 ): void {
     if (type.required.length === 0) {
         return;
@@ -286,15 +291,17 @@ function addRequiredComponents(
         throw new Error(`Circular required component dependency: ${cycle}`);
     }
 
-    const nextResolving = [...resolving, type];
+    resolving.push(type);
 
     for (const required of type.required) {
         if (has(context, entity, required.type)) {
             continue;
         }
 
-        addWithRequired(context, entity, required.type, required.create(), nextResolving);
+        addWithRequired(context, entity, required.type, required.create(), resolving);
     }
+
+    resolving.pop();
 }
 
 /** Writes exactly one component store and runs the appropriate lifecycle hooks around it. */

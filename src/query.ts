@@ -195,15 +195,9 @@ function resolveQueryRegistry(
     }
 
     const registry = types[0]!.registry;
-    assertFilterRegistry(registry, filter, label);
 
-    for (const type of types) {
-        if (type.registry !== registry) {
-            throw new Error(
-                `Cannot create ${label} with components from ${registry.name} and ${type.registry.name}`
-            );
-        }
-    }
+    assertAllSameRegistry(registry, types, label);
+    assertAllSameRegistry(registry, allFilterTypes(filter), label);
 
     return registry;
 }
@@ -218,65 +212,39 @@ function resolveOptionalQueryRegistry(
     }
 
     const registry = required[0]!.registry;
-    assertFilterRegistry(registry, filter, "optional query state");
+    const label = "optional query state";
 
-    for (const type of required) {
-        if (type.registry !== registry) {
-            throw new Error(
-                `Cannot create optional query state with components from ${registry.name} and ${type.registry.name}`
-            );
-        }
-    }
-
-    for (const type of optional) {
-        if (type.registry !== registry) {
-            throw new Error(
-                `Cannot create optional query state with components from ${registry.name} and ${type.registry.name}`
-            );
-        }
-    }
+    assertAllSameRegistry(registry, required, label);
+    assertAllSameRegistry(registry, optional, label);
+    assertAllSameRegistry(registry, allFilterTypes(filter), label);
 
     return registry;
 }
 
-function assertFilterRegistry(
-    registry: ComponentRegistry,
-    filter: QueryFilter,
-    label: string
-): void {
-    for (const type of filter.with ?? []) {
-        assertRegistryMatch(registry, type, label);
-    }
-
-    for (const type of filter.without ?? []) {
-        assertRegistryMatch(registry, type, label);
-    }
-
-    for (const type of filter.or ?? []) {
-        assertRegistryMatch(registry, type, label);
-    }
-
-    for (const type of filter.added ?? []) {
-        assertRegistryMatch(registry, type, label);
-    }
-
-    for (const type of filter.changed ?? []) {
-        assertRegistryMatch(registry, type, label);
-    }
+/** Returns a flat list of every component type referenced by a filter. */
+function allFilterTypes(filter: QueryFilter): readonly AnyComponentType[] {
+    return [
+        ...(filter.with ?? []),
+        ...(filter.without ?? []),
+        ...(filter.or ?? []),
+        ...(filter.added ?? []),
+        ...(filter.changed ?? []),
+    ];
 }
 
-function assertRegistryMatch(
+/** Throws when any type in the list belongs to a different registry. */
+function assertAllSameRegistry(
     registry: ComponentRegistry,
-    type: AnyComponentType,
+    types: readonly AnyComponentType[],
     label: string
 ): void {
-    if (type.registry === registry) {
-        return;
+    for (const type of types) {
+        if (type.registry !== registry) {
+            throw new Error(
+                `Cannot create ${label} with components from ${registry.name} and ${type.registry.name}`
+            );
+        }
     }
-
-    throw new Error(
-        `Cannot create ${label} with components from ${registry.name} and ${type.registry.name}`
-    );
 }
 
 /** Checks whether a change tick falls inside the current system's visible window. */

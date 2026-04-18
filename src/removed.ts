@@ -24,6 +24,8 @@ interface RemovedReaderBinding<T> {
     readonly release: (reader: RemovedReader<T>) => void;
 }
 
+// Deferred until at least this many logical entries have been skipped to amortise the
+// cost of physically compacting (splice) the underlying array.
 const REMOVED_PHYSICAL_COMPACTION_THRESHOLD = 64;
 
 /** Cursor-based reader for removed-component streams. */
