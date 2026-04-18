@@ -44,12 +44,7 @@ export abstract class WorldQueryMethods {
         filter: QueryFilter
     ): IterableIterator<QueryRow<TComponents>> {
         const runtime = this.runtime;
-        return runQuery(
-            runtime.queryContext,
-            types,
-            filter,
-            currentChangeDetectionRange(runtime)
-        );
+        return runQuery(runtime.queryContext, types, filter, currentChangeDetectionRange(runtime));
     }
 
     /** Iterates entities where at least one requested component was newly added. */
@@ -122,11 +117,7 @@ export abstract class WorldQueryMethods {
         state: QueryState<TComponents>
     ): IterableIterator<QueryRow<TComponents>> {
         const runtime = this.runtime;
-        return runQueryWithState(
-            runtime.queryContext,
-            state,
-            currentChangeDetectionRange(runtime)
-        );
+        return runQueryWithState(runtime.queryContext, state, currentChangeDetectionRange(runtime));
     }
 
     /** Returns `true` when a cached query matches at least one entity. */

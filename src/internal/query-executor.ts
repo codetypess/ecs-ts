@@ -15,14 +15,13 @@ import {
     resolveOptionalQueryStateCache,
     resolveQueryPlan,
     resolveQueryStateCache,
-    type QueryExecutionContext,
     type QueryPlanContext,
     type ResolvedOptionalQueryPlan,
     type ResolvedQueryPlan,
 } from "./query-plan";
 
 /** Inputs needed to execute resolved query plans. */
-export interface QueryExecutorContext extends QueryExecutionContext {
+export interface QueryExecutorContext {
     readonly planContext: QueryPlanContext;
 }
 
@@ -111,7 +110,7 @@ export function matchesAnyWithState<const TComponents extends readonly AnyCompon
 ): boolean {
     const plan = resolveQueryStateCache(context.planContext, state);
 
-    return plan !== undefined && plan.countMatches(context, plan, changeDetection, 1) === 1;
+    return plan !== undefined && plan.countMatches(plan, changeDetection, 1) === 1;
 }
 
 /** Returns whether a cached query matches exactly one entity. */
@@ -122,7 +121,7 @@ export function matchesSingleWithState<const TComponents extends readonly AnyCom
 ): boolean {
     const plan = resolveQueryStateCache(context.planContext, state);
 
-    return plan !== undefined && plan.countMatches(context, plan, changeDetection, 2) === 1;
+    return plan !== undefined && plan.countMatches(plan, changeDetection, 2) === 1;
 }
 
 /** Returns whether a cached optional query matches at least one entity. */
@@ -136,7 +135,7 @@ export function matchesAnyOptionalWithState<
 ): boolean {
     const plan = resolveOptionalQueryStateCache(context.planContext, state);
 
-    return plan !== undefined && plan.countMatches(context, plan, changeDetection, 1) === 1;
+    return plan !== undefined && plan.countMatches(plan, changeDetection, 1) === 1;
 }
 
 /** Returns whether a cached optional query matches exactly one entity. */
@@ -150,7 +149,7 @@ export function matchesSingleOptionalWithState<
 ): boolean {
     const plan = resolveOptionalQueryStateCache(context.planContext, state);
 
-    return plan !== undefined && plan.countMatches(context, plan, changeDetection, 2) === 1;
+    return plan !== undefined && plan.countMatches(plan, changeDetection, 2) === 1;
 }
 
 /** Visits every row of a direct required-component query. */
@@ -229,7 +228,7 @@ function iterateResolvedQuery<const TComponents extends readonly AnyComponentTyp
 ): IterableIterator<QueryRow<TComponents>> {
     return plan === undefined
         ? emptyQueryIterator<QueryRow<TComponents>>()
-        : (plan.iterate(context, plan, changeDetection) as IterableIterator<QueryRow<TComponents>>);
+        : (plan.iterate(plan, changeDetection) as IterableIterator<QueryRow<TComponents>>);
 }
 
 function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]>(
@@ -242,12 +241,7 @@ function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]
         return;
     }
 
-    plan.each(
-        context,
-        plan,
-        changeDetection,
-        visitor as (entity: Entity, ...components: unknown[]) => void
-    );
+    plan.each(plan, changeDetection, visitor as (entity: Entity, ...components: unknown[]) => void);
 }
 
 /** Iterates a resolved optional query, filling required values before optional trailing values. */
@@ -261,7 +255,7 @@ function iterateResolvedOptionalQuery<
 ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
     return plan === undefined
         ? emptyQueryIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>>()
-        : (plan.iterate(context, plan, changeDetection) as IterableIterator<
+        : (plan.iterate(plan, changeDetection) as IterableIterator<
               OptionalQueryRow<TRequiredComponents, TOptionalComponents>
           >);
 }
@@ -280,12 +274,7 @@ function eachResolvedOptionalQuery<
         return;
     }
 
-    plan.each(
-        context,
-        plan,
-        changeDetection,
-        visitor as (entity: Entity, ...components: unknown[]) => void
-    );
+    plan.each(plan, changeDetection, visitor as (entity: Entity, ...components: unknown[]) => void);
 }
 
 function* emptyQueryIterator<TRow>(): IterableIterator<TRow> {}

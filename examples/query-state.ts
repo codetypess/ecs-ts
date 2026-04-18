@@ -1,11 +1,4 @@
-import {
-    World,
-    createRegistry,
-    formatEntity,
-    queryState,
-    withComponent,
-    withMarker,
-} from "../src";
+import { World, createRegistry, formatEntity, queryState, withComponent, withMarker } from "../src";
 
 const registry = createRegistry("example-query-state");
 const Position = registry.defineComponent<{ x: number; y: number }>("Position");

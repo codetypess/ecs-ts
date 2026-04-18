@@ -507,7 +507,13 @@ export class World extends WorldQueryMethods {
         value: T,
         system: StateSystem<T>
     ): this {
-        addStateLifecycleSystem(this.runtime.stateContext, type, value, system.onEnter, system.onExit);
+        addStateLifecycleSystem(
+            this.runtime.stateContext,
+            type,
+            value,
+            system.onEnter,
+            system.onExit
+        );
 
         return this;
     }
