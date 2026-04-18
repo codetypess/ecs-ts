@@ -43,6 +43,16 @@ export type AnyComponentType = ComponentType<unknown>;
 export type ComponentData<TComponent extends AnyComponentType> =
     TComponent extends ComponentType<infer TData> ? TData : never;
 
+type Expand<T> = {
+    [TKey in keyof T]: T[TKey];
+};
+
+/** Merges an object component's payload type with extra fields for type-only reuse. */
+export type ComponentDataWithTemplate<
+    TOwn extends object,
+    TTemplate extends ComponentType<object>,
+> = Expand<ComponentData<TTemplate> & TOwn>;
+
 /** A single component value prepared for spawn/insert/bundle calls. */
 export interface ComponentEntry<T> {
     readonly type: ComponentType<T>;
@@ -75,6 +85,11 @@ export class ComponentRegistry {
         name: string,
         options?: ComponentOptions<Record<string, never>>
     ): ComponentType<Record<string, never>>;
+
+    /** Defines a component whose payload type reuses another object component's payload. */
+    defineComponent<TOwn extends object, TTemplate extends ComponentType<object>>(
+        ...args: DefineComponentArgs<ComponentDataWithTemplate<TOwn, TTemplate>>
+    ): ComponentType<ComponentDataWithTemplate<TOwn, TTemplate>>;
 
     /** Defines a component type and freezes its runtime metadata. */
     defineComponent<T>(...args: DefineComponentArgs<T>): ComponentType<T>;
