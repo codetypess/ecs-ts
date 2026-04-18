@@ -21,10 +21,9 @@ const MarkerWithRequired = registry.defineComponent("ComponentTypecheckMarkerWit
 });
 const Value = registry.defineComponent<{ value: number }>("ComponentTypecheckValue");
 const Transform = registry.defineComponent<{ x: number; y: number }>("ComponentTypecheckTransform");
-const SlgTransform = registry.defineComponent<
-    { start: number; speed: number },
-    typeof Transform
->("ComponentTypecheckSlgTransform");
+const SlgTransform = registry.defineComponent<{ start: number; speed: number }, typeof Transform>(
+    "ComponentTypecheckSlgTransform"
+);
 const SlgTransformWithLifecycle = registry.defineComponent<
     { start: number; speed: number },
     typeof Transform
@@ -50,12 +49,10 @@ expectType<{
     y: number;
     start: number;
     speed: number;
-}>(
-    { x: 0, y: 0, start: 0, speed: 1 } satisfies ComponentDataWithTemplate<
-        { start: number; speed: number },
-        typeof Transform
-    >
-);
+}>({ x: 0, y: 0, start: 0, speed: 1 } satisfies ComponentDataWithTemplate<
+    { start: number; speed: number },
+    typeof Transform
+>);
 withMarker(Marker);
 withMarker(MarkerWithRequired);
 withComponent(Value, { value: 1 });
@@ -82,7 +79,9 @@ withComponent(SlgTransform, { start: 0, speed: 1 });
 withComponent(SlgTransform, { x: 0, y: 0 });
 
 // @ts-expect-error primitive components cannot be used as object payload templates
-registry.defineComponent<{ enabled: boolean }, typeof RequiredValue>("ComponentTypecheckInvalidTemplate");
+registry.defineComponent<{ enabled: boolean }, typeof RequiredValue>(
+    "ComponentTypecheckInvalidTemplate"
+);
 
 // @ts-expect-error value components are not markers
 withMarker(Value);
