@@ -4,10 +4,9 @@ A small TypeScript ECS prototype based on the design discussion:
 
 中文说明见 [README-zh.md](README-zh.md).
 
-- Entities are numeric `index + generation` handles, so stale entity IDs do not accidentally hit recycled entities.
-- Components, resources, states, messages, and events are owned by a `createRegistry(...)` registry; marker components default to `{}` payloads and can use `withMarker(...)`, and component values cannot include `null` or `undefined`.
+- Entities are numeric `index + generation` handles, so stale entity IDs do not accidentally hit recycled entities; entities can also carry a numeric `etype` that defaults to `0`.
+- Components, resources, states, messages, and events are owned by a `createRegistry(...)` registry; marker components default to `{}` payloads and can use `withMarker(...)`, and component values must be non-null objects.
 - Each `World` is bound to one registry, and using types from a different registry throws immediately.
-- Bundles group multiple component entries for spawn/insert/remove calls.
 - Component storage uses `SparseSet`: O(1)-ish `get/has/add/remove`, dense iteration, and swap-remove deletion.
 - Queries choose the smallest component store as the base loop, then check other component stores by entity.
 - Queries can filter with `with`, `without`, `or`, `added`, and `changed`.
@@ -72,7 +71,6 @@ console.log(position);
 
 ```sh
 npm run examples:check
-npm run example:bundle
 npm run example:lifecycle
 npm run example:scheduler
 npm run example:scheduler-showcase

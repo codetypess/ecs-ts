@@ -1,22 +1,21 @@
+import { Commands } from "./commands";
 import {
-    assertRegisteredComponent,
+    AnyComponentEntry,
     AnyComponentType,
-    Bundle,
-    ComponentEntry,
+    assertRegisteredComponent,
     ComponentHook,
     ComponentLifecycleStage,
     ComponentType,
 } from "./component";
-import { Commands } from "./commands";
-import { Entity, formatEntity } from "./entity";
+import { Entity, formatEntity, type EntityType } from "./entity";
 import { assertRegisteredEvent, type EventObserver, type EventType } from "./event";
+import { runSystemWithCommands } from "./internal/command-execution";
+import { addComponentHook as registerComponentHook } from "./internal/component-hooks";
 import {
     add as addComponent,
     despawn as despawnEntity,
-    insertBundle as insertComponentBundle,
     markChanged as markComponentChanged,
     remove as removeComponent,
-    removeBundle as removeComponentBundle,
 } from "./internal/component-ops";
 import {
     getManyComponents,
@@ -25,8 +24,6 @@ import {
     isComponentAdded,
     isComponentChanged,
 } from "./internal/component-read";
-import { addComponentHook as registerComponentHook } from "./internal/component-hooks";
-import { runSystemWithCommands } from "./internal/command-execution";
 import { observeEvent, triggerEvent } from "./internal/events";
 import {
     addMessageType,
@@ -68,12 +65,12 @@ import {
     setState,
 } from "./internal/state-machine";
 import { WorldQueryMethods } from "./internal/world-query-methods";
-import * as worldSchedule from "./internal/world-schedule-api";
 import {
     createWorldRuntime,
     currentChangeDetectionRange,
     type WorldRuntime,
 } from "./internal/world-runtime";
+import * as worldSchedule from "./internal/world-schedule-api";
 import {
     assertRegisteredMessage,
     type MessageId,
@@ -95,8 +92,8 @@ import type {
 import { assertRegisteredState, type StateType, type StateValue } from "./state";
 import type { StateSystem, System, TransitionSystem } from "./system";
 
-export { OptionalQueryState, optionalQueryState, QueryState, queryState } from "./query";
 export { Commands } from "./commands";
+export { OptionalQueryState, optionalQueryState, QueryState, queryState } from "./query";
 export type {
     ComponentTuple,
     OptionalComponentTuple,
@@ -145,31 +142,19 @@ export class World extends WorldQueryMethods {
     }
 
     /** Creates a new entity and inserts the provided component entries immediately. */
-    spawn(...entries: ComponentEntry<unknown>[]): Entity {
-        return this.spawnBundle({ entries, registry: entries[0]?.type.registry });
-    }
+    spawn(...entries: AnyComponentEntry[]): Entity;
+    spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
+    spawn(...args: [EntityType, ...AnyComponentEntry[]] | AnyComponentEntry[]): Entity {
+        if (args.length > 0 && typeof args[0] !== "object") {
+            const etype = args[0] as EntityType;
+            const entries = args.slice(1) as AnyComponentEntry[];
 
-    /** Creates a new entity and inserts a reusable bundle into it. */
-    spawnBundle(bundle: Bundle): Entity {
-        this.assertBundleRegistered(bundle, "spawn");
-        const entity = this.runtime.entities.create();
-        this.insertBundle(entity, bundle);
+            return this.spawnWithEntries(etype, entries);
+        }
 
-        return entity;
-    }
+        const entries = args as AnyComponentEntry[];
 
-    /** Inserts or replaces every component entry from the bundle on an existing entity. */
-    insertBundle(entity: Entity, bundle: Bundle): this {
-        this.assertBundleRegistered(bundle, "insert");
-        insertComponentBundle(this.runtime.componentContext, entity, bundle);
-
-        return this;
-    }
-
-    /** Removes every component listed by the bundle and returns whether any removal happened. */
-    removeBundle(entity: Entity, bundle: Bundle): boolean {
-        this.assertBundleRegistered(bundle, "remove");
-        return removeComponentBundle(this.runtime.componentContext, entity, bundle);
+        return this.spawnWithEntries(0, entries);
     }
 
     /** Returns whether the entity handle still points at a live entity. */
@@ -177,8 +162,13 @@ export class World extends WorldQueryMethods {
         return this.runtime.entities.isAlive(entity);
     }
 
+    /** Returns the type assigned when the entity was created, or `undefined` for stale handles. */
+    entityType(entity: Entity): EntityType | undefined {
+        return this.runtime.entities.entityType(entity);
+    }
+
     /** Inserts or replaces a component value on a live entity. */
-    add<T>(entity: Entity, type: ComponentType<T>, value: T): this {
+    add<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this {
         if (type.registry !== this.registry) {
             assertRegisteredComponent(this.registry, type, "add");
         }
@@ -189,7 +179,7 @@ export class World extends WorldQueryMethods {
     }
 
     /** Marks an existing component as changed without replacing its value. */
-    markChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
+    markChanged<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
         if (type.registry !== this.registry) {
             assertRegisteredComponent(this.registry, type, "mark changed");
         }
@@ -202,7 +192,7 @@ export class World extends WorldQueryMethods {
     // on the `world.get`/`world.has` hot path, while writes and query execution still share
     // the flattened internal helpers.
     /** Returns whether the entity currently has the requested component. */
-    has<T>(entity: Entity, type: ComponentType<T>): boolean {
+    has<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
         if (type.registry !== this.registry) {
             assertRegisteredComponent(this.registry, type, "read");
         }
@@ -246,7 +236,7 @@ export class World extends WorldQueryMethods {
     }
 
     /** Returns the component value for the entity, or `undefined` when absent. */
-    get<T>(entity: Entity, type: ComponentType<T>): T | undefined {
+    get<T extends object>(entity: Entity, type: ComponentType<T>): T | undefined {
         if (type.registry !== this.registry) {
             assertRegisteredComponent(this.registry, type, "read");
         }
@@ -259,7 +249,7 @@ export class World extends WorldQueryMethods {
     }
 
     /** Returns the component value or throws when the entity does not have it. */
-    mustGet<T>(entity: Entity, type: ComponentType<T>): T {
+    mustGet<T extends object>(entity: Entity, type: ComponentType<T>): T {
         const value = this.get(entity, type);
 
         if (value === undefined) {
@@ -289,7 +279,7 @@ export class World extends WorldQueryMethods {
     }
 
     /** Returns whether the component was added inside the current change-detection window. */
-    isAdded<T>(entity: Entity, type: ComponentType<T>): boolean {
+    isAdded<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
         if (type.registry !== this.registry) {
             assertRegisteredComponent(this.registry, type, "read");
         }
@@ -304,7 +294,7 @@ export class World extends WorldQueryMethods {
     }
 
     /** Returns whether the component changed inside the current change-detection window. */
-    isChanged<T>(entity: Entity, type: ComponentType<T>): boolean {
+    isChanged<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
         if (type.registry !== this.registry) {
             assertRegisteredComponent(this.registry, type, "read");
         }
@@ -319,7 +309,7 @@ export class World extends WorldQueryMethods {
     }
 
     /** Removes a single component and records lifecycle hooks plus removed data. */
-    remove<T>(entity: Entity, type: ComponentType<T>): boolean {
+    remove<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
         if (type.registry !== this.registry) {
             assertRegisteredComponent(this.registry, type, "remove");
         }
@@ -490,32 +480,32 @@ export class World extends WorldQueryMethods {
     }
 
     /** Registers a component hook that runs after the component is first added. */
-    onAdd<T>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
+    onAdd<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
         return this.onComponentHook(type, "onAdd", hook);
     }
 
     /** Registers a component hook that runs after every insert or replace. */
-    onInsert<T>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
+    onInsert<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
         return this.onComponentHook(type, "onInsert", hook);
     }
 
     /** Registers a component hook that runs with the previous value before replacement/removal. */
-    onReplace<T>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
+    onReplace<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
         return this.onComponentHook(type, "onReplace", hook);
     }
 
     /** Registers a component hook that runs when the component is removed explicitly. */
-    onRemove<T>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
+    onRemove<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
         return this.onComponentHook(type, "onRemove", hook);
     }
 
     /** Registers a component hook that runs when the entity despawns. */
-    onDespawn<T>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
+    onDespawn<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
         return this.onComponentHook(type, "onDespawn", hook);
     }
 
     /** Registers a component hook for an arbitrary lifecycle stage. */
-    onComponentHook<T>(
+    onComponentHook<T extends object>(
         type: ComponentType<T>,
         stage: ComponentLifecycleStage,
         hook: ComponentHook<T>
@@ -746,14 +736,19 @@ export class World extends WorldQueryMethods {
         return isStoredResourceChanged(this.runtime.resourceContext, type);
     }
 
-    private assertBundleRegistered(bundle: Bundle, action: string): void {
-        if (bundle.registry !== undefined && bundle.registry !== this.registry) {
-            throw new Error(
-                `Cannot ${action} bundle from ${bundle.registry.name} in world ${this.registry.name}`
-            );
+    private spawnWithEntries(etype: EntityType, entries: readonly AnyComponentEntry[]): Entity {
+        this.assertEntriesRegistered(entries, "spawn");
+        const entity = this.runtime.entities.create(etype);
+
+        for (const entry of entries) {
+            addComponent(this.runtime.componentContext, entity, entry.type, entry.value);
         }
 
-        for (const entry of bundle.entries) {
+        return entity;
+    }
+
+    private assertEntriesRegistered(entries: readonly AnyComponentEntry[], action: string): void {
+        for (const entry of entries) {
             if (entry.type.registry !== this.registry) {
                 assertRegisteredComponent(this.registry, entry.type, action);
             }

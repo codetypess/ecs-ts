@@ -1,5 +1,5 @@
-import type { Bundle, ComponentEntry, ComponentType } from "./component";
-import type { Entity } from "./entity";
+import type { AnyComponentEntry, ComponentType } from "./component";
+import type { Entity, EntityType } from "./entity";
 import type { EventType } from "./event";
 import type { MessageType } from "./message";
 import type { ResourceType } from "./resource";
@@ -10,7 +10,8 @@ type CommandRunner = (world: World) => void;
 
 /** Deferred structural edits that are flushed after a system or observer finishes. */
 export class Commands {
-    private readonly queue: CommandRunner[] = [];
+    private queue: CommandRunner[] = [];
+    private flushing: CommandRunner[] = [];
 
     constructor(private readonly world: World) {}
 
@@ -20,43 +21,32 @@ export class Commands {
     }
 
     /** Queues an entity spawn using the same component-entry format as `World.spawn`. */
-    spawn(...entries: ComponentEntry<unknown>[]): Entity {
-        return this.spawnBundle({ entries, registry: entries[0]?.type.registry });
-    }
+    spawn(...entries: AnyComponentEntry[]): Entity;
+    spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
+    spawn(...args: [EntityType, ...AnyComponentEntry[]] | AnyComponentEntry[]): Entity {
+        if (args.length > 0 && typeof args[0] !== "object") {
+            const etype = args[0] as EntityType;
+            const entries = args.slice(1) as AnyComponentEntry[];
 
-    /** Reserves an entity immediately, then queues component insertion into it. */
-    spawnBundle(bundle: Bundle): Entity {
-        const entity = this.world.spawn();
-        this.insertBundle(entity, bundle);
+            return this.spawnWithEntries(etype, entries);
+        }
 
-        return entity;
+        const entries = args as AnyComponentEntry[];
+
+        return this.spawnWithEntries(0, entries);
     }
 
     /** Queues a component insertion or replacement. */
-    add<T>(entity: Entity, type: ComponentType<T>, value: T): this {
+    add<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this {
         return this.enqueue((world) => {
             world.add(entity, type, value);
         });
     }
 
     /** Queues component removal. */
-    remove<T>(entity: Entity, type: ComponentType<T>): this {
+    remove<T extends object>(entity: Entity, type: ComponentType<T>): this {
         return this.enqueue((world) => {
             world.remove(entity, type);
-        });
-    }
-
-    /** Queues bundle insertion for an existing entity. */
-    insertBundle(entity: Entity, bundle: Bundle): this {
-        return this.enqueue((world) => {
-            world.insertBundle(entity, bundle);
-        });
-    }
-
-    /** Queues removal of every component listed in the bundle. */
-    removeBundle(entity: Entity, bundle: Bundle): this {
-        return this.enqueue((world) => {
-            world.removeBundle(entity, bundle);
         });
     }
 
@@ -96,7 +86,7 @@ export class Commands {
     }
 
     /** Queues a manual component change marker. */
-    markChanged<T>(entity: Entity, type: ComponentType<T>): this {
+    markChanged<T extends object>(entity: Entity, type: ComponentType<T>): this {
         return this.enqueue((world) => {
             world.markChanged(entity, type);
         });
@@ -127,12 +117,27 @@ export class Commands {
         return this;
     }
 
+    /** Reserves an entity immediately, then queues component insertion into it. */
+    private spawnWithEntries(etype: EntityType, entries: readonly AnyComponentEntry[]): Entity {
+        const entity = this.world.spawn(etype);
+
+        this.enqueue((world) => {
+            for (const entry of entries) {
+                world.add(entity, entry.type, entry.value);
+            }
+        });
+
+        return entity;
+    }
+
     /** Executes the queued commands in insertion order. */
     flush(): void {
-        const commands = this.queue.splice(0);
+        [this.flushing, this.queue] = [this.queue, this.flushing];
 
-        for (const command of commands) {
+        for (const command of this.flushing) {
             command(this.world);
         }
+
+        this.flushing.length = 0;
     }
 }

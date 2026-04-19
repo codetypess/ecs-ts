@@ -16,11 +16,7 @@ export type AnyRegistryType =
     | AnyMessageType
     | AnyEventType;
 
-type DefineComponentArgs<T> = null extends T
-    ? [name: never, options?: never]
-    : undefined extends T
-      ? [name: never, options?: never]
-      : [name: string, options?: ComponentOptions<T>];
+type DefineComponentArgs<T extends object> = [name: string, options?: ComponentOptions<T>];
 
 /**
  * Registry that owns every typed ECS definition for one domain.
@@ -51,8 +47,8 @@ export class Registry {
     ): ComponentType<ComponentDataWithTemplate<TOwn, TTemplate>>;
 
     /** Defines a component type and freezes its runtime metadata. */
-    defineComponent<T>(...args: DefineComponentArgs<T>): ComponentType<T>;
-    defineComponent<T>(
+    defineComponent<T extends object>(...args: DefineComponentArgs<T>): ComponentType<T>;
+    defineComponent<T extends object>(
         name: string,
         options: ComponentOptions<T> = {} as ComponentOptions<T>
     ): ComponentType<T> {

@@ -4,10 +4,9 @@
 
 English README: [README.md](README.md).
 
-- Entity 是数字形式的 `index + generation` 句柄，因此旧实体 ID 不会误命中新复用的实体。
-- Component、resource、state、message 和 event 都通过 `createRegistry(...)` 创建的 registry 注册；marker component 默认使用 `{}` payload，并可通过 `withMarker(...)` 添加；component value 不能包含 `null` 或 `undefined`。
+- Entity 是数字形式的 `index + generation` 句柄，因此旧实体 ID 不会误命中新复用的实体；entity 也可以携带数字 `etype`，默认值为 `0`。
+- Component、resource、state、message 和 event 都通过 `createRegistry(...)` 创建的 registry 注册；marker component 默认使用 `{}` payload，并可通过 `withMarker(...)` 添加；component value 必须是非空 object。
 - 每个 `World` 都绑定到单一 registry，误用其它 registry 的类型会立刻抛错。
-- Bundle 用来把多个 component entry 组合起来，供 spawn、insert、remove 调用复用。
 - Component 存储使用 `SparseSet`：`get/has/add/remove` 接近 O(1)，迭代走 dense 数组，删除使用 swap-remove。
 - Query 会选择最小的组件存储作为基础循环，再按 entity 检查其它组件存储。
 - Query 支持 `with`、`without`、`or`、`added` 和 `changed` 过滤。
@@ -72,7 +71,6 @@ console.log(position);
 
 ```sh
 npm run examples:check
-npm run example:bundle
 npm run example:lifecycle
 npm run example:scheduler
 npm run example:scheduler-showcase

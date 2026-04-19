@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
     World,
-    bundle,
     createRegistry,
     formatEntity,
     requireComponent,
@@ -16,15 +15,18 @@ test("entity generation prevents stale handles from reading recycled entities", 
     const Position = registry.defineComponent<{ x: number; y: number }>("TestPosition");
     const world = new World(registry);
 
-    const first = world.spawn(withComponent(Position, { x: 1, y: 2 }));
+    const first = world.spawn(11, withComponent(Position, { x: 1, y: 2 }));
 
     assert.equal(formatEntity(first), "0v1");
+    assert.equal(world.entityType(first), 11);
     assert.equal(world.despawn(first), true);
 
-    const reused = world.spawn(withComponent(Position, { x: 3, y: 4 }));
+    const reused = world.spawn(12, withComponent(Position, { x: 3, y: 4 }));
 
     assert.equal(formatEntity(reused), "0v2");
     assert.equal(world.isAlive(first), false);
+    assert.equal(world.entityType(first), undefined);
+    assert.equal(world.entityType(reused), 12);
     assert.equal(world.get(first, Position), undefined);
     assert.deepEqual(world.mustGet(reused, Position), { x: 3, y: 4 });
 });
@@ -61,16 +63,16 @@ test("read helpers keep getMany and change detection aligned with entity livenes
     assert.equal(world.isChanged(entity, Position), false);
 });
 
-test("bundles insert and remove reusable component groups", () => {
+test("spawn inserts multiple component entries", () => {
     const Player = registry.defineComponent("TestPlayer");
     const Health = registry.defineComponent<{ value: number }>("TestHealth");
-    const PlayerBundle = bundle(withMarker(Player), withComponent(Health, { value: 100 }));
     const world = new World(registry);
 
-    const entity = world.spawnBundle(PlayerBundle);
+    const entity = world.spawn(withMarker(Player), withComponent(Health, { value: 100 }));
 
     assert.equal(world.hasAll(entity, [Player, Health]), true);
-    assert.equal(world.removeBundle(entity, PlayerBundle), true);
+    assert.equal(world.remove(entity, Player), true);
+    assert.equal(world.remove(entity, Health), true);
     assert.equal(world.hasAny(entity, [Player, Health]), false);
 });
 
@@ -79,13 +81,14 @@ test("commands flush queued structural edits in order", () => {
     const Velocity = registry.defineComponent<{ x: number; y: number }>("CommandVelocity");
     const world = new World(registry);
     const commands = world.commands();
-    const entity = commands.spawn(withComponent(Position, { x: 1, y: 2 }));
+    const entity = commands.spawn(2, withComponent(Position, { x: 1, y: 2 }));
 
     commands.add(entity, Velocity, { x: 3, y: 4 });
     commands.remove(entity, Position);
 
     assert.equal(commands.pending, 3);
     assert.equal(world.isAlive(entity), true);
+    assert.equal(world.entityType(entity), 2);
     assert.equal(world.hasAny(entity, [Position, Velocity]), false);
 
     commands.flush();
@@ -180,7 +183,21 @@ test("component lifecycle hooks fire in order and can be unsubscribed", () => {
     ]);
 });
 
-test("component values reject null and undefined at runtime", () => {
+test("entity type rejects invalid runtime values", () => {
+    const world = new World(registry);
+
+    assert.throws(
+        () => world.spawn(undefined as unknown as number),
+        /Entity etype must be a finite number, got undefined/
+    );
+    assert.throws(() => world.spawn(Number.NaN), /Entity etype must be a finite number, got NaN/);
+    assert.throws(
+        () => world.spawn(Number.POSITIVE_INFINITY),
+        /Entity etype must be a finite number, got Infinity/
+    );
+});
+
+test("component values reject invalid runtime payloads", () => {
     const Position = registry.defineComponent<{ x: number; y: number }>("InvalidValuePosition");
     const RequiredPosition = registry.defineComponent("InvalidValueRequiredPosition", {
         require: [requireComponent(Position, () => null as unknown as { x: number; y: number })],
@@ -197,6 +214,10 @@ test("component values reject null and undefined at runtime", () => {
         /Component InvalidValuePosition value cannot be undefined/
     );
     assert.throws(
+        () => withComponent(Position, 1 as unknown as { x: number; y: number }),
+        /Component InvalidValuePosition value must be an object/
+    );
+    assert.throws(
         () => world.add(entity, RequiredPosition, {}),
         /Component InvalidValuePosition value cannot be null/
     );
@@ -210,10 +231,10 @@ test("required components are inserted transitively without overwriting existing
     const Velocity = registry.defineComponent<{ x: number; y: number }>("TestVelocity", {
         require: [requireComponent(Transform, () => ({ x: 0, y: 0 }))],
     });
-    const Mass = registry.defineComponent<number>("TestMass");
+    const Mass = registry.defineComponent<{ value: number }>("TestMass");
     const RigidBody = registry.defineComponent("TestRigidBody", {
         require: [
-            requireComponent(Mass, () => 1),
+            requireComponent(Mass, () => ({ value: 1 })),
             requireComponent(Velocity, () => ({ x: 0, y: 0 })),
         ],
     });
@@ -224,7 +245,7 @@ test("required components are inserted transitively without overwriting existing
 
     assert.equal(world.hasAll(entity, [RigidBody, Mass, Velocity, Transform]), true);
     assert.deepEqual(world.mustGet(entity, Transform), { x: 5, y: 6 });
-    assert.equal(world.mustGet(entity, Mass), 1);
+    assert.deepEqual(world.mustGet(entity, Mass), { value: 1 });
 });
 
 test("world rejects components from a different registry", () => {

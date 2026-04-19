@@ -74,7 +74,7 @@ export function getManyComponents<const TComponents extends readonly AnyComponen
 }
 
 /** Returns whether the component was added inside the visible change window. */
-export function isComponentAdded<T>(
+export function isComponentAdded<T extends object>(
     entities: EntityManager,
     stores: ComponentStores,
     entity: Entity,
@@ -91,7 +91,7 @@ export function isComponentAdded<T>(
 }
 
 /** Returns whether the component changed inside the visible change window. */
-export function isComponentChanged<T>(
+export function isComponentChanged<T extends object>(
     entities: EntityManager,
     stores: ComponentStores,
     entity: Entity,

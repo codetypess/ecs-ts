@@ -20,7 +20,7 @@ export function createComponentHookContext(): ComponentHookContext {
 }
 
 /** Registers a runtime component hook and returns an unsubscribe callback. */
-export function addComponentHook<T>(
+export function addComponentHook<T extends object>(
     context: ComponentHookContext,
     type: ComponentType<T>,
     stage: ComponentLifecycleStage,
@@ -43,7 +43,7 @@ export function addComponentHook<T>(
 }
 
 /** Runs built-in lifecycle hooks first, then any hooks registered at runtime. */
-export function runComponentHooks<T>(
+export function runComponentHooks<T extends object>(
     context: ComponentHookContext,
     type: ComponentType<T>,
     stage: ComponentLifecycleStage,

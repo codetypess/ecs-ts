@@ -1,9 +1,4 @@
-import type {
-    AnyComponentType,
-    Bundle,
-    ComponentLifecycleStage,
-    ComponentType,
-} from "../component";
+import type { AnyComponentType, ComponentLifecycleStage, ComponentType } from "../component";
 import { assertComponentValue } from "../component";
 import { EntityManager, formatEntity } from "../entity";
 import type { Entity } from "../entity";
@@ -34,13 +29,17 @@ interface ComponentOpsContextOptions {
     readonly entityComponents: EntityComponentIndexContext;
     readonly getChangeTick: () => number;
     readonly getChangeDetectionRange: () => ChangeDetectionRange;
-    readonly runComponentHooks: <T>(
+    readonly runComponentHooks: <T extends object>(
         type: ComponentType<T>,
         stage: ComponentLifecycleStage,
         entity: Entity,
         component: T
     ) => void;
-    readonly recordRemoved: <T>(type: ComponentType<T>, entity: Entity, component: T) => void;
+    readonly recordRemoved: <T extends object>(
+        type: ComponentType<T>,
+        entity: Entity,
+        component: T
+    ) => void;
 }
 
 /** Shared dependencies for component mutation helpers. */
@@ -53,32 +52,8 @@ export function createComponentOpsContext(
     return options;
 }
 
-/** Inserts every entry in a bundle, validating that the entity is alive first. */
-export function insertBundle(context: ComponentOpsContext, entity: Entity, bundle: Bundle): void {
-    assertAlive(context, entity);
-
-    for (const entry of bundle.entries) {
-        add(context, entity, entry.type, entry.value);
-    }
-}
-
-/** Removes every entry listed by a bundle and reports whether anything changed. */
-export function removeBundle(
-    context: ComponentOpsContext,
-    entity: Entity,
-    bundle: Bundle
-): boolean {
-    let removedAny = false;
-
-    for (const entry of bundle.entries) {
-        removedAny = remove(context, entity, entry.type) || removedAny;
-    }
-
-    return removedAny;
-}
-
 /** Inserts or replaces a component, including required-component expansion. */
-export function add<T>(
+export function add<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>,
@@ -90,7 +65,7 @@ export function add<T>(
 }
 
 /** Updates the changed tick for an existing component. */
-export function markChanged<T>(
+export function markChanged<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
@@ -108,7 +83,7 @@ export function markChanged<T>(
 }
 
 /** Returns whether the entity currently has the requested component. */
-export function has<T>(
+export function has<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
@@ -138,7 +113,7 @@ export function hasAny(
 }
 
 /** Returns the component value when the entity is alive and the component exists. */
-export function get<T>(
+export function get<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
@@ -151,7 +126,7 @@ export function get<T>(
 }
 
 /** Returns the component value or throws when it is missing. */
-export function mustGet<T>(
+export function mustGet<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
@@ -175,7 +150,7 @@ export function getMany<const TComponents extends readonly AnyComponentType[]>(
 }
 
 /** Returns whether the component was added inside the current change-detection window. */
-export function isAdded<T>(
+export function isAdded<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
@@ -190,7 +165,7 @@ export function isAdded<T>(
 }
 
 /** Returns whether the component changed inside the current change-detection window. */
-export function isChanged<T>(
+export function isChanged<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
@@ -205,7 +180,7 @@ export function isChanged<T>(
 }
 
 /** Removes a component and runs replacement/removal lifecycle hooks before deleting it. */
-export function remove<T>(
+export function remove<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>
@@ -239,7 +214,7 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
     for (const componentId of componentIds) {
         const store = context.componentStores.stores[componentId];
         const type = getComponentType(context.componentStores, componentId);
-        const component = store?.get(entity);
+        const component = store?.get(entity) as object | undefined;
 
         if (type !== undefined && component !== undefined) {
             context.runComponentHooks(type, "onReplace", entity, component);
@@ -255,7 +230,7 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
 }
 
 /** Expands required components recursively before inserting the requested component. */
-function addWithRequired<T>(
+function addWithRequired<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>,
@@ -305,7 +280,7 @@ function addRequiredComponents(
 }
 
 /** Writes exactly one component store and runs the appropriate lifecycle hooks around it. */
-function insertComponentOnly<T>(
+function insertComponentOnly<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>,

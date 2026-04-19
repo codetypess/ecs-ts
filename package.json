@@ -35,7 +35,6 @@
     "benchmark:smoke": "node --import tsx benchmarks/ecs-benchmark.ts --profile smoke",
     "benchmark:compare": "node --import tsx benchmarks/compare-benchmark.ts",
     "benchmark:json": "node --import tsx benchmarks/ecs-benchmark.ts --json",
-    "example:bundle": "node --import tsx examples/bundle.ts",
     "example:changes": "node --import tsx examples/change-detection.ts",
     "example:lifecycle": "node --import tsx examples/lifecycle.ts",
     "example:messages": "node --import tsx examples/messages.ts",

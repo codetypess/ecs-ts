@@ -16,9 +16,11 @@ function expectType<T>(value: T): void {
 }
 
 const Marker = registry.defineComponent("ComponentTypecheckDefaultMarker");
-const RequiredValue = registry.defineComponent<number>("ComponentTypecheckRequiredValue");
+const RequiredValue = registry.defineComponent<{ value: number }>(
+    "ComponentTypecheckRequiredValue"
+);
 const MarkerWithRequired = registry.defineComponent("ComponentTypecheckMarkerWithRequired", {
-    require: [requireComponent(RequiredValue, () => 1)],
+    require: [requireComponent(RequiredValue, () => ({ value: 1 }))],
 });
 const Value = registry.defineComponent<{ value: number }>("ComponentTypecheckValue");
 const Transform = registry.defineComponent<{ x: number; y: number }>("ComponentTypecheckTransform");
@@ -79,10 +81,8 @@ withComponent(SlgTransform, { start: 0, speed: 1 });
 // @ts-expect-error own payload fields are required
 withComponent(SlgTransform, { x: 0, y: 0 });
 
-// @ts-expect-error primitive components cannot be used as object payload templates
-registry.defineComponent<{ enabled: boolean }, typeof RequiredValue>(
-    "ComponentTypecheckInvalidTemplate"
-);
+// @ts-expect-error component payloads must be objects
+registry.defineComponent<number>("ComponentTypecheckInvalidPrimitive");
 
 // @ts-expect-error value components are not markers
 withMarker(Value);
@@ -102,6 +102,7 @@ expectType<readonly [Record<string, never>, { value: number }] | undefined>(
 );
 expectType<RemovedReader<typeof Value>>(removedValueReader);
 expectType<number | undefined>(removedValueReader.read()[0]?.component.value);
+expectType<number | undefined>(world.entityType(entity));
 
 // @ts-expect-error component values cannot be null
 registry.defineComponent<null>("ComponentTypecheckInvalidNull");

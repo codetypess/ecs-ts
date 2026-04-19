@@ -21,28 +21,28 @@ export interface ComponentLifecycle<T> {
 }
 
 /** Describes a component that should be auto-inserted when another component is added. */
-export interface RequiredComponent<T> {
+export interface RequiredComponent<T extends object> {
     readonly type: ComponentType<T>;
     create(): T;
 }
 
 /** Extra metadata and lifecycle hooks accepted by {@link defineComponent}. */
-export interface ComponentOptions<T> extends ComponentLifecycle<T> {
-    readonly require?: readonly RequiredComponent<unknown>[];
+export interface ComponentOptions<T extends object> extends ComponentLifecycle<T> {
+    readonly require?: readonly RequiredComponent<object>[];
 }
 
 export type ComponentLifecycleStage = keyof ComponentLifecycle<unknown>;
 
 /** Runtime handle used to identify a component store and its lifecycle behavior. */
-export interface ComponentType<T> {
+export interface ComponentType<T extends object> {
     readonly id: number;
     readonly name: string;
     readonly registry: Registry;
     readonly lifecycle: Readonly<ComponentLifecycle<T>>;
-    readonly required: readonly RequiredComponent<unknown>[];
+    readonly required: readonly RequiredComponent<object>[];
 }
 
-export type AnyComponentType = ComponentType<unknown>;
+export type AnyComponentType = ComponentType<object>;
 
 export type ComponentData<TComponent extends AnyComponentType> =
     TComponent extends ComponentType<infer TData> ? TData : never;
@@ -57,17 +57,13 @@ export type ComponentDataWithTemplate<
     TTemplate extends ComponentType<object>,
 > = Expand<ComponentData<TTemplate> & TOwn>;
 
-/** A single component value prepared for spawn/insert/bundle calls. */
-export interface ComponentEntry<T> {
+/** A single component value prepared for spawn calls. */
+export interface ComponentEntry<T extends object> {
     readonly type: ComponentType<T>;
     readonly value: T;
 }
 
-/** Immutable group of component entries that can be reused across entity operations. */
-export interface Bundle {
-    readonly entries: readonly ComponentEntry<unknown>[];
-    readonly registry: Registry | undefined;
-}
+export type AnyComponentEntry = ComponentEntry<object>;
 
 /** Creates a component entry with runtime validation for spawn/insert helpers. */
 export function withComponent<TComponent extends AnyComponentType>(
@@ -85,35 +81,22 @@ export function withMarker<TComponent extends AnyComponentType>(
     return withComponent(type, {} as ComponentData<TComponent>);
 }
 
-/** Freezes a reusable bundle so callers can safely share it across spawn/insert calls. */
-export function bundle(...entries: ComponentEntry<unknown>[]): Bundle {
-    const registry = entries[0]?.type.registry;
-
-    if (registry !== undefined) {
-        for (const entry of entries) {
-            if (entry.type.registry !== registry) {
-                throw new Error(
-                    `Bundle entries must belong to one registry, got ${entry.type.registry.name} and ${registry.name}`
-                );
-            }
-        }
-    }
-
-    return Object.freeze({
-        entries: Object.freeze([...entries]),
-        registry,
-    });
-}
-
 /** Declares a component dependency that is inserted automatically when missing. */
-export function requireComponent<T>(type: ComponentType<T>, create: () => T): RequiredComponent<T> {
+export function requireComponent<T extends object>(
+    type: ComponentType<T>,
+    create: () => T
+): RequiredComponent<T> {
     return Object.freeze({ type, create });
 }
 
-/** Guards against nullable payloads, which this ECS reserves to mean "missing component". */
-export function assertComponentValue<T>(type: ComponentType<T>, value: T): void {
+/** Guards component payloads, which must be non-null objects. */
+export function assertComponentValue<T extends object>(type: ComponentType<T>, value: T): void {
     if (value === null || value === undefined) {
         throw new TypeError(`Component ${type.name} value cannot be ${String(value)}`);
+    }
+
+    if (typeof value !== "object") {
+        throw new TypeError(`Component ${type.name} value must be an object`);
     }
 }
 

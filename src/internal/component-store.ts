@@ -20,7 +20,7 @@ export function createComponentStoreContext(registry: Registry): ComponentStoreC
 }
 
 /** Returns the store for a component type, creating it on first write. */
-export function ensureComponentStore<T>(
+export function ensureComponentStore<T extends object>(
     context: ComponentStoreContext,
     type: ComponentType<T>
 ): SparseSet<T> {
@@ -31,7 +31,7 @@ export function ensureComponentStore<T>(
 }
 
 /** Returns the existing store for a component type, if any. */
-export function getComponentStore<T>(
+export function getComponentStore<T extends object>(
     context: ComponentStoreContext,
     type: ComponentType<T>
 ): SparseSet<T> | undefined {
