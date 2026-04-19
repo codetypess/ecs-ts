@@ -27,7 +27,7 @@ class RemovePositionSystem {
 }
 
 class RemovedLogSystem {
-    constructor(private readonly removedPositions: RemovedReader<{ x: number; y: number }>) {}
+    constructor(private readonly removedPositions: RemovedReader<typeof Position>) {}
 
     onPostUpdate(): void {
         for (const removed of this.removedPositions.read()) {
@@ -39,7 +39,7 @@ class RemovedLogSystem {
 }
 
 class RemovedCleanupSystem {
-    constructor(private readonly removedPositions: RemovedReader<{ x: number; y: number }>) {}
+    constructor(private readonly removedPositions: RemovedReader<typeof Position>) {}
 
     onPostUpdate(): void {
         for (const removed of this.removedPositions.read()) {

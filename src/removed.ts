@@ -1,16 +1,18 @@
-import type { ComponentType } from "./component";
+import type { AnyComponentType, ComponentData } from "./component";
 import type { Entity } from "./entity";
 
 declare const RemovedComponentIdBrand: unique symbol;
 
 /** Monotonic id assigned to each removed-component record. */
-export type RemovedComponentId<T> = number & { readonly [RemovedComponentIdBrand]: T };
+export type RemovedComponentId<TComponent extends AnyComponentType> = number & {
+    readonly [RemovedComponentIdBrand]: TComponent;
+};
 
 /** Snapshot recorded when a component is removed or its entity despawns. */
-export interface RemovedComponent<T> {
-    readonly id: RemovedComponentId<T>;
+export interface RemovedComponent<TComponent extends AnyComponentType> {
+    readonly id: RemovedComponentId<TComponent>;
     readonly entity: Entity;
-    readonly component: T;
+    readonly component: ComponentData<TComponent>;
     readonly tick: number;
 }
 
@@ -19,9 +21,9 @@ export interface RemovedReaderOptions {
     readonly startAt?: number;
 }
 
-interface RemovedReaderBinding<T> {
-    readonly read: (reader: RemovedReader<T>) => readonly RemovedComponent<T>[];
-    readonly release: (reader: RemovedReader<T>) => void;
+interface RemovedReaderBinding<TComponent extends AnyComponentType> {
+    readonly read: (reader: RemovedReader<TComponent>) => readonly RemovedComponent<TComponent>[];
+    readonly release: (reader: RemovedReader<TComponent>) => void;
 }
 
 // Deferred until at least this many logical entries have been skipped to amortise the
@@ -29,13 +31,13 @@ interface RemovedReaderBinding<T> {
 const REMOVED_PHYSICAL_COMPACTION_THRESHOLD = 64;
 
 /** Cursor-based reader for removed-component streams. */
-export class RemovedReader<T> {
+export class RemovedReader<TComponent extends AnyComponentType> {
     private nextRemovedId: number;
     private closed = false;
 
     constructor(
-        readonly type: ComponentType<T>,
-        private readonly binding: RemovedReaderBinding<T>,
+        readonly type: TComponent,
+        private readonly binding: RemovedReaderBinding<TComponent>,
         options: RemovedReaderOptions = {}
     ) {
         this.nextRemovedId = options.startAt ?? 0;
@@ -47,7 +49,7 @@ export class RemovedReader<T> {
     }
 
     /** Reads unread removals and advances the cursor. */
-    read(): readonly RemovedComponent<T>[] {
+    read(): readonly RemovedComponent<TComponent>[] {
         this.assertOpen();
 
         return this.binding.read(this);
@@ -77,9 +79,9 @@ export class RemovedReader<T> {
 }
 
 /** Append-only storage for removed-component records. */
-export class RemovedComponents<T> {
-    private readonly removed: RemovedComponent<T>[] = [];
-    private readonly activeReaders = new Set<RemovedReader<T>>();
+export class RemovedComponents<TComponent extends AnyComponentType> {
+    private readonly removed: RemovedComponent<TComponent>[] = [];
+    private readonly activeReaders = new Set<RemovedReader<TComponent>>();
     private startIndex = 0;
     private firstRemovedId = 0;
     private nextRemovedId = 0;
@@ -95,7 +97,7 @@ export class RemovedComponents<T> {
     }
 
     /** Starts tracking a reader so consumed prefixes can be compacted safely. */
-    register(reader: RemovedReader<T>): void {
+    register(reader: RemovedReader<TComponent>): void {
         if (this.activeReaders.has(reader)) {
             return;
         }
@@ -104,8 +106,12 @@ export class RemovedComponents<T> {
     }
 
     /** Records a removed component together with entity and tick metadata. */
-    push(entity: Entity, component: T, tick: number): RemovedComponentId<T> {
-        const id = this.nextRemovedId as RemovedComponentId<T>;
+    push(
+        entity: Entity,
+        component: ComponentData<TComponent>,
+        tick: number
+    ): RemovedComponentId<TComponent> {
+        const id = this.nextRemovedId as RemovedComponentId<TComponent>;
 
         if (this.length === 0) {
             this.firstRemovedId = id;
@@ -118,7 +124,7 @@ export class RemovedComponents<T> {
     }
 
     /** Reads unread removals and advances the reader cursor. */
-    read(reader: RemovedReader<T>): readonly RemovedComponent<T>[] {
+    read(reader: RemovedReader<TComponent>): readonly RemovedComponent<TComponent>[] {
         if (reader.cursor === this.nextRemovedId) {
             return [];
         }
@@ -138,7 +144,7 @@ export class RemovedComponents<T> {
     }
 
     /** Stops tracking the reader and compacts any newly unpinned history. */
-    release(reader: RemovedReader<T>): void {
+    release(reader: RemovedReader<TComponent>): void {
         if (!this.activeReaders.delete(reader)) {
             return;
         }
@@ -147,7 +153,7 @@ export class RemovedComponents<T> {
     }
 
     /** Returns all removal records and clears the internal buffer. */
-    drain(): RemovedComponent<T>[] {
+    drain(): RemovedComponent<TComponent>[] {
         const drained =
             this.startIndex === 0 ? this.removed.splice(0) : this.removed.slice(this.startIndex);
 
@@ -168,7 +174,7 @@ export class RemovedComponents<T> {
         this.dropBufferedPrefix(minimum);
     }
 
-    private compactAfterRead(reader: RemovedReader<T>): void {
+    private compactAfterRead(reader: RemovedReader<TComponent>): void {
         if (this.activeReaders.size === 1 && this.activeReaders.has(reader)) {
             this.removed.length = 0;
             this.firstRemovedId = this.nextRemovedId;

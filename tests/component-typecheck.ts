@@ -6,6 +6,7 @@ import {
     withMarker,
     type ComponentData,
     type ComponentDataWithTemplate,
+    type RemovedReader,
 } from "../src";
 
 const registry = createRegistry("component-typecheck");
@@ -88,6 +89,7 @@ withMarker(Value);
 
 const world = new World(registry);
 const entity = world.spawn(withMarker(Marker), withComponent(Value, { value: 1 }));
+const removedValueReader = world.removedReader(Value);
 
 for (const [matched, marker, value] of world.query(Marker, Value)) {
     expectType<number>(matched);
@@ -98,6 +100,8 @@ for (const [matched, marker, value] of world.query(Marker, Value)) {
 expectType<readonly [Record<string, never>, { value: number }] | undefined>(
     world.getMany(entity, Marker, Value)
 );
+expectType<RemovedReader<typeof Value>>(removedValueReader);
+expectType<number | undefined>(removedValueReader.read()[0]?.component.value);
 
 // @ts-expect-error component values cannot be null
 registry.defineComponent<null>("ComponentTypecheckInvalidNull");

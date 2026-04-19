@@ -333,7 +333,9 @@ export class World extends WorldQueryMethods {
     }
 
     /** Drains and clears the removed-component buffer for the given component type. */
-    drainRemoved<T>(type: ComponentType<T>): RemovedComponent<T>[] {
+    drainRemoved<TComponent extends AnyComponentType>(
+        type: TComponent
+    ): RemovedComponent<TComponent>[] {
         if (type.registry !== this.registry) {
             assertRegisteredComponent(this.registry, type, "read removed");
         }
@@ -342,7 +344,10 @@ export class World extends WorldQueryMethods {
     }
 
     /** Creates a removed-component reader bound to this world. */
-    removedReader<T>(type: ComponentType<T>, options: RemovedReaderOptions = {}): RemovedReader<T> {
+    removedReader<TComponent extends AnyComponentType>(
+        type: TComponent,
+        options: RemovedReaderOptions = {}
+    ): RemovedReader<TComponent> {
         if (type.registry !== this.registry) {
             assertRegisteredComponent(this.registry, type, "create removed reader");
         }
@@ -351,12 +356,16 @@ export class World extends WorldQueryMethods {
     }
 
     /** Reads removed components with an independent cursor-based reader. */
-    readRemoved<T>(reader: RemovedReader<T>): readonly RemovedComponent<T>[] {
+    readRemoved<TComponent extends AnyComponentType>(
+        reader: RemovedReader<TComponent>
+    ): readonly RemovedComponent<TComponent>[] {
         return reader.read();
     }
 
     /** Releases a removed reader so its cursor no longer retains buffered history. */
-    releaseRemovedReader<T>(reader: RemovedReader<T>): void {
+    releaseRemovedReader<TComponent extends AnyComponentType>(
+        reader: RemovedReader<TComponent>
+    ): void {
         reader.close();
     }
 

@@ -45,12 +45,12 @@ interface SkewedQueryStateWorld {
 
 interface RemovedReaderWorld {
     readonly world: World;
-    readonly reader: RemovedReader<{ value: number }>;
+    readonly reader: RemovedReader<typeof Health>;
 }
 
 interface RemovedSteadyStateWorld {
     readonly world: World;
-    readonly reader: RemovedReader<{ value: number }>;
+    readonly reader: RemovedReader<typeof Health>;
 }
 
 interface CommandQueueWorld {

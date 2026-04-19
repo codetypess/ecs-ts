@@ -1,4 +1,4 @@
-import type { ComponentType } from "../component";
+import type { AnyComponentType, ComponentData } from "../component";
 import type { Entity } from "../entity";
 import type { RemovedComponent, RemovedReader, RemovedReaderOptions } from "../removed";
 import { RemovedComponents, RemovedReader as BoundRemovedReader } from "../removed";
@@ -10,7 +10,7 @@ interface RemovedStoreOptions {
 
 /** Removed-component storage grouped by component type id. */
 export interface RemovedStoreContext extends RemovedStoreOptions {
-    readonly removedComponents: Map<number, RemovedComponents<unknown>>;
+    readonly removedComponents: Map<number, RemovedComponents<AnyComponentType>>;
 }
 
 /** Creates the removed-component context used by a world. */
@@ -22,11 +22,11 @@ export function createRemovedStoreContext(options: RemovedStoreOptions): Removed
 }
 
 /** Creates a world-bound removed-component reader for the component type. */
-export function createRemovedReader<T>(
+export function createRemovedReader<TComponent extends AnyComponentType>(
     context: RemovedStoreContext,
-    type: ComponentType<T>,
+    type: TComponent,
     options: RemovedReaderOptions = {}
-): RemovedReader<T> {
+): RemovedReader<TComponent> {
     const removed = ensureRemovedComponents(context, type);
     const reader = new BoundRemovedReader(
         type,
@@ -43,37 +43,37 @@ export function createRemovedReader<T>(
 }
 
 /** Returns and clears all removed-component records for the component type. */
-export function drainRemoved<T>(
+export function drainRemoved<TComponent extends AnyComponentType>(
     context: RemovedStoreContext,
-    type: ComponentType<T>
-): RemovedComponent<T>[] {
+    type: TComponent
+): RemovedComponent<TComponent>[] {
     return getRemovedComponents(context, type)?.drain() ?? [];
 }
 
 /** Records a removed component together with the current change tick. */
-export function recordRemoved<T>(
+export function recordRemoved<TComponent extends AnyComponentType>(
     context: RemovedStoreContext,
-    type: ComponentType<T>,
+    type: TComponent,
     entity: Entity,
-    component: T
+    component: ComponentData<TComponent>
 ): void {
     ensureRemovedComponents(context, type).push(entity, component, context.getChangeTick());
 }
 
-function ensureRemovedComponents<T>(
+function ensureRemovedComponents<TComponent extends AnyComponentType>(
     context: RemovedStoreContext,
-    type: ComponentType<T>
-): RemovedComponents<T> {
+    type: TComponent
+): RemovedComponents<TComponent> {
     return ensureMapEntry(
         context.removedComponents,
         type.id,
-        () => new RemovedComponents<unknown>()
-    ) as RemovedComponents<T>;
+        () => new RemovedComponents<AnyComponentType>()
+    ) as unknown as RemovedComponents<TComponent>;
 }
 
-function getRemovedComponents<T>(
+function getRemovedComponents<TComponent extends AnyComponentType>(
     context: RemovedStoreContext,
-    type: ComponentType<T>
-): RemovedComponents<T> | undefined {
-    return context.removedComponents.get(type.id) as RemovedComponents<T> | undefined;
+    type: TComponent
+): RemovedComponents<TComponent> | undefined {
+    return context.removedComponents.get(type.id) as RemovedComponents<TComponent> | undefined;
 }
