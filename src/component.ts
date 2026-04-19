@@ -36,6 +36,7 @@ export type ComponentLifecycleStage = keyof ComponentLifecycle<unknown>;
 /** Runtime handle used to identify a component store and its lifecycle behavior. */
 export interface ComponentType<T extends object> {
     readonly id: number;
+    readonly key: string;
     readonly name: string;
     readonly registry: Registry;
     readonly lifecycle: Readonly<ComponentLifecycle<T>>;

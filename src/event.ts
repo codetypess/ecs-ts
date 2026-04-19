@@ -7,6 +7,7 @@ declare const EventTypeBrand: unique symbol;
 /** Runtime handle used for immediate observer-style events. */
 export interface EventType<T> {
     readonly id: number;
+    readonly key: string;
     readonly name: string;
     readonly registry: Registry;
     readonly [EventTypeBrand]?: T;

@@ -6,6 +6,7 @@ export type StateValue = string | number | symbol | boolean;
 /** Runtime handle used to register and query a named state machine. */
 export interface StateType<T extends StateValue> {
     readonly id: number;
+    readonly key: string;
     readonly name: string;
     readonly registry: Registry;
     readonly initial: T;

@@ -3,6 +3,7 @@ import type {
     ComponentDataWithTemplate,
     ComponentOptions,
     ComponentType,
+    RequiredComponent,
 } from "./component";
 import type { AnyEventType, EventType } from "./event";
 import type { AnyMessageType, MessageType } from "./message";
@@ -15,6 +16,10 @@ export type AnyRegistryType =
     | AnyStateType
     | AnyMessageType
     | AnyEventType;
+
+export type RegistryTypeKind = "component" | "resource" | "state" | "message" | "event";
+
+export type RegistryTypeKey = string;
 
 type DefineComponentArgs<T extends object> = [name: string, options?: ComponentOptions<T>];
 
@@ -32,8 +37,37 @@ export class Registry {
     private readonly stateTypes: AnyStateType[] = [];
     private readonly messageTypes: AnyMessageType[] = [];
     private readonly eventTypes: AnyEventType[] = [];
+    private readonly componentTypesByName = new Map<string, AnyComponentType>();
+    private readonly resourceTypesByName = new Map<string, AnyResourceType>();
+    private readonly stateTypesByName = new Map<string, AnyStateType>();
+    private readonly messageTypesByName = new Map<string, AnyMessageType>();
+    private readonly eventTypesByName = new Map<string, AnyEventType>();
+    private readonly typesByKey = new Map<RegistryTypeKey, AnyRegistryType>();
+    private sealed = false;
 
-    constructor(readonly name: string) {}
+    constructor(readonly name: string) {
+        assertRegistryName(name);
+    }
+
+    /** Returns whether this registry can still accept new type definitions. */
+    get isSealed(): boolean {
+        return this.sealed;
+    }
+
+    /** Freezes the registry schema so future definitions fail fast. */
+    seal(): this {
+        if (!this.sealed) {
+            validateRequiredComponentGraph(this.componentTypes);
+            this.sealed = true;
+        }
+
+        return this;
+    }
+
+    /** Alias for {@link seal}. */
+    finalize(): this {
+        return this.seal();
+    }
 
     /** Defines a marker component whose payload is always `{}`. */
     defineComponent(
@@ -52,19 +86,14 @@ export class Registry {
         name: string,
         options: ComponentOptions<T> = {} as ComponentOptions<T>
     ): ComponentType<T> {
+        this.assertCanDefine("component", name, this.componentTypesByName);
         const { require = [], ...lifecycle } = options;
         const normalizedRequired = Object.freeze([...require]);
-
-        for (const dependency of normalizedRequired) {
-            if (!this.isRegisteredComponent(dependency.type)) {
-                throw new Error(
-                    `Component ${dependency.type.name} is not registered in ${this.name}`
-                );
-            }
-        }
+        validateRequiredComponents(this, name, normalizedRequired);
 
         const component = Object.freeze({
             id: this.nextComponentId++,
+            key: this.typeKey("component", name),
             name,
             registry: this,
             lifecycle: Object.freeze({ ...lifecycle }),
@@ -72,59 +101,78 @@ export class Registry {
         }) satisfies ComponentType<T>;
 
         this.componentTypes[component.id] = component;
+        this.componentTypesByName.set(component.name, component);
+        this.typesByKey.set(component.key, component);
+        validateRequiredComponentGraph(this.componentTypes);
 
         return component;
     }
 
     /** Defines a singleton resource slot. */
     defineResource<T>(name: string): ResourceType<T> {
+        this.assertCanDefine("resource", name, this.resourceTypesByName);
         const resource = Object.freeze({
             id: this.nextResourceId++,
+            key: this.typeKey("resource", name),
             name,
             registry: this,
         }) satisfies ResourceType<T>;
 
         this.resourceTypes[resource.id] = resource;
+        this.resourceTypesByName.set(resource.name, resource);
+        this.typesByKey.set(resource.key, resource);
 
         return resource;
     }
 
     /** Defines a named state machine slot with its default value. */
     defineState<T extends StateValue>(name: string, initial: T): StateType<T> {
+        this.assertCanDefine("state", name, this.stateTypesByName);
         const state = Object.freeze({
             id: this.nextStateId++,
+            key: this.typeKey("state", name),
             name,
             registry: this,
             initial,
         }) satisfies StateType<T>;
 
         this.stateTypes[state.id] = state;
+        this.stateTypesByName.set(state.name, state);
+        this.typesByKey.set(state.key, state);
 
         return state;
     }
 
     /** Defines a queued message channel. */
     defineMessage<T>(name: string): MessageType<T> {
+        this.assertCanDefine("message", name, this.messageTypesByName);
         const message = Object.freeze({
             id: this.nextMessageId++,
+            key: this.typeKey("message", name),
             name,
             registry: this,
         }) satisfies MessageType<T>;
 
         this.messageTypes[message.id] = message;
+        this.messageTypesByName.set(message.name, message);
+        this.typesByKey.set(message.key, message);
 
         return message;
     }
 
     /** Defines an immediate observer-style event channel. */
     defineEvent<T>(name: string): EventType<T> {
+        this.assertCanDefine("event", name, this.eventTypesByName);
         const event = Object.freeze({
             id: this.nextEventId++,
+            key: this.typeKey("event", name),
             name,
             registry: this,
         }) satisfies EventType<T>;
 
         this.eventTypes[event.id] = event;
+        this.eventTypesByName.set(event.name, event);
+        this.typesByKey.set(event.key, event);
 
         return event;
     }
@@ -170,9 +218,19 @@ export class Registry {
         return this.componentTypes[id];
     }
 
+    /** Looks up the component registered for the name. */
+    componentTypeByName(name: string): AnyComponentType | undefined {
+        return this.componentTypesByName.get(name);
+    }
+
     /** Looks up the resource registered for the numeric id. */
     resourceType(id: number): AnyResourceType | undefined {
         return this.resourceTypes[id];
+    }
+
+    /** Looks up the resource registered for the name. */
+    resourceTypeByName(name: string): AnyResourceType | undefined {
+        return this.resourceTypesByName.get(name);
     }
 
     /** Looks up the state machine registered for the numeric id. */
@@ -180,18 +238,132 @@ export class Registry {
         return this.stateTypes[id];
     }
 
+    /** Looks up the state machine registered for the name. */
+    stateTypeByName(name: string): AnyStateType | undefined {
+        return this.stateTypesByName.get(name);
+    }
+
     /** Looks up the message channel registered for the numeric id. */
     messageType(id: number): AnyMessageType | undefined {
         return this.messageTypes[id];
+    }
+
+    /** Looks up the message channel registered for the name. */
+    messageTypeByName(name: string): AnyMessageType | undefined {
+        return this.messageTypesByName.get(name);
     }
 
     /** Looks up the event channel registered for the numeric id. */
     eventType(id: number): AnyEventType | undefined {
         return this.eventTypes[id];
     }
+
+    /** Looks up the event channel registered for the name. */
+    eventTypeByName(name: string): AnyEventType | undefined {
+        return this.eventTypesByName.get(name);
+    }
+
+    /** Looks up any registry-owned type by its stable key. */
+    typeByKey(key: RegistryTypeKey): AnyRegistryType | undefined {
+        return this.typesByKey.get(key);
+    }
+
+    private assertCanDefine<TType>(
+        kind: RegistryTypeKind,
+        name: string,
+        typesByName: ReadonlyMap<string, TType>
+    ): void {
+        assertTypeName(kind, name);
+
+        if (this.sealed) {
+            throw new Error(`Cannot define ${kind} ${name} in ${this.name}: registry is sealed`);
+        }
+
+        if (typesByName.has(name)) {
+            throw new Error(`Cannot define ${kind} ${name} in ${this.name}: name is already used`);
+        }
+    }
+
+    private typeKey(kind: RegistryTypeKind, name: string): RegistryTypeKey {
+        return `${this.name}/${kind}/${name}`;
+    }
 }
 
 /** Creates a registry for one ECS domain. */
 export function createRegistry(name: string): Registry {
     return new Registry(name);
+}
+
+function assertRegistryName(name: string): void {
+    if (name.trim().length === 0) {
+        throw new Error("Registry name must be a non-empty string");
+    }
+}
+
+function assertTypeName(kind: RegistryTypeKind, name: string): void {
+    if (name.trim().length === 0) {
+        throw new Error(`Cannot define ${kind}: name must be a non-empty string`);
+    }
+}
+
+function validateRequiredComponents(
+    registry: Registry,
+    componentName: string,
+    required: readonly RequiredComponent<object>[]
+): void {
+    const seen = new Set<number>();
+
+    for (const dependency of required) {
+        if (!registry.isRegisteredComponent(dependency.type)) {
+            throw new Error(
+                `Component ${dependency.type.name} is not registered in ${registry.name}`
+            );
+        }
+
+        if (seen.has(dependency.type.id)) {
+            throw new Error(
+                `Component ${componentName} in ${registry.name} requires ${dependency.type.name} more than once`
+            );
+        }
+
+        seen.add(dependency.type.id);
+    }
+}
+
+function validateRequiredComponentGraph(types: readonly AnyComponentType[]): void {
+    const visiting = new Set<number>();
+    const visited = new Set<number>();
+    const path: AnyComponentType[] = [];
+
+    const visit = (type: AnyComponentType): void => {
+        if (visited.has(type.id)) {
+            return;
+        }
+
+        const cycleStart = path.findIndex((entry) => entry.id === type.id);
+
+        if (cycleStart !== -1) {
+            const cycle = [...path.slice(cycleStart), type].map((entry) => entry.name).join(" -> ");
+            throw new Error(`Circular required component dependency: ${cycle}`);
+        }
+
+        if (visiting.has(type.id)) {
+            return;
+        }
+
+        visiting.add(type.id);
+        path.push(type);
+
+        for (const dependency of type.required) {
+            visit(dependency.type);
+        }
+
+        path.pop();
+        visiting.delete(type.id);
+        visited.add(type.id);
+    };
+
+    for (const type of types) {
+        visit(type);
+    }
 }

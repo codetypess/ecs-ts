@@ -9,6 +9,7 @@ export type MessageId<T> = number & { readonly [MessageIdBrand]: T };
 /** Runtime handle for a short-lived message channel. */
 export interface MessageType<T> {
     readonly id: number;
+    readonly key: string;
     readonly name: string;
     readonly registry: Registry;
     readonly [MessageTypeBrand]?: T;

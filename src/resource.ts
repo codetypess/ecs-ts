@@ -5,6 +5,7 @@ declare const ResourceTypeBrand: unique symbol;
 /** Runtime handle used to store a singleton resource value in the world. */
 export interface ResourceType<T> {
     readonly id: number;
+    readonly key: string;
     readonly name: string;
     readonly registry: Registry;
     readonly [ResourceTypeBrand]?: T;
