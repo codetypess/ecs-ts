@@ -1,7 +1,7 @@
-import { Commands, World, createRegistry, defineResource } from "../src";
+import { Commands, World, createRegistry } from "../src";
 
 const registry = createRegistry("example-resource-change-detection");
-const Settings = defineResource<{ volume: number }>("Settings");
+const Settings = registry.defineResource<{ volume: number }>("Settings");
 
 class SettingsMutationSystem {
     private frame = 0;

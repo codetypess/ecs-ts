@@ -1,21 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-    Commands,
-    Entity,
-    World,
-    createRegistry,
-    defineMessage,
-    defineState,
-    messageReader,
-    withComponent,
-} from "../src";
+import { Commands, Entity, World, createRegistry, messageReader, withComponent } from "../src";
 
 const registry = createRegistry("change-message-removed-test");
 
 test("per-system change detection lets state systems see earlier changes", () => {
     const Position = registry.defineComponent<{ x: number; y: number }>("ChangedPosition");
-    const Mode = defineState<"editing" | "watching">("ChangedMode", "editing");
+    const Mode = registry.defineState<"editing" | "watching">("ChangedMode", "editing");
     const seen: number[] = [];
 
     class MutationSystem {
@@ -63,7 +54,7 @@ test("per-system change detection lets state systems see earlier changes", () =>
 
 test("message readers keep independent cursors", () => {
     const Health = registry.defineComponent<{ value: number }>("MessageHealth");
-    const Damage = defineMessage<{ target: Entity; amount: number }>("MessageDamage");
+    const Damage = registry.defineMessage<{ target: Entity; amount: number }>("MessageDamage");
     const world = new World(registry);
     const target = world.spawn(withComponent(Health, { value: 100 }));
     const readerA = messageReader(Damage);
@@ -85,7 +76,7 @@ test("message readers keep independent cursors", () => {
 });
 
 test("messages expire after the next message update window", () => {
-    const Damage = defineMessage<{ amount: number }>("ExpiringDamage");
+    const Damage = registry.defineMessage<{ amount: number }>("ExpiringDamage");
     const world = new World(registry);
     const timelyReader = messageReader(Damage);
     const lateReader = messageReader(Damage);

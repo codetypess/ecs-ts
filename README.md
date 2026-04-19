@@ -5,8 +5,8 @@ A small TypeScript ECS prototype based on the design discussion:
 中文说明见 [README-zh.md](README-zh.md).
 
 - Entities are numeric `index + generation` handles, so stale entity IDs do not accidentally hit recycled entities.
-- Components are owned by a `createRegistry(...)` schema; marker components default to `{}` payloads and can use `withMarker(...)`, and component values cannot include `null` or `undefined`.
-- Each `World` is bound to one registry, and using components from a different registry throws immediately.
+- Components, resources, states, messages, and events are owned by a `createRegistry(...)` registry; marker components default to `{}` payloads and can use `withMarker(...)`, and component values cannot include `null` or `undefined`.
+- Each `World` is bound to one registry, and using types from a different registry throws immediately.
 - Bundles group multiple component entries for spawn/insert/remove calls.
 - Component storage uses `SparseSet`: O(1)-ish `get/has/add/remove`, dense iteration, and swap-remove deletion.
 - Queries choose the smallest component store as the base loop, then check other component stores by entity.
@@ -15,7 +15,7 @@ A small TypeScript ECS prototype based on the design discussion:
 - Query ergonomics include `hasAll`, `hasAny`, `single`, and `trySingle`.
 - `QueryState` caches query store resolution for systems that run the same query repeatedly.
 - Change detection is per-system and supports `eachAdded`, `eachChanged`, `markChanged`, and `drainRemoved`.
-- Messages provide short-lived, multi-reader event queues through `defineMessage`, `writeMessage`, and `MessageReader`.
+- Messages provide short-lived, multi-reader event queues through `registry.defineMessage`, `writeMessage`, and `MessageReader`.
 - Removed component records support both explicit `drainRemoved` and multi-reader `RemovedReader`.
 - Components can declare required components that are inserted automatically when missing.
 - Resources support per-system added/changed detection.
@@ -24,7 +24,7 @@ A small TypeScript ECS prototype based on the design discussion:
 - Systems are lifecycle objects/classes with methods such as `onPreStartup`, `onStartup`, `onPostStartup`, `onFixedUpdate`, `onUpdate`, `onPostUpdate`, and `onShutdown`.
 - Systems can use labels, system sets, stage-specific set config, `before`/`after` ordering, composable `runIf` predicates, and a fixed update stage.
 - State transitions support object/class systems through `addStateSystem` and `addTransitionSystem`.
-- Observers support immediate events through `defineEvent`, `observe`, and `trigger`.
+- Observers support immediate events through `registry.defineEvent`, `observe`, and `trigger`.
 
 ## Basic Usage
 

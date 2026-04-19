@@ -1,4 +1,4 @@
-let nextResourceId = 0;
+import type { Registry } from "./registry";
 
 declare const ResourceTypeBrand: unique symbol;
 
@@ -6,16 +6,31 @@ declare const ResourceTypeBrand: unique symbol;
 export interface ResourceType<T> {
     readonly id: number;
     readonly name: string;
+    readonly registry: Registry;
     readonly [ResourceTypeBrand]?: T;
 }
+
+export type AnyResourceType = ResourceType<unknown>;
 
 export type ResourceData<TResource extends ResourceType<unknown>> =
     TResource extends ResourceType<infer TData> ? TData : never;
 
-/** Defines a resource slot keyed by a stable numeric id. */
-export function defineResource<T>(name: string): ResourceType<T> {
-    return Object.freeze({
-        id: nextResourceId++,
-        name,
-    });
+/** Defines a resource slot in the provided registry. */
+export function defineResource<T>(registry: Registry, name: string): ResourceType<T> {
+    return registry.defineResource<T>(name);
+}
+
+/** Throws unless the resource belongs to the expected registry. */
+export function assertRegisteredResource(
+    registry: Registry,
+    type: AnyResourceType,
+    action: string
+): void {
+    if (type.registry === registry) {
+        return;
+    }
+
+    throw new Error(
+        `Cannot ${action} resource ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
+    );
 }

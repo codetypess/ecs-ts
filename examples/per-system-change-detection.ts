@@ -1,16 +1,8 @@
-import {
-    Commands,
-    Entity,
-    World,
-    createRegistry,
-    defineState,
-    formatEntity,
-    withComponent,
-} from "../src";
+import { Commands, Entity, World, createRegistry, formatEntity, withComponent } from "../src";
 
 const registry = createRegistry("example-per-system-change");
 const Position = registry.defineComponent<{ x: number; y: number }>("Position");
-const Mode = defineState<"editing" | "watching">("Mode", "editing");
+const Mode = registry.defineState<"editing" | "watching">("Mode", "editing");
 
 class MutationSystem {
     private entity: Entity | undefined;

@@ -3,7 +3,6 @@ import {
     Entity,
     World,
     createRegistry,
-    defineMessage,
     formatEntity,
     messageReader,
     withComponent,
@@ -13,7 +12,7 @@ import {
 const registry = createRegistry("example-messages");
 const Enemy = registry.defineComponent("Enemy");
 const Health = registry.defineComponent<{ value: number }>("Health");
-const Damage = defineMessage<{ target: Entity; amount: number }>("Damage");
+const Damage = registry.defineMessage<{ target: Entity; amount: number }>("Damage");
 
 class AttackSystem {
     onStartup(_world: World, _dt: number, commands: Commands): void {

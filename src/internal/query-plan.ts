@@ -1,4 +1,4 @@
-import type { AnyComponentType, ComponentRegistry } from "../component";
+import type { AnyComponentType } from "../component";
 import type { Entity } from "../entity";
 import type {
     ChangeDetectionRange,
@@ -8,6 +8,7 @@ import type {
     QueryRow,
     QueryState,
 } from "../query";
+import type { Registry } from "../registry";
 import { SparseSet } from "../sparse-set";
 import { compileQueryFilterMatcher, type QueryFilterMatcher } from "./query-filter";
 
@@ -117,7 +118,7 @@ export interface OptionalQueryStateCache {
 
 /** Inputs needed to resolve component types into concrete stores. */
 export interface QueryPlanContextOptions {
-    readonly registry: ComponentRegistry;
+    readonly registry: Registry;
     readonly stores: readonly (SparseSet<unknown> | undefined)[];
     readonly getStoreVersion: () => number;
 }
@@ -415,7 +416,7 @@ function createOptionalQueryPlan(
         scratchpad: new Array(requiredStores.length + optionalStores.length),
     };
 }
-function assertRegisteredQueryComponent(registry: ComponentRegistry, type: AnyComponentType): void {
+function assertRegisteredQueryComponent(registry: Registry, type: AnyComponentType): void {
     if (type.registry === registry) {
         return;
     }

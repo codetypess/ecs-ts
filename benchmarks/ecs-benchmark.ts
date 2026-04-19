@@ -5,10 +5,6 @@ import {
     World,
     anyMatch,
     createRegistry,
-    defineEvent,
-    defineMessage,
-    defineResource,
-    defineState,
     messageReader,
     queryState,
     resourceMatches,
@@ -121,10 +117,14 @@ const Health = registry.defineComponent<{ value: number }>("BenchHealth");
 const DespawnNoiseComponents = Array.from({ length: 64 }, (_value, index) =>
     registry.defineComponent<{ value: number }>(`BenchDespawnNoise${index}`)
 );
-const DamageMessage = defineMessage<{ target: Entity; amount: number }>("BenchDamageMessage");
-const DamageEvent = defineEvent<{ target: Entity; amount: number }>("BenchDamageEvent");
-const FeatureFlags = defineResource<{ enabled: boolean; paused: boolean }>("BenchFeatureFlags");
-const Mode = defineState<"running" | "paused">("BenchMode", "running");
+const DamageMessage = registry.defineMessage<{ target: Entity; amount: number }>(
+    "BenchDamageMessage"
+);
+const DamageEvent = registry.defineEvent<{ target: Entity; amount: number }>("BenchDamageEvent");
+const FeatureFlags = registry.defineResource<{ enabled: boolean; paused: boolean }>(
+    "BenchFeatureFlags"
+);
+const Mode = registry.defineState<"running" | "paused">("BenchMode", "running");
 const QueryRunIf = queryState([Position, Velocity], { without: [Sleeping] });
 
 let checksum = 0;

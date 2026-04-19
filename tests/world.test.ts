@@ -239,6 +239,32 @@ test("world rejects components from a different registry", () => {
     assert.throws(() => Array.from(world.query(foreign)), /other-world-test, not world-test/);
 });
 
+test("world rejects registry-owned non-component types from a different registry", () => {
+    const otherRegistry = createRegistry("other-world-owned-types-test");
+    const foreignResource = otherRegistry.defineResource<{ value: number }>("ForeignResource");
+    const foreignState = otherRegistry.defineState("ForeignState", "idle" as "idle" | "running");
+    const foreignMessage = otherRegistry.defineMessage<{ value: number }>("ForeignMessage");
+    const foreignEvent = otherRegistry.defineEvent<{ value: number }>("ForeignEvent");
+    const world = new World(registry);
+
+    assert.throws(
+        () => world.setResource(foreignResource, { value: 1 }),
+        /ForeignResource.*other-world-owned-types-test, not world-test/
+    );
+    assert.throws(
+        () => world.initState(foreignState),
+        /ForeignState.*other-world-owned-types-test, not world-test/
+    );
+    assert.throws(
+        () => world.writeMessage(foreignMessage, { value: 1 }),
+        /ForeignMessage.*other-world-owned-types-test, not world-test/
+    );
+    assert.throws(
+        () => world.observe(foreignEvent, () => undefined),
+        /ForeignEvent.*other-world-owned-types-test, not world-test/
+    );
+});
+
 test("component definitions reject required dependencies from another registry", () => {
     const otherRegistry = createRegistry("other-required-test");
     const foreign = otherRegistry.defineComponent<{ value: number }>("ForeignRequired");

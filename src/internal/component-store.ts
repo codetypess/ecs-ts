@@ -1,16 +1,17 @@
-import type { ComponentRegistry, ComponentType } from "../component";
+import type { ComponentType } from "../component";
+import type { Registry } from "../registry";
 import { SparseSet } from "../sparse-set";
 import { ensureIndexedEntry } from "./collection-utils";
 
 /** Registry of component stores keyed by registry-local component ids. */
 export interface ComponentStoreContext {
-    readonly registry: ComponentRegistry;
+    readonly registry: Registry;
     readonly stores: (SparseSet<unknown> | undefined)[];
     storeVersion: number;
 }
 
 /** Creates the component-store registry used by a world. */
-export function createComponentStoreContext(registry: ComponentRegistry): ComponentStoreContext {
+export function createComponentStoreContext(registry: Registry): ComponentStoreContext {
     return {
         registry,
         stores: [],

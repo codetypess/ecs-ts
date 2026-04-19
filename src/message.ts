@@ -1,4 +1,4 @@
-let nextMessageTypeId = 0;
+import type { Registry } from "./registry";
 
 declare const MessageTypeBrand: unique symbol;
 declare const MessageIdBrand: unique symbol;
@@ -10,6 +10,7 @@ export type MessageId<T> = number & { readonly [MessageIdBrand]: T };
 export interface MessageType<T> {
     readonly id: number;
     readonly name: string;
+    readonly registry: Registry;
     readonly [MessageTypeBrand]?: T;
 }
 
@@ -141,15 +142,27 @@ export class Messages<T> {
     }
 }
 
-/** Defines a message channel for queued multi-reader communication. */
-export function defineMessage<T>(name: string): MessageType<T> {
-    return Object.freeze({
-        id: nextMessageTypeId++,
-        name,
-    });
+/** Defines a message channel for queued multi-reader communication in the provided registry. */
+export function defineMessage<T>(registry: Registry, name: string): MessageType<T> {
+    return registry.defineMessage<T>(name);
 }
 
 /** Creates a cursor-based reader that starts at the current channel origin. */
 export function messageReader<T>(type: MessageType<T>): MessageReader<T> {
     return new MessageReader(type);
+}
+
+/** Throws unless the message channel belongs to the expected registry. */
+export function assertRegisteredMessage(
+    registry: Registry,
+    type: AnyMessageType,
+    action: string
+): void {
+    if (type.registry === registry) {
+        return;
+    }
+
+    throw new Error(
+        `Cannot ${action} message ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
+    );
 }

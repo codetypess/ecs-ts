@@ -1,17 +1,9 @@
-import {
-    Commands,
-    Entity,
-    World,
-    createRegistry,
-    defineEvent,
-    formatEntity,
-    withComponent,
-} from "../src";
+import { Commands, Entity, World, createRegistry, formatEntity, withComponent } from "../src";
 
 const registry = createRegistry("example-observer");
 const Health = registry.defineComponent<{ value: number }>("Health");
-const Damage = defineEvent<{ target: Entity; amount: number }>("Damage");
-const Died = defineEvent<{ entity: Entity }>("Died");
+const Damage = registry.defineEvent<{ target: Entity; amount: number }>("Damage");
+const Died = registry.defineEvent<{ entity: Entity }>("Died");
 
 class AttackSystem {
     constructor(private readonly target: Entity) {}

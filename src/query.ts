@@ -1,5 +1,6 @@
-import type { AnyComponentType, ComponentData, ComponentRegistry } from "./component";
+import type { AnyComponentType, ComponentData } from "./component";
 import type { Entity } from "./entity";
+import type { Registry } from "./registry";
 import type { SparseSet } from "./sparse-set";
 import type { World } from "./world";
 
@@ -46,7 +47,7 @@ export interface ChangeDetectionRange {
 
 /** Cached query definition for repeated required-component queries. */
 export class QueryState<TComponents extends readonly AnyComponentType[]> {
-    readonly registry: ComponentRegistry;
+    readonly registry: Registry;
     readonly types: TComponents;
     readonly filter: QueryFilter;
 
@@ -90,7 +91,7 @@ export class OptionalQueryState<
     TRequiredComponents extends readonly AnyComponentType[],
     TOptionalComponents extends readonly AnyComponentType[],
 > {
-    readonly registry: ComponentRegistry;
+    readonly registry: Registry;
     readonly required: TRequiredComponents;
     readonly optional: TOptionalComponents;
     readonly filter: QueryFilter;
@@ -189,7 +190,7 @@ function resolveQueryRegistry(
     types: readonly AnyComponentType[],
     filter: QueryFilter,
     label: string
-): ComponentRegistry {
+): Registry {
     if (types.length === 0) {
         throw new Error("Query requires at least one component type");
     }
@@ -206,7 +207,7 @@ function resolveOptionalQueryRegistry(
     required: readonly AnyComponentType[],
     optional: readonly AnyComponentType[],
     filter: QueryFilter
-): ComponentRegistry {
+): Registry {
     if (required.length === 0) {
         throw new Error("Optional query requires at least one required component type");
     }
@@ -234,7 +235,7 @@ function allFilterTypes(filter: QueryFilter): readonly AnyComponentType[] {
 
 /** Throws when any type in the list belongs to a different registry. */
 function assertAllSameRegistry(
-    registry: ComponentRegistry,
+    registry: Registry,
     types: readonly AnyComponentType[],
     label: string
 ): void {

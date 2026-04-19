@@ -1,12 +1,4 @@
-import {
-    Commands,
-    Entity,
-    World,
-    createRegistry,
-    defineResource,
-    formatEntity,
-    withComponent,
-} from "../src";
+import { Commands, Entity, World, createRegistry, formatEntity, withComponent } from "../src";
 
 const registry = createRegistry("example-net-entity-map");
 
@@ -41,9 +33,9 @@ const Unit = registry.defineComponent<{ serverId: number }>("Unit");
 const Position = registry.defineComponent<{ x: number; y: number }>("Position");
 const Health = registry.defineComponent<{ value: number }>("Health");
 
-const NetEntities = defineResource<NetEntityMap>("NetEntities");
-const SnapshotFrames = defineResource<UnitSnapshot[][]>("SnapshotFrames");
-const Log = defineResource<string[]>("NetLog");
+const NetEntities = registry.defineResource<NetEntityMap>("NetEntities");
+const SnapshotFrames = registry.defineResource<UnitSnapshot[][]>("SnapshotFrames");
+const Log = registry.defineResource<string[]>("NetLog");
 
 class NetSyncSystem {
     onUpdate(world: World, _dt: number, commands: Commands): void {

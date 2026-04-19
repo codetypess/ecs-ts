@@ -5,8 +5,8 @@
 English README: [README.md](README.md).
 
 - Entity 是数字形式的 `index + generation` 句柄，因此旧实体 ID 不会误命中新复用的实体。
-- Component 通过 `createRegistry(...)` 创建的 registry 注册；marker component 默认使用 `{}` payload，并可通过 `withMarker(...)` 添加；component value 不能包含 `null` 或 `undefined`。
-- 每个 `World` 都绑定到单一 registry，误用其它 registry 的 component 会立刻抛错。
+- Component、resource、state、message 和 event 都通过 `createRegistry(...)` 创建的 registry 注册；marker component 默认使用 `{}` payload，并可通过 `withMarker(...)` 添加；component value 不能包含 `null` 或 `undefined`。
+- 每个 `World` 都绑定到单一 registry，误用其它 registry 的类型会立刻抛错。
 - Bundle 用来把多个 component entry 组合起来，供 spawn、insert、remove 调用复用。
 - Component 存储使用 `SparseSet`：`get/has/add/remove` 接近 O(1)，迭代走 dense 数组，删除使用 swap-remove。
 - Query 会选择最小的组件存储作为基础循环，再按 entity 检查其它组件存储。
@@ -15,7 +15,7 @@ English README: [README.md](README.md).
 - Query 易用 API 包括 `hasAll`、`hasAny`、`single` 和 `trySingle`。
 - `QueryState` 会缓存 query 的 store 解析结果，适合 system 反复运行同一个 query。
 - Change detection 是 per-system 语义，并支持 `eachAdded`、`eachChanged`、`markChanged` 和 `drainRemoved`。
-- Messages 通过 `defineMessage`、`writeMessage` 和 `MessageReader` 提供短生命周期、多 reader 的事件队列。
+- Messages 通过 `registry.defineMessage`、`writeMessage` 和 `MessageReader` 提供短生命周期、多 reader 的事件队列。
 - Removed component 记录同时支持显式 `drainRemoved` 和多 reader 的 `RemovedReader`。
 - Component 可以声明 required components，在组件缺失时自动插入依赖组件。
 - Resource 支持 per-system 的 added/changed 检测。
@@ -24,7 +24,7 @@ English README: [README.md](README.md).
 - System 是带生命周期方法的 object/class，例如 `onPreStartup`、`onStartup`、`onPostStartup`、`onFixedUpdate`、`onUpdate`、`onPostUpdate` 和 `onShutdown`。
 - System 支持 label、system set、按 stage 配置 set、`before`/`after` 排序、可组合的 `runIf` 条件以及 fixed update 阶段。
 - State transitions 支持通过 `addStateSystem` 和 `addTransitionSystem` 注册 object/class system。
-- Observer 支持通过 `defineEvent`、`observe` 和 `trigger` 触发立即事件。
+- Observer 支持通过 `registry.defineEvent`、`observe` 和 `trigger` 触发立即事件。
 
 ## 基本用法
 

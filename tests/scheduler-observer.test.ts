@@ -5,9 +5,6 @@ import {
     World,
     anyMatch,
     createRegistry,
-    defineEvent,
-    defineResource,
-    defineState,
     noMatch,
     queryState,
     resourceAdded,
@@ -254,7 +251,7 @@ test("scheduler applies stage-specific set ordering in shutdown", () => {
 });
 
 test("scheduler combines multiple sets for ordering and runIf", () => {
-    const Gate = defineResource<{ enabled: boolean }>("SchedulerGate");
+    const Gate = registry.defineResource<{ enabled: boolean }>("SchedulerGate");
     const calls: string[] = [];
 
     class NamedSystem {
@@ -399,8 +396,8 @@ test("scheduler invalidates stage-specific set ordering cache when reconfigured"
 });
 
 test("scheduler composes runIf helpers for resources and state", () => {
-    const Flags = defineResource<{ enabled: boolean; paused: boolean }>("SchedulerFlags");
-    const Mode = defineState<"boot" | "running" | "paused">("SchedulerMode", "boot");
+    const Flags = registry.defineResource<{ enabled: boolean; paused: boolean }>("SchedulerFlags");
+    const Mode = registry.defineState<"boot" | "running" | "paused">("SchedulerMode", "boot");
     const calls: string[] = [];
 
     class NamedSystem {
@@ -445,7 +442,7 @@ test("scheduler composes runIf helpers for resources and state", () => {
 });
 
 test("scheduler runIf resource helpers respect per-system change detection", () => {
-    const Tick = defineResource<{ value: number }>("SchedulerTick");
+    const Tick = registry.defineResource<{ value: number }>("SchedulerTick");
     const calls: string[] = [];
 
     class SeedSystem {
@@ -508,8 +505,8 @@ test("scheduler rejects ambiguous system and set labels inside a stage", () => {
 
 test("observers dispatch immediate events and can queue commands", () => {
     const Health = registry.defineComponent<{ value: number }>("ObserverHealth");
-    const Damage = defineEvent<{ target: Entity; amount: number }>("ObserverDamage");
-    const Died = defineEvent<{ entity: Entity }>("ObserverDied");
+    const Damage = registry.defineEvent<{ target: Entity; amount: number }>("ObserverDamage");
+    const Died = registry.defineEvent<{ entity: Entity }>("ObserverDied");
     const world = new World(registry);
     const enemy = world.spawn(withComponent(Health, { value: 10 }));
     const log: string[] = [];
@@ -538,7 +535,7 @@ test("observers dispatch immediate events and can queue commands", () => {
 });
 
 test("observer unsubscribe removes the registered callback", () => {
-    const Ping = defineEvent<number>("ObserverPing");
+    const Ping = registry.defineEvent<number>("ObserverPing");
     const world = new World(registry);
     let count = 0;
     const unsubscribe = world.observe(Ping, (value) => {

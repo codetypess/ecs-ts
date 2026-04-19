@@ -1,5 +1,9 @@
 import type { Entity } from "./entity";
+import type { Registry } from "./registry";
 import type { World } from "./world";
+
+export { createRegistry, Registry, Registry as ComponentRegistry } from "./registry";
+export type { AnyRegistryType } from "./registry";
 
 /** Callback used by component lifecycle hooks. */
 export type ComponentHook<T> = {
@@ -33,7 +37,7 @@ export type ComponentLifecycleStage = keyof ComponentLifecycle<unknown>;
 export interface ComponentType<T> {
     readonly id: number;
     readonly name: string;
-    readonly registry: ComponentRegistry;
+    readonly registry: Registry;
     readonly lifecycle: Readonly<ComponentLifecycle<T>>;
     readonly required: readonly RequiredComponent<unknown>[];
 }
@@ -62,79 +66,7 @@ export interface ComponentEntry<T> {
 /** Immutable group of component entries that can be reused across entity operations. */
 export interface Bundle {
     readonly entries: readonly ComponentEntry<unknown>[];
-    readonly registry: ComponentRegistry | undefined;
-}
-
-type DefineComponentArgs<T> = null extends T
-    ? [name: never, options?: never]
-    : undefined extends T
-      ? [name: never, options?: never]
-      : [name: string, options?: ComponentOptions<T>];
-
-/**
- * Registry that owns a set of component definitions for one ECS domain.
- */
-export class ComponentRegistry {
-    private nextComponentId = 0;
-    private readonly componentTypes: AnyComponentType[] = [];
-
-    constructor(readonly name: string) {}
-
-    /** Defines a marker component whose payload is always `{}`. */
-    defineComponent(
-        name: string,
-        options?: ComponentOptions<Record<string, never>>
-    ): ComponentType<Record<string, never>>;
-
-    /** Defines a component whose payload type reuses another object component's payload. */
-    defineComponent<TOwn extends object, TTemplate extends ComponentType<object>>(
-        ...args: DefineComponentArgs<ComponentDataWithTemplate<TOwn, TTemplate>>
-    ): ComponentType<ComponentDataWithTemplate<TOwn, TTemplate>>;
-
-    /** Defines a component type and freezes its runtime metadata. */
-    defineComponent<T>(...args: DefineComponentArgs<T>): ComponentType<T>;
-    defineComponent<T>(
-        name: string,
-        options: ComponentOptions<T> = {} as ComponentOptions<T>
-    ): ComponentType<T> {
-        const { require = [], ...lifecycle } = options;
-        const normalizedRequired = Object.freeze([...require]);
-
-        for (const dependency of normalizedRequired) {
-            if (!this.isRegistered(dependency.type)) {
-                throw new Error(
-                    `Component ${dependency.type.name} is not registered in ${this.name}`
-                );
-            }
-        }
-
-        const component = Object.freeze({
-            id: this.nextComponentId++,
-            name,
-            registry: this,
-            lifecycle: Object.freeze({ ...lifecycle }),
-            required: normalizedRequired,
-        }) satisfies ComponentType<T>;
-
-        this.componentTypes[component.id] = component;
-
-        return component;
-    }
-
-    /** Returns whether the component belongs to this registry. */
-    isRegistered(type: AnyComponentType): boolean {
-        return type.registry === this && this.componentTypes[type.id] === type;
-    }
-
-    /** Looks up the component registered for the numeric id. */
-    componentType(id: number): AnyComponentType | undefined {
-        return this.componentTypes[id];
-    }
-}
-
-/** Creates a component registry for one ECS domain. */
-export function createRegistry(name: string): ComponentRegistry {
-    return new ComponentRegistry(name);
+    readonly registry: Registry | undefined;
 }
 
 /** Creates a component entry with runtime validation for spawn/insert helpers. */
@@ -187,7 +119,7 @@ export function assertComponentValue<T>(type: ComponentType<T>, value: T): void 
 
 /** Throws unless the component belongs to the expected registry. */
 export function assertRegisteredComponent(
-    registry: ComponentRegistry,
+    registry: Registry,
     type: AnyComponentType,
     action: string
 ): void {
@@ -202,7 +134,7 @@ export function assertRegisteredComponent(
 
 /** Throws unless every component belongs to the expected registry. */
 export function assertRegisteredComponents(
-    registry: ComponentRegistry,
+    registry: Registry,
     types: readonly AnyComponentType[],
     action: string
 ): void {

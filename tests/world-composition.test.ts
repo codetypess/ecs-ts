@@ -1,20 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-    Commands,
-    World,
-    createRegistry,
-    defineResource,
-    defineState,
-    withComponent,
-} from "../src";
+import { Commands, World, createRegistry, withComponent } from "../src";
 
 const registry = createRegistry("world-composition-test");
 
 test("world can register systems, resources, states, and drive updates together", () => {
     const Position = registry.defineComponent<{ x: number; y: number }>("WorldCompositionPosition");
-    const Log = defineResource<string[]>("WorldCompositionLog");
-    const Mode = defineState<"boot" | "running">("WorldCompositionMode", "boot");
+    const Log = registry.defineResource<string[]>("WorldCompositionLog");
+    const Mode = registry.defineState<"boot" | "running">("WorldCompositionMode", "boot");
 
     class BootstrapSystem {
         onStartup(world: World, _dt: number, commands: Commands): void {
@@ -57,7 +50,7 @@ test("world can register systems, resources, states, and drive updates together"
 });
 
 test("state registration lazily initializes and initState becomes a no-op afterward", () => {
-    const Mode = defineState<"boot" | "running">("WorldCompositionLazyMode", "boot");
+    const Mode = registry.defineState<"boot" | "running">("WorldCompositionLazyMode", "boot");
     const log: string[] = [];
     const world = new World(registry);
 

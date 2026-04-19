@@ -1,4 +1,4 @@
-import { Commands, Entity, World, createRegistry, defineResource, withComponent } from "../src";
+import { Commands, Entity, World, createRegistry, withComponent } from "../src";
 
 const registry = createRegistry("example-ui-lifecycle");
 
@@ -85,7 +85,7 @@ class UiRuntime {
     }
 }
 
-const UiRuntimeResource = defineResource<UiRuntime>("UiRuntime");
+const UiRuntimeResource = registry.defineResource<UiRuntime>("UiRuntime");
 
 const UiSource = registry.defineComponent<UiSourceData>("UiSource");
 const UiLoading = registry.defineComponent<UiLoadingData>("UiLoading", {

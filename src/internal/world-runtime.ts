@@ -1,5 +1,5 @@
-import type { ComponentRegistry } from "../component";
 import type { ChangeDetectionRange } from "../query";
+import type { Registry } from "../registry";
 import type { World } from "../world";
 import { EntityManager } from "../entity";
 import {
@@ -43,7 +43,7 @@ export interface WorldRuntime {
 }
 
 /** Creates the internal runtime graph used by a world. */
-export function createWorldRuntime(world: World, registry: ComponentRegistry): WorldRuntime {
+export function createWorldRuntime(world: World, registry: Registry): WorldRuntime {
     const entities = new EntityManager();
     const componentStoreContext = createComponentStoreContext(registry);
     const entityComponents = createEntityComponentIndexContext();

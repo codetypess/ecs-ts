@@ -4,8 +4,6 @@ import {
     World,
     anyMatch,
     createRegistry,
-    defineResource,
-    defineState,
     queryState,
     resourceMatches,
     runIfAll,
@@ -15,13 +13,13 @@ import {
 } from "../src";
 
 const registry = createRegistry("example-scheduler-showcase");
-const Log = defineResource<string[]>("SchedulerShowcaseLog");
-const Frame = defineResource<{ value: number }>("SchedulerShowcaseFrame");
-const FeatureFlags = defineResource<{ physicsEnabled: boolean }>("SchedulerShowcaseFlags");
-const ControlledEntity = defineResource<{ value: Entity | undefined }>(
+const Log = registry.defineResource<string[]>("SchedulerShowcaseLog");
+const Frame = registry.defineResource<{ value: number }>("SchedulerShowcaseFrame");
+const FeatureFlags = registry.defineResource<{ physicsEnabled: boolean }>("SchedulerShowcaseFlags");
+const ControlledEntity = registry.defineResource<{ value: Entity | undefined }>(
     "SchedulerShowcaseControlled"
 );
-const GameMode = defineState<"running" | "paused">("SchedulerShowcaseMode", "running");
+const GameMode = registry.defineState<"running" | "paused">("SchedulerShowcaseMode", "running");
 
 const Transform = registry.defineComponent<{ x: number; y: number }>("SchedulerShowcaseTransform");
 const Velocity = registry.defineComponent<{ x: number; y: number }>("SchedulerShowcaseVelocity");
