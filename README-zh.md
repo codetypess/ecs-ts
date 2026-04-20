@@ -16,7 +16,6 @@ English README: [README.md](README.md).
 - Change detection 是 per-system 语义，并支持 `eachAdded`、`eachChanged`、`markChanged` 和 `drainRemoved`。
 - Messages 通过 `registry.defineMessage`、`writeMessage` 和 `MessageReader` 提供短生命周期、多 reader 的事件队列。
 - Removed component 记录同时支持显式 `drainRemoved` 和多 reader 的 `RemovedReader`。
-- Component 可以声明 required components，在组件缺失时自动插入依赖组件。
 - Resource 支持 per-system 的 added/changed 检测。
 - System 可以使用 `Commands` 做延迟结构修改。
 - Component 支持 lifecycle hooks：`onAdd`、`onInsert`、`onReplace`、`onRemove` 和 `onDespawn`。
@@ -83,7 +82,6 @@ npm run example:per-system-changes
 npm run example:messages
 npm run example:removed
 npm run example:resources
-npm run example:required
 npm run example:state
 npm run example:observer
 npm run example:net-entity-map

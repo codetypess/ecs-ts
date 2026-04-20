@@ -1,13 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import {
-    World,
-    createRegistry,
-    formatEntity,
-    requireComponent,
-    withComponent,
-    withMarker,
-} from "../src";
+import { World, createRegistry, formatEntity, withComponent, withMarker } from "../src";
 
 const registry = createRegistry("world-test");
 
@@ -199,9 +192,6 @@ test("entity type rejects invalid runtime values", () => {
 
 test("component values reject invalid runtime payloads", () => {
     const Position = registry.defineComponent<{ x: number; y: number }>("InvalidValuePosition");
-    const RequiredPosition = registry.defineComponent("InvalidValueRequiredPosition", {
-        require: [requireComponent(Position, () => null as unknown as { x: number; y: number })],
-    });
     const world = new World(registry);
     const entity = world.spawn();
 
@@ -217,35 +207,8 @@ test("component values reject invalid runtime payloads", () => {
         () => withComponent(Position, 1 as unknown as { x: number; y: number }),
         /Component InvalidValuePosition value must be an object/
     );
-    assert.throws(
-        () => world.add(entity, RequiredPosition, {}),
-        /Component InvalidValuePosition value cannot be null/
-    );
 
     assert.equal(world.has(entity, Position), false);
-    assert.equal(world.has(entity, RequiredPosition), false);
-});
-
-test("required components are inserted transitively without overwriting existing data", () => {
-    const Transform = registry.defineComponent<{ x: number; y: number }>("TestTransform");
-    const Velocity = registry.defineComponent<{ x: number; y: number }>("TestVelocity", {
-        require: [requireComponent(Transform, () => ({ x: 0, y: 0 }))],
-    });
-    const Mass = registry.defineComponent<{ value: number }>("TestMass");
-    const RigidBody = registry.defineComponent("TestRigidBody", {
-        require: [
-            requireComponent(Mass, () => ({ value: 1 })),
-            requireComponent(Velocity, () => ({ x: 0, y: 0 })),
-        ],
-    });
-    const world = new World(registry);
-    const entity = world.spawn(withComponent(Transform, { x: 5, y: 6 }));
-
-    world.add(entity, RigidBody, {});
-
-    assert.equal(world.hasAll(entity, [RigidBody, Mass, Velocity, Transform]), true);
-    assert.deepEqual(world.mustGet(entity, Transform), { x: 5, y: 6 });
-    assert.deepEqual(world.mustGet(entity, Mass), { value: 1 });
 });
 
 test("world rejects components from a different registry", () => {
@@ -283,18 +246,5 @@ test("world rejects registry-owned non-component types from a different registry
     assert.throws(
         () => world.observe(foreignEvent, () => undefined),
         /ForeignEvent.*other-world-owned-types-test, not world-test/
-    );
-});
-
-test("component definitions reject required dependencies from another registry", () => {
-    const otherRegistry = createRegistry("other-required-test");
-    const foreign = otherRegistry.defineComponent<{ value: number }>("ForeignRequired");
-
-    assert.throws(
-        () =>
-            registry.defineComponent("InvalidCrossRegistryRequired", {
-                require: [requireComponent(foreign, () => ({ value: 1 }))],
-            }),
-        /ForeignRequired is not registered in world-test/
     );
 });

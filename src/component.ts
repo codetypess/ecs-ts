@@ -20,16 +20,8 @@ export interface ComponentLifecycle<T> {
     readonly onDespawn?: ComponentHook<T>;
 }
 
-/** Describes a component that should be auto-inserted when another component is added. */
-export interface RequiredComponent<T extends object> {
-    readonly type: ComponentType<T>;
-    create(): T;
-}
-
 /** Extra metadata and lifecycle hooks accepted by {@link defineComponent}. */
-export interface ComponentOptions<T extends object> extends ComponentLifecycle<T> {
-    readonly require?: readonly RequiredComponent<object>[];
-}
+export type ComponentOptions<T extends object> = ComponentLifecycle<T>;
 
 export type ComponentLifecycleStage = keyof ComponentLifecycle<unknown>;
 
@@ -40,7 +32,6 @@ export interface ComponentType<T extends object> {
     readonly name: string;
     readonly registry: Registry;
     readonly lifecycle: Readonly<ComponentLifecycle<T>>;
-    readonly required: readonly RequiredComponent<object>[];
 }
 
 export type AnyComponentType = ComponentType<object>;
@@ -80,14 +71,6 @@ export function withMarker<TComponent extends AnyComponentType>(
     type: ComponentData<TComponent> extends Record<string, never> ? TComponent : never
 ): ComponentEntry<ComponentData<TComponent>> {
     return withComponent(type, {} as ComponentData<TComponent>);
-}
-
-/** Declares a component dependency that is inserted automatically when missing. */
-export function requireComponent<T extends object>(
-    type: ComponentType<T>,
-    create: () => T
-): RequiredComponent<T> {
-    return Object.freeze({ type, create });
 }
 
 /** Guards component payloads, which must be non-null objects. */

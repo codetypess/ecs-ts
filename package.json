@@ -46,7 +46,6 @@
     "example:query": "node --import tsx examples/query-filter.ts",
     "example:query-state": "node --import tsx examples/query-state.ts",
     "example:removed": "node --import tsx examples/removed-reader.ts",
-    "example:required": "node --import tsx examples/required-components.ts",
     "example:resources": "node --import tsx examples/resource-change-detection.ts",
     "example:scheduler": "node --import tsx examples/scheduler.ts",
     "example:scheduler-showcase": "node --import tsx examples/scheduler-showcase.ts",

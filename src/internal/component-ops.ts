@@ -60,8 +60,7 @@ export function add<T extends object>(
     value: T
 ): void {
     assertAlive(context, entity);
-    const resolving: AnyComponentType[] = [];
-    addWithRequired(context, entity, type, value, resolving);
+    insertComponentOnly(context, entity, type, value);
 }
 
 /** Updates the changed tick for an existing component. */
@@ -227,56 +226,6 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
     }
 
     return context.entities.destroy(entity);
-}
-
-/** Expands required components recursively before inserting the requested component. */
-function addWithRequired<T extends object>(
-    context: ComponentOpsContext,
-    entity: Entity,
-    type: ComponentType<T>,
-    value: T,
-    resolving: AnyComponentType[]
-): void {
-    assertComponentValue(type, value);
-    addRequiredComponents(context, entity, type, resolving);
-    insertComponentOnly(context, entity, type, value);
-}
-
-/** Resolves required-component chains and detects dependency cycles eagerly.
- *
- * Uses a mutable stack (push/pop) instead of spread-cloning on every recursive
- * call so there are zero extra allocations on the fast path (no required components).
- */
-function addRequiredComponents(
-    context: ComponentOpsContext,
-    entity: Entity,
-    type: AnyComponentType,
-    resolving: AnyComponentType[]
-): void {
-    if (type.required.length === 0) {
-        return;
-    }
-
-    const cycleStart = resolving.findIndex((resolvedType) => resolvedType.id === type.id);
-
-    if (cycleStart !== -1) {
-        const cycle = [...resolving.slice(cycleStart), type]
-            .map((resolvedType) => resolvedType.name)
-            .join(" -> ");
-        throw new Error(`Circular required component dependency: ${cycle}`);
-    }
-
-    resolving.push(type);
-
-    for (const required of type.required) {
-        if (has(context, entity, required.type)) {
-            continue;
-        }
-
-        addWithRequired(context, entity, required.type, required.create(), resolving);
-    }
-
-    resolving.pop();
 }
 
 /** Writes exactly one component store and runs the appropriate lifecycle hooks around it. */

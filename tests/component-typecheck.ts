@@ -1,7 +1,6 @@
 import {
     World,
     createRegistry,
-    requireComponent,
     withComponent,
     withMarker,
     type ComponentData,
@@ -16,12 +15,6 @@ function expectType<T>(value: T): void {
 }
 
 const Marker = registry.defineComponent("ComponentTypecheckDefaultMarker");
-const RequiredValue = registry.defineComponent<{ value: number }>(
-    "ComponentTypecheckRequiredValue"
-);
-const MarkerWithRequired = registry.defineComponent("ComponentTypecheckMarkerWithRequired", {
-    require: [requireComponent(RequiredValue, () => ({ value: 1 }))],
-});
 const Value = registry.defineComponent<{ value: number }>("ComponentTypecheckValue");
 const Transform = registry.defineComponent<{ x: number; y: number }>("ComponentTypecheckTransform");
 const SlgTransform = registry.defineComponent<{ start: number; speed: number }, typeof Transform>(
@@ -40,7 +33,6 @@ const SlgTransformWithLifecycle = registry.defineComponent<
 });
 
 expectType<Record<string, never>>({} satisfies ComponentData<typeof Marker>);
-expectType<Record<string, never>>({} satisfies ComponentData<typeof MarkerWithRequired>);
 expectType<{
     x: number;
     y: number;
@@ -57,14 +49,10 @@ expectType<{
     typeof Transform
 >);
 withMarker(Marker);
-withMarker(MarkerWithRequired);
 withComponent(Value, { value: 1 });
 withComponent(Transform, { x: 0, y: 0 });
 withComponent(SlgTransform, { x: 0, y: 0, start: 0, speed: 1 });
 withComponent(SlgTransformWithLifecycle, { x: 0, y: 0, start: 0, speed: 1 });
-
-// @ts-expect-error required component options are not marker payload data
-expectType<ComponentData<typeof MarkerWithRequired>>({ require: [] });
 
 // @ts-expect-error marker component payloads cannot be null
 withComponent(Marker, null);

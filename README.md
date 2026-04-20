@@ -16,7 +16,6 @@ A small TypeScript ECS prototype based on the design discussion:
 - Change detection is per-system and supports `eachAdded`, `eachChanged`, `markChanged`, and `drainRemoved`.
 - Messages provide short-lived, multi-reader event queues through `registry.defineMessage`, `writeMessage`, and `MessageReader`.
 - Removed component records support both explicit `drainRemoved` and multi-reader `RemovedReader`.
-- Components can declare required components that are inserted automatically when missing.
 - Resources support per-system added/changed detection.
 - Systems can use `Commands` for deferred structural edits.
 - Components support lifecycle hooks: `onAdd`, `onInsert`, `onReplace`, `onRemove`, and `onDespawn`.
@@ -83,7 +82,6 @@ npm run example:per-system-changes
 npm run example:messages
 npm run example:removed
 npm run example:resources
-npm run example:required
 npm run example:state
 npm run example:observer
 npm run example:net-entity-map

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createRegistry, requireComponent } from "../src";
+import { createRegistry } from "../src";
 
 test("registry assigns stable keys and supports name and key lookups", () => {
     const registry = createRegistry("registry-test");
@@ -78,22 +78,6 @@ test("registry seal and finalize prevent new definitions", () => {
     assert.throws(
         () => finalizedRegistry.defineResource("AfterFinalize"),
         /Cannot define resource AfterFinalize in registry-finalize-test: registry is sealed/
-    );
-});
-
-test("registry validates required components during definition", () => {
-    const registry = createRegistry("registry-required-test");
-    const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
-
-    assert.throws(
-        () =>
-            registry.defineComponent("RigidBody", {
-                require: [
-                    requireComponent(Transform, () => ({ x: 0, y: 0 })),
-                    requireComponent(Transform, () => ({ x: 1, y: 1 })),
-                ],
-            }),
-        /Component RigidBody in registry-required-test requires Transform more than once/
     );
 });
 

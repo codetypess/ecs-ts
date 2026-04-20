@@ -3,7 +3,6 @@ import type {
     ComponentDataWithTemplate,
     ComponentOptions,
     ComponentType,
-    RequiredComponent,
 } from "./component";
 import type { AnyEventType, EventType } from "./event";
 import type { AnyMessageType, MessageType } from "./message";
@@ -20,8 +19,6 @@ export type AnyRegistryType =
 export type RegistryTypeKind = "component" | "resource" | "state" | "message" | "event";
 
 export type RegistryTypeKey = string;
-
-type DefineComponentArgs<T extends object> = [name: string, options?: ComponentOptions<T>];
 
 /**
  * Registry that owns every typed ECS definition for one domain.
@@ -57,7 +54,6 @@ export class Registry {
     /** Freezes the registry schema so future definitions fail fast. */
     seal(): this {
         if (!this.sealed) {
-            validateRequiredComponentGraph(this.componentTypes);
             this.sealed = true;
         }
 
@@ -77,33 +73,32 @@ export class Registry {
 
     /** Defines a component whose payload type reuses another object component's payload. */
     defineComponent<TOwn extends object, TTemplate extends ComponentType<object>>(
-        ...args: DefineComponentArgs<ComponentDataWithTemplate<TOwn, TTemplate>>
+        name: string,
+        options?: ComponentOptions<ComponentDataWithTemplate<TOwn, TTemplate>>
     ): ComponentType<ComponentDataWithTemplate<TOwn, TTemplate>>;
 
     /** Defines a component type and freezes its runtime metadata. */
-    defineComponent<T extends object>(...args: DefineComponentArgs<T>): ComponentType<T>;
+    defineComponent<T extends object>(
+        name: string,
+        options?: ComponentOptions<T>
+    ): ComponentType<T>;
     defineComponent<T extends object>(
         name: string,
         options: ComponentOptions<T> = {} as ComponentOptions<T>
     ): ComponentType<T> {
         this.assertCanDefine("component", name, this.componentTypesByName);
-        const { require = [], ...lifecycle } = options;
-        const normalizedRequired = Object.freeze([...require]);
-        validateRequiredComponents(this, name, normalizedRequired);
 
         const component = Object.freeze({
             id: this.nextComponentId++,
             key: this.typeKey("component", name),
             name,
             registry: this,
-            lifecycle: Object.freeze({ ...lifecycle }),
-            required: normalizedRequired,
+            lifecycle: Object.freeze({ ...options }),
         }) satisfies ComponentType<T>;
 
         this.componentTypes[component.id] = component;
         this.componentTypesByName.set(component.name, component);
         this.typesByKey.set(component.key, component);
-        validateRequiredComponentGraph(this.componentTypes);
 
         return component;
     }
@@ -303,67 +298,5 @@ function assertRegistryName(name: string): void {
 function assertTypeName(kind: RegistryTypeKind, name: string): void {
     if (name.trim().length === 0) {
         throw new Error(`Cannot define ${kind}: name must be a non-empty string`);
-    }
-}
-
-function validateRequiredComponents(
-    registry: Registry,
-    componentName: string,
-    required: readonly RequiredComponent<object>[]
-): void {
-    const seen = new Set<number>();
-
-    for (const dependency of required) {
-        if (!registry.isRegisteredComponent(dependency.type)) {
-            throw new Error(
-                `Component ${dependency.type.name} is not registered in ${registry.name}`
-            );
-        }
-
-        if (seen.has(dependency.type.id)) {
-            throw new Error(
-                `Component ${componentName} in ${registry.name} requires ${dependency.type.name} more than once`
-            );
-        }
-
-        seen.add(dependency.type.id);
-    }
-}
-
-function validateRequiredComponentGraph(types: readonly AnyComponentType[]): void {
-    const visiting = new Set<number>();
-    const visited = new Set<number>();
-    const path: AnyComponentType[] = [];
-
-    const visit = (type: AnyComponentType): void => {
-        if (visited.has(type.id)) {
-            return;
-        }
-
-        const cycleStart = path.findIndex((entry) => entry.id === type.id);
-
-        if (cycleStart !== -1) {
-            const cycle = [...path.slice(cycleStart), type].map((entry) => entry.name).join(" -> ");
-            throw new Error(`Circular required component dependency: ${cycle}`);
-        }
-
-        if (visiting.has(type.id)) {
-            return;
-        }
-
-        visiting.add(type.id);
-        path.push(type);
-
-        for (const dependency of type.required) {
-            visit(dependency.type);
-        }
-
-        path.pop();
-        visiting.delete(type.id);
-        visited.add(type.id);
-    };
-
-    for (const type of types) {
-        visit(type);
     }
 }
