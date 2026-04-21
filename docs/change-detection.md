@@ -6,16 +6,16 @@ Change detection uses the active system's last-run tick and the world's current 
 
 ## Components
 
-Use `eachAdded(...)` and `eachChanged(...)` for component queries constrained by change state. Use `markChanged(...)` after mutating component values in place.
+Use `eachAdded(...)` and `eachChanged(...)` for component queries constrained by change state. Use `markComponentChanged(...)` after mutating component values in place.
 
 ```ts
 world.eachChanged([Position], (entity, position) => {
     console.log(entity, position);
 });
 
-const position = world.mustGet(entity, Position);
+const position = world.mustGetComponent(entity, Position);
 position.x += 1;
-world.markChanged(entity, Position);
+world.markComponentChanged(entity, Position);
 ```
 
 Run the component examples with:

@@ -241,7 +241,7 @@ function createDespawnWorld(count: number): DespawnWorld {
     const noiseEntity = world.spawn();
 
     for (const [index, type] of DespawnNoiseComponents.entries()) {
-        world.add(noiseEntity, type, { value: index });
+        world.addComponent(noiseEntity, type, { value: index });
     }
 
     for (let index = 0; index < count; index++) {
@@ -288,7 +288,7 @@ function createRemovedReaderWorld(removalCount: number): RemovedReaderWorld {
 
     for (let index = 0; index < removalCount; index++) {
         const entity = world.spawn(withComponent(Health, { value: index }));
-        world.remove(entity, Health);
+        world.removeComponent(entity, Health);
     }
 
     reader.read();
@@ -571,7 +571,7 @@ pushPreparedBenchmark(results, "direct get(Position)", {
 
         for (let loop = 0; loop < DIRECT_GET_LOOPS; loop++) {
             for (const entity of movement.entities) {
-                checksum += movement.world.get(entity, Position)?.x ?? 0;
+                checksum += movement.world.getComponent(entity, Position)?.x ?? 0;
                 operations++;
             }
         }
@@ -586,11 +586,11 @@ pushPreparedBenchmark(results, "commands markChanged batch flush", {
         const commands = world.commands();
 
         for (let index = 0; index < EVENT_COUNT; index++) {
-            commands.markChanged(entity, Position);
+            commands.markComponentChanged(entity, Position);
         }
 
         commands.flush();
-        checksum += world.isChanged(entity, Position) ? 1 : 0;
+        checksum += world.isComponentChanged(entity, Position) ? 1 : 0;
 
         return EVENT_COUNT;
     },
@@ -754,7 +754,7 @@ pushPreparedBenchmark(results, "removed reader steady-state remove+read", {
                     withComponent(Health, { value: index + loop })
                 );
 
-                removedSteadyStateWorld.world.remove(entity, Health);
+                removedSteadyStateWorld.world.removeComponent(entity, Health);
                 checksum += removedSteadyStateWorld.reader.read().length;
                 operations++;
             }
@@ -770,7 +770,7 @@ pushPreparedBenchmark(results, "observer trigger", {
         const target = world.spawn(withComponent(Health, { value: 100 }));
 
         world.observe(DamageEvent, (damage, currentWorld) => {
-            checksum += currentWorld.mustGet(damage.target, Health).value;
+            checksum += currentWorld.mustGetComponent(damage.target, Health).value;
         });
 
         return { world, target };

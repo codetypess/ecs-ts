@@ -23,10 +23,10 @@ test("per-system change detection lets state systems see earlier changes", () =>
                 return;
             }
 
-            const position = world.mustGet(this.entity, Position);
+            const position = world.mustGetComponent(this.entity, Position);
 
             position.x = 10;
-            commands.markChanged(this.entity, Position);
+            commands.markComponentChanged(this.entity, Position);
             commands.setState(Mode, "watching");
             this.frame++;
         }
@@ -99,7 +99,7 @@ test("removed readers can inspect records without draining them", () => {
     const readerA = world.removedReader(Position);
     const readerB = world.removedReader(Position);
 
-    world.remove(entity, Position);
+    world.removeComponent(entity, Position);
 
     const removedA = readerA.read();
     const removedB = readerB.read();
@@ -120,12 +120,12 @@ test("removed readers only see removals still buffered after drain", () => {
     const reader = world.removedReader(Position);
     const first = world.spawn(withComponent(Position, { x: 1, y: 2 }));
 
-    world.remove(first, Position);
+    world.removeComponent(first, Position);
     assert.equal(world.drainRemoved(Position).length, 1);
 
     const second = world.spawn(withComponent(Position, { x: 3, y: 4 }));
 
-    world.remove(second, Position);
+    world.removeComponent(second, Position);
 
     const removed = reader.read();
 
@@ -140,7 +140,7 @@ test("removed readers hide fully consumed history from drainRemoved immediately"
     const reader = world.removedReader(Position);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
 
-    world.remove(entity, Position);
+    world.removeComponent(entity, Position);
 
     assert.equal(reader.read().length, 1);
     assert.equal(world.drainRemoved(Position).length, 0);
@@ -151,7 +151,7 @@ test("drainRemoved keeps working even when no removed reader exists", () => {
     const world = new World(registry);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
 
-    world.remove(entity, Position);
+    world.removeComponent(entity, Position);
 
     const removed = world.drainRemoved(Position);
 
@@ -169,13 +169,13 @@ test("removed history compacts once every live reader advances past it", () => {
     const readerB = world.removedReader(Position);
     const first = world.spawn(withComponent(Position, { x: 1, y: 2 }));
 
-    world.remove(first, Position);
+    world.removeComponent(first, Position);
 
     assert.equal(readerA.read().length, 1);
 
     const second = world.spawn(withComponent(Position, { x: 3, y: 4 }));
 
-    world.remove(second, Position);
+    world.removeComponent(second, Position);
 
     const unreadB = readerB.read();
 
@@ -197,7 +197,7 @@ test("closing a removed reader releases any history pinned by its cursor", () =>
     const readerB = world.removedReader(Position);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
 
-    world.remove(entity, Position);
+    world.removeComponent(entity, Position);
 
     assert.equal(readerA.read().length, 1);
     assert.equal(world.drainRemoved(Position).length, 1);
@@ -215,7 +215,7 @@ test("late removed readers only see history retained by currently live readers",
     const earlyReader = world.removedReader(Position);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
 
-    world.remove(entity, Position);
+    world.removeComponent(entity, Position);
     assert.equal(earlyReader.read().length, 1);
 
     const lateReader = world.removedReader(Position);

@@ -37,16 +37,16 @@ export class Commands {
     }
 
     /** Queues a component insertion or replacement. */
-    add<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this {
+    addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this {
         return this.enqueue((world) => {
-            world.add(entity, type, value);
+            world.addComponent(entity, type, value);
         });
     }
 
     /** Queues component removal. */
-    remove<T extends object>(entity: Entity, type: ComponentType<T>): this {
+    removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): this {
         return this.enqueue((world) => {
-            world.remove(entity, type);
+            world.removeComponent(entity, type);
         });
     }
 
@@ -86,9 +86,9 @@ export class Commands {
     }
 
     /** Queues a manual component change marker. */
-    markChanged<T extends object>(entity: Entity, type: ComponentType<T>): this {
+    markComponentChanged<T extends object>(entity: Entity, type: ComponentType<T>): this {
         return this.enqueue((world) => {
-            world.markChanged(entity, type);
+            world.markComponentChanged(entity, type);
         });
     }
 
@@ -123,7 +123,7 @@ export class Commands {
 
         this.enqueue((world) => {
             for (const entry of entries) {
-                world.add(entity, entry.type, entry.value);
+                world.addComponent(entity, entry.type, entry.value);
             }
         });
 

@@ -18,9 +18,9 @@ class MutationSystem {
             return;
         }
 
-        const position = world.mustGet(this.entity, Position);
+        const position = world.mustGetComponent(this.entity, Position);
         position.x = 10;
-        commands.markChanged(this.entity, Position);
+        commands.markComponentChanged(this.entity, Position);
         commands.setState(Mode, "watching");
         console.log(`changed ${formatEntity(this.entity)} while Mode=editing`);
         this.frame++;

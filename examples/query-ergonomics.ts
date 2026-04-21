@@ -15,8 +15,8 @@ const player = world.spawn(
 
 world.spawn(withComponent(Position, { x: 10, y: 0 }), withMarker(Enemy));
 
-console.log(`player has movement=${world.hasAll(player, [Position, Velocity])}`);
-console.log(`player has role=${world.hasAny(player, [Player, Enemy])}`);
+console.log(`player has movement=${world.hasAllComponents(player, [Position, Velocity])}`);
+console.log(`player has role=${world.hasAnyComponents(player, [Player, Enemy])}`);
 
 const [playerEntity, position, velocity] = world.single([Position, Velocity], {
     with: [Player],

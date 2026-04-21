@@ -1,6 +1,7 @@
 import type { AnyComponentType } from "../component";
 import type { Entity } from "../entity";
 import type {
+    ChangeDetectionRange,
     ComponentTuple,
     OptionalComponentTuple,
     OptionalQueryRow,
@@ -10,6 +11,7 @@ import type {
     QueryState,
 } from "../query";
 import { optionalQueryState, queryState } from "../query";
+import type { QueryExecutorContext } from "./query-executor";
 import {
     each as eachQuery,
     eachOptional as eachOptionalQuery,
@@ -24,18 +26,17 @@ import {
     queryOptionalWithState as runOptionalQueryWithState,
     queryWithState as runQueryWithState,
 } from "./query-executor";
-import { currentChangeDetectionRange, type WorldRuntime } from "./world-runtime";
 
 /** Shared public query API for world instances. */
 export abstract class WorldQueryMethods {
-    protected abstract readonly runtime: WorldRuntime;
+    protected abstract readonly queryContext: QueryExecutorContext;
+    protected abstract changeDetectionRange(): ChangeDetectionRange;
 
     /** Iterates entities that contain all requested component types. */
     query<const TComponents extends readonly AnyComponentType[]>(
         ...types: TComponents
     ): IterableIterator<QueryRow<TComponents>> {
-        const runtime = this.runtime;
-        return runQuery(runtime.queryContext, types, {}, currentChangeDetectionRange(runtime));
+        return runQuery(this.queryContext, types, {}, this.changeDetectionRange());
     }
 
     /** Iterates entities that match the requested components plus an explicit filter. */
@@ -43,34 +44,21 @@ export abstract class WorldQueryMethods {
         types: TComponents,
         filter: QueryFilter
     ): IterableIterator<QueryRow<TComponents>> {
-        const runtime = this.runtime;
-        return runQuery(runtime.queryContext, types, filter, currentChangeDetectionRange(runtime));
+        return runQuery(this.queryContext, types, filter, this.changeDetectionRange());
     }
 
     /** Iterates entities where at least one requested component was newly added. */
     queryAdded<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents
     ): IterableIterator<QueryRow<TComponents>> {
-        const runtime = this.runtime;
-        return runQuery(
-            runtime.queryContext,
-            types,
-            { added: types },
-            currentChangeDetectionRange(runtime)
-        );
+        return runQuery(this.queryContext, types, { added: types }, this.changeDetectionRange());
     }
 
     /** Iterates entities where at least one requested component changed recently. */
     queryChanged<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents
     ): IterableIterator<QueryRow<TComponents>> {
-        const runtime = this.runtime;
-        return runQuery(
-            runtime.queryContext,
-            types,
-            { changed: types },
-            currentChangeDetectionRange(runtime)
-        );
+        return runQuery(this.queryContext, types, { changed: types }, this.changeDetectionRange());
     }
 
     /** Iterates queries with required and optional component sections. */
@@ -82,13 +70,12 @@ export abstract class WorldQueryMethods {
         optional: TOptionalComponents,
         filter: QueryFilter = {}
     ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
-        const runtime = this.runtime;
         return runOptionalQuery(
-            runtime.queryContext,
+            this.queryContext,
             required,
             optional,
             filter,
-            currentChangeDetectionRange(runtime)
+            this.changeDetectionRange()
         );
     }
 
@@ -116,20 +103,14 @@ export abstract class WorldQueryMethods {
     queryWithState<const TComponents extends readonly AnyComponentType[]>(
         state: QueryState<TComponents>
     ): IterableIterator<QueryRow<TComponents>> {
-        const runtime = this.runtime;
-        return runQueryWithState(runtime.queryContext, state, currentChangeDetectionRange(runtime));
+        return runQueryWithState(this.queryContext, state, this.changeDetectionRange());
     }
 
     /** Returns `true` when a cached query matches at least one entity. */
     matchesAnyWithState<const TComponents extends readonly AnyComponentType[]>(
         state: QueryState<TComponents>
     ): boolean {
-        const runtime = this.runtime;
-        return matchesAnyQueryWithState(
-            runtime.queryContext,
-            state,
-            currentChangeDetectionRange(runtime)
-        );
+        return matchesAnyQueryWithState(this.queryContext, state, this.changeDetectionRange());
     }
 
     /** Returns `true` when a cached query matches no entities. */
@@ -143,12 +124,7 @@ export abstract class WorldQueryMethods {
     matchesSingleWithState<const TComponents extends readonly AnyComponentType[]>(
         state: QueryState<TComponents>
     ): boolean {
-        const runtime = this.runtime;
-        return matchesSingleQueryWithState(
-            runtime.queryContext,
-            state,
-            currentChangeDetectionRange(runtime)
-        );
+        return matchesSingleQueryWithState(this.queryContext, state, this.changeDetectionRange());
     }
 
     /** Executes a cached optional query. */
@@ -158,12 +134,7 @@ export abstract class WorldQueryMethods {
     >(
         state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
     ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
-        const runtime = this.runtime;
-        return runOptionalQueryWithState(
-            runtime.queryContext,
-            state,
-            currentChangeDetectionRange(runtime)
-        );
+        return runOptionalQueryWithState(this.queryContext, state, this.changeDetectionRange());
     }
 
     /** Returns `true` when a cached optional query matches at least one entity. */
@@ -171,11 +142,10 @@ export abstract class WorldQueryMethods {
         const TRequiredComponents extends readonly AnyComponentType[],
         const TOptionalComponents extends readonly AnyComponentType[],
     >(state: OptionalQueryState<TRequiredComponents, TOptionalComponents>): boolean {
-        const runtime = this.runtime;
         return matchesAnyOptionalQueryWithState(
-            runtime.queryContext,
+            this.queryContext,
             state,
-            currentChangeDetectionRange(runtime)
+            this.changeDetectionRange()
         );
     }
 
@@ -192,11 +162,10 @@ export abstract class WorldQueryMethods {
         const TRequiredComponents extends readonly AnyComponentType[],
         const TOptionalComponents extends readonly AnyComponentType[],
     >(state: OptionalQueryState<TRequiredComponents, TOptionalComponents>): boolean {
-        const runtime = this.runtime;
         return matchesSingleOptionalQueryWithState(
-            runtime.queryContext,
+            this.queryContext,
             state,
-            currentChangeDetectionRange(runtime)
+            this.changeDetectionRange()
         );
     }
 
@@ -205,13 +174,7 @@ export abstract class WorldQueryMethods {
         state: QueryState<TComponents>,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        const runtime = this.runtime;
-        eachQueryWithState(
-            runtime.queryContext,
-            state,
-            currentChangeDetectionRange(runtime),
-            visitor
-        );
+        eachQueryWithState(this.queryContext, state, this.changeDetectionRange(), visitor);
     }
 
     /** Visits each row from a cached optional query. */
@@ -228,13 +191,7 @@ export abstract class WorldQueryMethods {
             ]
         ) => void
     ): void {
-        const runtime = this.runtime;
-        eachOptionalQueryWithState(
-            runtime.queryContext,
-            state,
-            currentChangeDetectionRange(runtime),
-            visitor
-        );
+        eachOptionalQueryWithState(this.queryContext, state, this.changeDetectionRange(), visitor);
     }
 
     /** Returns the only matching row, or `undefined` when there are no matches. */
@@ -277,8 +234,7 @@ export abstract class WorldQueryMethods {
         types: TComponents,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        const runtime = this.runtime;
-        eachQuery(runtime.queryContext, types, {}, currentChangeDetectionRange(runtime), visitor);
+        eachQuery(this.queryContext, types, {}, this.changeDetectionRange(), visitor);
     }
 
     /** Visits every entity that matches the given components plus filter. */
@@ -287,14 +243,7 @@ export abstract class WorldQueryMethods {
         filter: QueryFilter,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        const runtime = this.runtime;
-        eachQuery(
-            runtime.queryContext,
-            types,
-            filter,
-            currentChangeDetectionRange(runtime),
-            visitor
-        );
+        eachQuery(this.queryContext, types, filter, this.changeDetectionRange(), visitor);
     }
 
     /** Visits entities where at least one requested component was added recently. */
@@ -302,14 +251,7 @@ export abstract class WorldQueryMethods {
         types: TComponents,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        const runtime = this.runtime;
-        eachQuery(
-            runtime.queryContext,
-            types,
-            { added: types },
-            currentChangeDetectionRange(runtime),
-            visitor
-        );
+        eachQuery(this.queryContext, types, { added: types }, this.changeDetectionRange(), visitor);
     }
 
     /** Visits entities where at least one requested component changed recently. */
@@ -317,12 +259,11 @@ export abstract class WorldQueryMethods {
         types: TComponents,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        const runtime = this.runtime;
         eachQuery(
-            runtime.queryContext,
+            this.queryContext,
             types,
             { changed: types },
-            currentChangeDetectionRange(runtime),
+            this.changeDetectionRange(),
             visitor
         );
     }
@@ -343,13 +284,12 @@ export abstract class WorldQueryMethods {
             ]
         ) => void
     ): void {
-        const runtime = this.runtime;
         eachOptionalQuery(
-            runtime.queryContext,
+            this.queryContext,
             required,
             optional,
             filter,
-            currentChangeDetectionRange(runtime),
+            this.changeDetectionRange(),
             visitor
         );
     }

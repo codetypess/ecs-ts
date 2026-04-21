@@ -64,8 +64,8 @@ class NetSyncSystem {
                 continue;
             }
 
-            const position = world.mustGet(entity, Position);
-            const health = world.mustGet(entity, Health);
+            const position = world.mustGetComponent(entity, Position);
+            const health = world.mustGetComponent(entity, Health);
 
             position.x = snapshot.x;
             position.y = snapshot.y;

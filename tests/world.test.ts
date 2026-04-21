@@ -20,8 +20,8 @@ test("entity generation prevents stale handles from reading recycled entities", 
     assert.equal(world.isAlive(first), false);
     assert.equal(world.entityType(first), undefined);
     assert.equal(world.entityType(reused), 12);
-    assert.equal(world.get(first, Position), undefined);
-    assert.deepEqual(world.mustGet(reused, Position), { x: 3, y: 4 });
+    assert.equal(world.getComponent(first, Position), undefined);
+    assert.deepEqual(world.mustGetComponent(reused, Position), { x: 3, y: 4 });
 });
 
 test("read helpers keep getMany and change detection aligned with entity liveness", () => {
@@ -33,27 +33,27 @@ test("read helpers keep getMany and change detection aligned with entity livenes
         withComponent(Velocity, { x: 3, y: 4 })
     );
 
-    assert.deepEqual(world.getMany(entity, Position, Velocity), [
+    assert.deepEqual(world.getManyComponents(entity, Position, Velocity), [
         { x: 1, y: 2 },
         { x: 3, y: 4 },
     ]);
-    assert.equal(world.isAdded(entity, Position), true);
-    assert.equal(world.isChanged(entity, Velocity), true);
+    assert.equal(world.isComponentAdded(entity, Position), true);
+    assert.equal(world.isComponentChanged(entity, Velocity), true);
 
     world.update(0);
 
-    assert.equal(world.isAdded(entity, Position), false);
-    assert.equal(world.isChanged(entity, Velocity), false);
+    assert.equal(world.isComponentAdded(entity, Position), false);
+    assert.equal(world.isComponentChanged(entity, Velocity), false);
 
-    world.markChanged(entity, Position);
+    world.markComponentChanged(entity, Position);
 
-    assert.equal(world.isChanged(entity, Position), true);
+    assert.equal(world.isComponentChanged(entity, Position), true);
 
     world.despawn(entity);
 
-    assert.equal(world.getMany(entity, Position, Velocity), undefined);
-    assert.equal(world.isAdded(entity, Position), false);
-    assert.equal(world.isChanged(entity, Position), false);
+    assert.equal(world.getManyComponents(entity, Position, Velocity), undefined);
+    assert.equal(world.isComponentAdded(entity, Position), false);
+    assert.equal(world.isComponentChanged(entity, Position), false);
 });
 
 test("spawn inserts multiple component entries", () => {
@@ -63,10 +63,10 @@ test("spawn inserts multiple component entries", () => {
 
     const entity = world.spawn(withMarker(Player), withComponent(Health, { value: 100 }));
 
-    assert.equal(world.hasAll(entity, [Player, Health]), true);
-    assert.equal(world.remove(entity, Player), true);
-    assert.equal(world.remove(entity, Health), true);
-    assert.equal(world.hasAny(entity, [Player, Health]), false);
+    assert.equal(world.hasAllComponents(entity, [Player, Health]), true);
+    assert.equal(world.removeComponent(entity, Player), true);
+    assert.equal(world.removeComponent(entity, Health), true);
+    assert.equal(world.hasAnyComponents(entity, [Player, Health]), false);
 });
 
 test("commands flush queued structural edits in order", () => {
@@ -76,19 +76,19 @@ test("commands flush queued structural edits in order", () => {
     const commands = world.commands();
     const entity = commands.spawn(2, withComponent(Position, { x: 1, y: 2 }));
 
-    commands.add(entity, Velocity, { x: 3, y: 4 });
-    commands.remove(entity, Position);
+    commands.addComponent(entity, Velocity, { x: 3, y: 4 });
+    commands.removeComponent(entity, Position);
 
     assert.equal(commands.pending, 3);
     assert.equal(world.isAlive(entity), true);
     assert.equal(world.entityType(entity), 2);
-    assert.equal(world.hasAny(entity, [Position, Velocity]), false);
+    assert.equal(world.hasAnyComponents(entity, [Position, Velocity]), false);
 
     commands.flush();
 
     assert.equal(commands.pending, 0);
-    assert.equal(world.has(entity, Position), false);
-    assert.deepEqual(world.mustGet(entity, Velocity), { x: 3, y: 4 });
+    assert.equal(world.hasComponent(entity, Position), false);
+    assert.deepEqual(world.mustGetComponent(entity, Velocity), { x: 3, y: 4 });
 });
 
 test("commands queued during flush wait for the next flush", () => {
@@ -100,19 +100,19 @@ test("commands queued during flush wait for the next flush", () => {
 
     commands.run(() => {
         ranOuterCommand = true;
-        commands.add(entity, Position, { x: 5, y: 6 });
+        commands.addComponent(entity, Position, { x: 5, y: 6 });
     });
 
     commands.flush();
 
     assert.equal(ranOuterCommand, true);
     assert.equal(commands.pending, 1);
-    assert.equal(world.has(entity, Position), false);
+    assert.equal(world.hasComponent(entity, Position), false);
 
     commands.flush();
 
     assert.equal(commands.pending, 0);
-    assert.deepEqual(world.mustGet(entity, Position), { x: 5, y: 6 });
+    assert.deepEqual(world.mustGetComponent(entity, Position), { x: 5, y: 6 });
 });
 
 test("component lifecycle hooks fire in order and can be unsubscribed", () => {
@@ -143,8 +143,8 @@ test("component lifecycle hooks fire in order and can be unsubscribed", () => {
 
     const entity = world.spawn(withComponent(Position, { x: 1 }));
 
-    world.add(entity, Position, { x: 2 });
-    world.remove(entity, Position);
+    world.addComponent(entity, Position, { x: 2 });
+    world.removeComponent(entity, Position);
 
     offAdd();
     offInsert();
@@ -152,7 +152,7 @@ test("component lifecycle hooks fire in order and can be unsubscribed", () => {
     offRemove();
     offDespawn();
 
-    world.add(entity, Position, { x: 3 });
+    world.addComponent(entity, Position, { x: 3 });
     world.despawn(entity);
 
     assert.deepEqual(events, [
@@ -200,7 +200,8 @@ test("component values reject invalid runtime payloads", () => {
         /Component InvalidValuePosition value cannot be null/
     );
     assert.throws(
-        () => world.add(entity, Position, undefined as unknown as { x: number; y: number }),
+        () =>
+            world.addComponent(entity, Position, undefined as unknown as { x: number; y: number }),
         /Component InvalidValuePosition value cannot be undefined/
     );
     assert.throws(
@@ -208,7 +209,7 @@ test("component values reject invalid runtime payloads", () => {
         /Component InvalidValuePosition value must be an object/
     );
 
-    assert.equal(world.has(entity, Position), false);
+    assert.equal(world.hasComponent(entity, Position), false);
 });
 
 test("world rejects components from a different registry", () => {
@@ -218,8 +219,11 @@ test("world rejects components from a different registry", () => {
     const world = new World(registry);
     const entity = world.spawn(withMarker(local));
 
-    assert.throws(() => world.add(entity, foreign, {}), /other-world-test, not world-test/);
-    assert.throws(() => world.has(entity, foreign), /other-world-test, not world-test/);
+    assert.throws(
+        () => world.addComponent(entity, foreign, {}),
+        /other-world-test, not world-test/
+    );
+    assert.throws(() => world.hasComponent(entity, foreign), /other-world-test, not world-test/);
     assert.throws(() => Array.from(world.query(foreign)), /other-world-test, not world-test/);
 });
 

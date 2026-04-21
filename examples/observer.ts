@@ -17,14 +17,14 @@ const world = new World(registry);
 const enemy = world.spawn(withComponent(Health, { value: 15 }));
 
 world.observe(Damage, (damage, currentWorld, commands) => {
-    const health = currentWorld.get(damage.target, Health);
+    const health = currentWorld.getComponent(damage.target, Health);
 
     if (health === undefined) {
         return;
     }
 
     health.value -= damage.amount;
-    commands.markChanged(damage.target, Health);
+    commands.markComponentChanged(damage.target, Health);
     console.log(`damage ${formatEntity(damage.target)} by ${damage.amount}; hp=${health.value}`);
 
     if (health.value <= 0) {

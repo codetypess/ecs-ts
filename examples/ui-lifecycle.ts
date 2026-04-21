@@ -111,7 +111,7 @@ class UiSystem {
             const abort = new AbortController();
             const requestId = ui.nextRequestId();
 
-            commands.add(entity, UiLoading, { requestId, abort });
+            commands.addComponent(entity, UiLoading, { requestId, abort });
 
             ui.load(source.key, {
                 props: source.props,
@@ -132,28 +132,28 @@ class UiSystem {
         const ui = world.resource(UiRuntimeResource);
 
         for (const result of drain(ui.completed)) {
-            const loading = world.get(result.entity, UiLoading);
+            const loading = world.getComponent(result.entity, UiLoading);
 
             if (!world.isAlive(result.entity) || loading?.requestId !== result.requestId) {
                 ui.destroy(result.handle);
                 continue;
             }
 
-            commands.remove(result.entity, UiLoading);
-            commands.add(result.entity, UiInstance, {
+            commands.removeComponent(result.entity, UiLoading);
+            commands.addComponent(result.entity, UiInstance, {
                 handle: result.handle,
                 requestId: result.requestId,
             });
         }
 
         for (const failure of drain(ui.failed)) {
-            const loading = world.get(failure.entity, UiLoading);
+            const loading = world.getComponent(failure.entity, UiLoading);
 
             if (!world.isAlive(failure.entity) || loading?.requestId !== failure.requestId) {
                 continue;
             }
 
-            commands.remove(failure.entity, UiLoading);
+            commands.removeComponent(failure.entity, UiLoading);
             console.log(`ui load failed for entity ${failure.entity}`);
         }
     }

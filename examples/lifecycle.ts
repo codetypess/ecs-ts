@@ -44,11 +44,11 @@ class LifecycleDemoSystem {
         }
 
         if (this.frame === 0) {
-            commands.add(this.entity, Health, { value: 80 });
+            commands.addComponent(this.entity, Health, { value: 80 });
         } else if (this.frame === 1) {
-            commands.remove(this.entity, Health);
+            commands.removeComponent(this.entity, Health);
         } else if (this.frame === 2) {
-            commands.add(this.entity, Health, { value: 50 });
+            commands.addComponent(this.entity, Health, { value: 50 });
         } else if (this.frame === 3) {
             commands.despawn(this.entity);
         }

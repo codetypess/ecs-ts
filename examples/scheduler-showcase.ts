@@ -83,7 +83,7 @@ class PhysicsSystem {
 
         const controlled = world.resource(ControlledEntity).value;
         const position =
-            controlled === undefined ? undefined : world.mustGet(controlled, Transform).x;
+            controlled === undefined ? undefined : world.mustGetComponent(controlled, Transform).x;
 
         appendLog(
             world,
@@ -108,13 +108,13 @@ class InputSystem {
         }
 
         if (frame === 0) {
-            commands.add(controlled, Sleeping, {});
+            commands.addComponent(controlled, Sleeping, {});
             appendLog(world, "update:input:sleep-controlled");
         } else if (frame === 1) {
             commands.setState(GameMode, "paused");
             appendLog(world, "update:input:pause");
         } else if (frame === 2) {
-            commands.remove(controlled, Sleeping);
+            commands.removeComponent(controlled, Sleeping);
             commands.setState(GameMode, "running");
             commands.setResource(FeatureFlags, { physicsEnabled: false });
             appendLog(world, "update:input:wake-resume-disable-physics");
@@ -135,7 +135,7 @@ class RenderSystem {
     onUpdate(world: World): void {
         const controlled = world.resource(ControlledEntity).value;
         const position =
-            controlled === undefined ? undefined : world.mustGet(controlled, Transform).x;
+            controlled === undefined ? undefined : world.mustGetComponent(controlled, Transform).x;
 
         appendLog(world, `update:render:frame=${world.resource(Frame).value}:player=${position}`);
     }

@@ -20,7 +20,7 @@ class ChangeDetectionSystem {
             return;
         }
 
-        const position = world.get(this.entity, Position);
+        const position = world.getComponent(this.entity, Position);
 
         if (position === undefined) {
             return;
@@ -28,9 +28,9 @@ class ChangeDetectionSystem {
 
         if (this.frame === 0) {
             position.x += 10;
-            commands.markChanged(this.entity, Position);
+            commands.markComponentChanged(this.entity, Position);
         } else if (this.frame === 1) {
-            commands.remove(this.entity, Position);
+            commands.removeComponent(this.entity, Position);
         }
 
         this.frame++;

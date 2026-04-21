@@ -56,7 +56,7 @@ world.eachWhere(
     }
 );
 
-const position = world.get(entity, Position);
+const position = world.getComponent(entity, Position);
 console.log(position);
 ```
 

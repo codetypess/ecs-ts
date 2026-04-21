@@ -512,10 +512,10 @@ test("observers dispatch immediate events and can queue commands", () => {
     const log: string[] = [];
 
     world.observe(Damage, (damage, currentWorld, commands) => {
-        const health = currentWorld.mustGet(damage.target, Health);
+        const health = currentWorld.mustGetComponent(damage.target, Health);
 
         health.value -= damage.amount;
-        commands.markChanged(damage.target, Health);
+        commands.markComponentChanged(damage.target, Health);
         log.push(`damage:${health.value}`);
 
         if (health.value <= 0) {

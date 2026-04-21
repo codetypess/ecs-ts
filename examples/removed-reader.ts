@@ -20,7 +20,7 @@ class RemovePositionSystem {
 
     onUpdate(_world: World, _dt: number, commands: Commands): void {
         if (this.entity !== undefined) {
-            commands.remove(this.entity, Position);
+            commands.removeComponent(this.entity, Position);
             this.entity = undefined;
         }
     }

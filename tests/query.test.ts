@@ -157,7 +157,7 @@ test("optional query state sees optional stores created after the cache was reso
     assert.deepEqual(beforeName[0]?.[1], { x: 1, y: 2 });
     assert.equal(beforeName[0]?.[2], undefined);
 
-    world.add(entity, Name, { value: "capital" });
+    world.addComponent(entity, Name, { value: "capital" });
 
     const afterName: {
         readonly entity: typeof entity;
@@ -208,26 +208,26 @@ test("query state tracks structural filter changes through cached plans", () => 
     assert.equal(filtered.matchesAny(world), true);
     assert.equal(filtered.matchesSingle(world), true);
 
-    world.add(active, Excluded, {});
+    world.addComponent(active, Excluded, {});
 
     assert.deepEqual(matchedEntities(), []);
     assert.equal(filtered.matchesNone(world), true);
 
-    world.remove(active, Excluded);
+    world.removeComponent(active, Excluded);
 
     assert.deepEqual(matchedEntities(), [active]);
 
-    world.remove(active, OrMatch);
+    world.removeComponent(active, OrMatch);
 
     assert.deepEqual(matchedEntities(), []);
     assert.equal(filtered.matchesNone(world), true);
 
-    world.add(active, Banned, {});
+    world.addComponent(active, Banned, {});
 
     assert.deepEqual(matchedEntities(), []);
 
-    world.remove(active, Banned);
-    world.add(active, OrMatch, {});
+    world.removeComponent(active, Banned);
+    world.addComponent(active, OrMatch, {});
 
     assert.deepEqual(matchedEntities(), [active]);
     assert.equal(filtered.matchesSingle(world), true);
@@ -263,13 +263,11 @@ test("query state refreshes the base store when store sizes skew after cache res
 
     const stores = (
         world as unknown as {
-            readonly runtime: {
-                readonly componentStoreContext: {
-                    readonly stores: readonly (SparseSet<unknown> | undefined)[];
-                };
+            readonly componentStoreContext: {
+                readonly stores: readonly (SparseSet<unknown> | undefined)[];
             };
         }
-    ).runtime.componentStoreContext.stores;
+    ).componentStoreContext.stores;
     const positionStore = stores[Position.id];
     const velocityStore = stores[Velocity.id];
 

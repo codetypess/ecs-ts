@@ -31,14 +31,14 @@ class DamageSystem {
 
     onUpdate(world: World): void {
         for (const damage of this.damageReader.read(world)) {
-            const health = world.get(damage.target, Health);
+            const health = world.getComponent(damage.target, Health);
 
             if (health === undefined) {
                 continue;
             }
 
             health.value -= damage.amount;
-            world.markChanged(damage.target, Health);
+            world.markComponentChanged(damage.target, Health);
             console.log(
                 `damage ${formatEntity(damage.target)} by ${damage.amount}; hp=${health.value}`
             );

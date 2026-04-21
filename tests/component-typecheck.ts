@@ -86,7 +86,7 @@ for (const [matched, marker, value] of world.query(Marker, Value)) {
 }
 
 expectType<readonly [Record<string, never>, { value: number }] | undefined>(
-    world.getMany(entity, Marker, Value)
+    world.getManyComponents(entity, Marker, Value)
 );
 expectType<RemovedReader<typeof Value>>(removedValueReader);
 expectType<number | undefined>(removedValueReader.read()[0]?.component.value);
