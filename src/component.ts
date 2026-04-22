@@ -21,7 +21,9 @@ export interface ComponentLifecycle<T> {
 }
 
 /** Extra metadata and lifecycle hooks accepted by {@link defineComponent}. */
-export type ComponentOptions<T extends object> = ComponentLifecycle<T>;
+export type ComponentOptions<T extends object> = ComponentLifecycle<T> & {
+    readonly deps?: readonly ComponentType<object>[];
+};
 
 export type ComponentLifecycleStage = keyof ComponentLifecycle<unknown>;
 
@@ -31,6 +33,7 @@ export interface ComponentType<T extends object> {
     readonly key: string;
     readonly name: string;
     readonly registry: Registry;
+    readonly deps: readonly ComponentType<object>[];
     readonly lifecycle: Readonly<ComponentLifecycle<T>>;
 }
 

@@ -35,7 +35,17 @@ import {
     createComponentStoreContext,
     type ComponentStoreContext,
 } from "./internal/component-store";
-import { createEntityComponentIndexContext } from "./internal/entity-component-index";
+import {
+    createEntityComponentIndexContext,
+    getEntityComponents,
+} from "./internal/entity-component-index";
+import {
+    assertComponentDepsPresent,
+    assertComponentHasNoDependents,
+    assertSpawnEntriesSatisfied,
+    currentEntityComponentTypes,
+    sortEntriesByDependencies,
+} from "./internal/component-dependencies";
 import {
     createEventContext,
     observeEvent,
@@ -84,6 +94,7 @@ import {
     shouldRunSystem as shouldRunScheduledSystem,
     type ScheduleEngineContext,
 } from "./internal/schedule-engine";
+import { runWorldBatch, type WorldBatchRuntime } from "./internal/world-batch";
 import {
     addStateSystem as addStateLifecycleSystem,
     addTransitionSystem as addStateTransitionSystem,
@@ -143,6 +154,15 @@ export type {
 } from "./scheduler";
 export type { StateSystem, System, TransitionSystem } from "./system";
 
+/** Batched structural edits that are committed together after validation succeeds. */
+export interface WorldBatch {
+    spawn(...entries: AnyComponentEntry[]): Entity;
+    spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
+    addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this;
+    removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): this;
+    despawn(entity: Entity): this;
+}
+
 /**
  * Central ECS runtime.
  *
@@ -158,6 +178,7 @@ export class World extends WorldQueryMethods {
     private readonly removedContext: RemovedStoreContext;
     private readonly componentHookContext: ComponentHookContext;
     private readonly componentContext: ComponentOpsContext;
+    private readonly entityComponents = createEntityComponentIndexContext();
     private readonly stateContext: StateMachineContext;
     private readonly eventContext: EventContext;
     private readonly messageContext: MessageContext;
@@ -166,14 +187,13 @@ export class World extends WorldQueryMethods {
     private changeTick = 1;
     private didStartup = false;
     private didShutdown = false;
+    private activeBatchDepth = 0;
 
     constructor(registry: Registry) {
         super();
         this.registry = registry;
         this.entities = new EntityManager();
         this.componentStoreContext = createComponentStoreContext(registry);
-
-        const entityComponents = createEntityComponentIndexContext();
 
         this.removedContext = createRemovedStoreContext({
             getChangeTick: () => this.changeTick,
@@ -186,7 +206,7 @@ export class World extends WorldQueryMethods {
         this.componentContext = createComponentOpsContext({
             entities: this.entities,
             componentStores: this.componentStoreContext,
-            entityComponents,
+            entityComponents: this.entityComponents,
             getChangeTick: () => this.changeTick,
             getChangeDetectionRange: () => this.changeDetectionRange(),
             runComponentHooks: (type, stage, entity, component) => {
@@ -242,10 +262,37 @@ export class World extends WorldQueryMethods {
         return this.entities.entityType(entity);
     }
 
+    /** Stages structural edits and commits their final diff after validation succeeds. */
+    batch<T>(run: (batch: WorldBatch) => T): T {
+        if (this.activeBatchDepth > 0) {
+            throw new Error("Nested world.batch calls are not supported");
+        }
+
+        this.activeBatchDepth++;
+
+        try {
+            return runWorldBatch(this.createWorldBatchRuntime(), run);
+        } finally {
+            this.activeBatchDepth--;
+        }
+    }
+
     /** Inserts or replaces a component value on a live entity. */
     addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this {
         if (type.registry !== this.registry) {
             assertRegisteredComponent(this.registry, type, "add");
+        }
+
+        if (type.deps.length > 0 && this.entities.isAlive(entity)) {
+            assertComponentDepsPresent(
+                entity,
+                type,
+                currentEntityComponentTypes(
+                    getEntityComponents(this.entityComponents, entity),
+                    (componentId) => this.registry.componentType(componentId)
+                ),
+                "add"
+            );
         }
 
         insertComponent(this.componentContext, entity, type, value);
@@ -372,6 +419,19 @@ export class World extends WorldQueryMethods {
     removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
         if (type.registry !== this.registry) {
             assertRegisteredComponent(this.registry, type, "remove");
+        }
+
+        const componentIds = getEntityComponents(this.entityComponents, entity);
+
+        if (this.entities.isAlive(entity) && componentIds.length > 1) {
+            assertComponentHasNoDependents(
+                entity,
+                type,
+                currentEntityComponentTypes(componentIds, (componentId) =>
+                    this.registry.componentType(componentId)
+                ),
+                "remove"
+            );
         }
 
         return deleteComponent(this.componentContext, entity, type);
@@ -806,11 +866,40 @@ export class World extends WorldQueryMethods {
         return isStoredResourceChanged(this.resourceContext, type);
     }
 
+    private createWorldBatchRuntime(): WorldBatchRuntime {
+        return {
+            assertEntriesRegistered: (entries, action) => {
+                this.assertEntriesRegistered(entries, action);
+            },
+            assertComponentRegistered: (type, action) => {
+                if (type.registry !== this.registry) {
+                    assertRegisteredComponent(this.registry, type, action);
+                }
+            },
+            isAlive: (entity) => this.entities.isAlive(entity),
+            reserveEntity: (etype) => this.entities.reserve(etype),
+            releaseReservedEntity: (entity) => this.entities.releaseReserved(entity),
+            commitReservedEntity: (entity) => {
+                this.entities.commitReserved(entity);
+            },
+            entityComponentIds: (entity) => getEntityComponents(this.entityComponents, entity),
+            componentTypeById: (componentId) => this.registry.componentType(componentId),
+            insertComponent: (entity, type, value) => {
+                insertComponent(this.componentContext, entity, type, value);
+            },
+            removeComponent: (entity, type) => deleteComponent(this.componentContext, entity, type),
+            despawnEntity: (entity) => despawnEntity(this.componentContext, entity),
+        };
+    }
+
     private spawnWithEntries(etype: EntityType, entries: readonly AnyComponentEntry[]): Entity {
         this.assertEntriesRegistered(entries, "spawn");
         const entity = this.entities.create(etype);
+        const orderedEntries = entries.some((entry) => entry.type.deps.length > 0)
+            ? (assertSpawnEntriesSatisfied(entries), sortEntriesByDependencies(entries))
+            : entries;
 
-        for (const entry of entries) {
+        for (const entry of orderedEntries) {
             insertComponent(this.componentContext, entity, entry.type, entry.value);
         }
 

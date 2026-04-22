@@ -18,11 +18,6 @@ export type AnyEventType = EventType<unknown>;
 /** Observer callback invoked immediately when an event is triggered. */
 export type EventObserver<T> = (event: T, world: World, commands: Commands) => void;
 
-/** Defines an event channel for synchronous observer dispatch in the provided registry. */
-export function defineEvent<T>(registry: Registry, name: string): EventType<T> {
-    return registry.defineEvent<T>(name);
-}
-
 /** Throws unless the event belongs to the expected registry. */
 export function assertRegisteredEvent(
     registry: Registry,

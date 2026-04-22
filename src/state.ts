@@ -14,15 +14,6 @@ export interface StateType<T extends StateValue> {
 
 export type AnyStateType = StateType<StateValue>;
 
-/** Defines a state machine slot in the provided registry. */
-export function defineState<T extends StateValue>(
-    registry: Registry,
-    name: string,
-    initial: T
-): StateType<T> {
-    return registry.defineState(name, initial);
-}
-
 /** Throws unless the state machine belongs to the expected registry. */
 export function assertRegisteredState(
     registry: Registry,

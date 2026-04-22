@@ -39,11 +39,21 @@ export function assertEntityType(etype: EntityType): void {
 export class EntityManager {
     private readonly generations: number[] = [];
     private readonly alive: boolean[] = [];
+    private readonly reserved: boolean[] = [];
     private readonly entityTypes: (EntityType | undefined)[] = [];
     private readonly free: number[] = [];
 
     /** Allocates a fresh entity, reusing a freed index when possible. */
     create(etype: EntityType): Entity {
+        const entity = this.reserve(etype);
+
+        this.commitReserved(entity);
+
+        return entity;
+    }
+
+    /** Reserves an entity handle without exposing it as live yet. */
+    reserve(etype: EntityType): Entity {
         assertEntityType(etype);
 
         const index = this.free.length > 0 ? this.free.pop()! : this.generations.length;
@@ -53,10 +63,39 @@ export class EntityManager {
         }
 
         this.generations[index] ??= 1;
-        this.alive[index] = true;
+        this.alive[index] = false;
+        this.reserved[index] = true;
         this.entityTypes[index] = etype;
 
         return makeEntity(index, this.generations[index]);
+    }
+
+    /** Publishes a reserved entity handle as live. */
+    commitReserved(entity: Entity): void {
+        const index = entityIndex(entity);
+
+        if (!this.isReserved(entity)) {
+            throw new Error(`Entity is not reserved: ${formatEntity(entity)}`);
+        }
+
+        this.reserved[index] = false;
+        this.alive[index] = true;
+    }
+
+    /** Cancels a reserved entity handle, making the returned handle stale. */
+    releaseReserved(entity: Entity): boolean {
+        if (!this.isReserved(entity)) {
+            return false;
+        }
+
+        const index = entityIndex(entity);
+
+        this.reserved[index] = false;
+        this.entityTypes[index] = undefined;
+        this.generations[index]++;
+        this.free.push(index);
+
+        return true;
     }
 
     /** Destroys an entity and bumps its generation so old handles become invalid. */
@@ -67,6 +106,7 @@ export class EntityManager {
 
         const index = entityIndex(entity);
         this.alive[index] = false;
+        this.reserved[index] = false;
         this.entityTypes[index] = undefined;
         this.generations[index]++;
         this.free.push(index);
@@ -79,6 +119,17 @@ export class EntityManager {
         const index = entityIndex(entity);
 
         return this.alive[index] === true && this.generations[index] === entityGeneration(entity);
+    }
+
+    /** Checks whether the entity handle is reserved but not yet live. */
+    isReserved(entity: Entity): boolean {
+        const index = entityIndex(entity);
+
+        return (
+            this.reserved[index] === true &&
+            this.alive[index] !== true &&
+            this.generations[index] === entityGeneration(entity)
+        );
     }
 
     /** Returns the type assigned when the entity was created, or `undefined` for stale handles. */

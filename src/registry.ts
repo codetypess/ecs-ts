@@ -1,5 +1,6 @@
 import type {
     AnyComponentType,
+    ComponentLifecycle,
     ComponentDataWithTemplate,
     ComponentOptions,
     ComponentType,
@@ -87,13 +88,16 @@ export class Registry {
         options: ComponentOptions<T> = {} as ComponentOptions<T>
     ): ComponentType<T> {
         this.assertCanDefine("component", name, this.componentTypesByName);
+        const deps = this.normalizeComponentDeps(name, options.deps);
+        const lifecycle = this.createComponentLifecycle(options);
 
         const component = Object.freeze({
             id: this.nextComponentId++,
             key: this.typeKey("component", name),
             name,
             registry: this,
-            lifecycle: Object.freeze({ ...options }),
+            deps,
+            lifecycle,
         }) satisfies ComponentType<T>;
 
         this.componentTypes[component.id] = component;
@@ -281,6 +285,49 @@ export class Registry {
 
     private typeKey(kind: RegistryTypeKind, name: string): RegistryTypeKey {
         return `${this.name}/${kind}/${name}`;
+    }
+
+    private normalizeComponentDeps(
+        componentName: string,
+        deps: readonly AnyComponentType[] | undefined
+    ): readonly AnyComponentType[] {
+        if (deps === undefined || deps.length === 0) {
+            return Object.freeze([]);
+        }
+
+        const seen = new Set<number>();
+        const normalized: AnyComponentType[] = [];
+
+        for (const dep of deps) {
+            if (!this.isRegisteredComponent(dep)) {
+                throw new Error(
+                    `Cannot define component ${componentName} in ${this.name}: dependency ${dep.name} is not registered in ${this.name}`
+                );
+            }
+
+            if (seen.has(dep.id)) {
+                throw new Error(
+                    `Cannot define component ${componentName} in ${this.name}: dependency ${dep.name} is duplicated`
+                );
+            }
+
+            seen.add(dep.id);
+            normalized.push(dep);
+        }
+
+        return Object.freeze(normalized);
+    }
+
+    private createComponentLifecycle<T extends object>(
+        options: ComponentOptions<T>
+    ): Readonly<ComponentLifecycle<T>> {
+        return Object.freeze({
+            onAdd: options.onAdd,
+            onInsert: options.onInsert,
+            onReplace: options.onReplace,
+            onRemove: options.onRemove,
+            onDespawn: options.onDespawn,
+        });
     }
 }
 

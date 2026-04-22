@@ -1,72 +1,92 @@
 # ecs-ts
 
-A small TypeScript ECS prototype based on the design discussion:
+`ecs-ts` 是一个偏重运行时语义清晰、结构修改可预测、同时保留足够易用性的 TypeScript ECS。
 
-中文说明见 [README-zh.md](README-zh.md).
+它想解决的问题不是“把所有能力都塞进一个巨大框架里”，而是给你一个足够扎实的 ECS runtime：组件存储和查询有合理性能，world 的结构修改时机明确，常见业务代码写起来也不会太别扭。
 
-- Entities are numeric `index + generation` handles, so stale entity IDs do not accidentally hit recycled entities; entities can also carry a numeric `etype` that defaults to `0`.
-- Components, resources, states, messages, and events are owned by a `createRegistry(...)` registry; marker components default to `{}` payloads and can use `withMarker(...)`, and component values must be non-null objects.
-- Each `World` is bound to one registry, and using types from a different registry throws immediately.
-- Component storage uses `SparseSet`: O(1)-ish `get/has/add/remove`, dense iteration, and swap-remove deletion.
-- Queries choose the smallest component store as the base loop, then check other component stores by entity.
-- Queries can filter with `with`, `without`, `or`, `added`, and `changed`.
-- Optional queries can return `undefined` for components that may or may not exist on a matched entity.
-- Query ergonomics include `hasAll`, `hasAny`, `single`, and `trySingle`.
-- `QueryState` caches query store resolution for systems that run the same query repeatedly.
-- Change detection is per-system and supports `eachAdded`, `eachChanged`, `markChanged`, and `drainRemoved`.
-- Messages provide short-lived, multi-reader event queues through `registry.defineMessage`, `writeMessage`, and `MessageReader`.
-- Removed component records support both explicit `drainRemoved` and multi-reader `RemovedReader`.
-- Resources support per-system added/changed detection.
-- Systems can use `Commands` for deferred structural edits.
-- Components support lifecycle hooks: `onAdd`, `onInsert`, `onReplace`, `onRemove`, and `onDespawn`.
-- Systems are lifecycle objects/classes with methods such as `onPreStartup`, `onStartup`, `onPostStartup`, `onFixedUpdate`, `onUpdate`, `onPostUpdate`, and `onShutdown`.
-- Systems can use labels, system sets, stage-specific set config, `before`/`after` ordering, composable `runIf` predicates, and a fixed update stage.
-- State transitions support object/class systems through `addStateSystem` and `addTransitionSystem`.
-- Observers support immediate events through `registry.defineEvent`, `observe`, and `trigger`.
+English README: [README.md](README-en.md).
 
-## Basic Usage
+## 这个项目想做什么
+
+它不是引擎，不是编辑器，也不是一份堆满类型技巧的 API 展示。
+
+它更像一个有明确边界的 runtime core：
+
+- Schema 是显式的。Component、resource、state、message 和 event 都归属于一个 registry。
+- World 修改是显式的。`spawn`、`addComponent`、`removeComponent`、`despawn`、`Commands` 和 `world.batch(...)` 都有明确语义。
+- 运行时不变量是认真的。跨 registry 误用会立刻失败，component 依赖可以被强约束，非法 batch 结果不会对外可见。
+- 易用性也要保留。常见 query、change detection、scheduler 和 lifecycle 场景不该写得很累。
+
+## API 背后的设计
+
+这个项目更想先讲清楚“这些方法背后的模型是什么”，而不只是把方法名平铺出来。
+
+这里的核心取向有几条：
+
+- `Registry` 负责 schema。你先定义世界里有哪些类型，再创建绑定这个 schema 的 `World`。
+- `World` 是运行时边界。查询、调度、资源、状态、事件和结构修改都围绕它展开。
+- Component payload 就是普通对象。语义直观，也更方便序列化和调试。
+- 结构安全是可选但真实存在的。组件一旦声明 `deps`，运行时就把它当成硬约束。
+
+这最后一点尤其重要。  
+如果 `Element` 依赖 `Transform`，那么只要一个 entity 上的 `Element` 已经对外可见，`Transform` 就一定存在。也就是说，`deps` 不只是用来报错，它还建立了一个可以放心依赖的运行时不变量，因此你可以安全地写 `mustGetComponent(...)`。
+
+## 快速示例
 
 ```ts
 import { World, createRegistry, withComponent, withMarker } from "./src";
 
-const registry = createRegistry("game");
-const Position = registry.defineComponent<{ x: number; y: number }>("Position");
-const Velocity = registry.defineComponent<{ x: number; y: number }>("Velocity");
-const Player = registry.defineComponent("Player");
-const Sleeping = registry.defineComponent("Sleeping");
+const registry = createRegistry("ui");
+
+const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
+const Element = registry.defineComponent<{ name: string }>("Element", {
+    deps: [Transform],
+});
+const Selected = registry.defineComponent("Selected");
 
 const world = new World(registry);
+
 const entity = world.spawn(
-    withComponent(Position, { x: 0, y: 0 }),
-    withComponent(Velocity, { x: 1, y: 0 }),
-    withMarker(Player)
+    withComponent(Element, { name: "button" }),
+    withComponent(Transform, { x: 40, y: 80 }),
+    withMarker(Selected)
 );
 
-world.each([Position, Velocity], (_entity, position, velocity) => {
-    position.x += velocity.x;
-    position.y += velocity.y;
+world.eachWhere([Transform], { with: [Element] }, (_entity, transform) => {
+    transform.x += 10;
 });
 
-world.eachWhere(
-    [Position, Velocity],
-    { with: [Player], without: [Sleeping] },
-    (_entity, position, velocity) => {
-        position.x += velocity.x;
-        position.y += velocity.y;
-    }
-);
-
-const position = world.getComponent(entity, Position);
-console.log(position);
+if (world.hasComponent(entity, Element)) {
+    // 因为 Element 声明了对 Transform 的硬依赖，所以这里可以放心 mustGet。
+    const transform = world.mustGetComponent(entity, Transform);
+    console.log(transform.x, transform.y);
+}
 ```
 
-## Guides
+## 核心能力
 
-- [Queries](docs/queries.md): filters, optional components, single-entity helpers, and `QueryState`.
-- [Scheduler](docs/scheduler.md): lifecycle stages, labels, system sets, ordering, fixed update, and `runIf`.
-- [Change Detection](docs/change-detection.md): component/resource added and changed checks, removed readers, and messages.
+- 基于 SparseSet 的 component 存储，dense iteration，swap-remove 删除。
+- `with`、`without`、`or`、`added`、`changed` 等 query 过滤。
+- Optional query，以及 `hasAll`、`hasAny`、`single`、`trySingle` 这些常用 helper。
+- `QueryState`，用于缓存重复 query 的解析结果。
+- Per-system 语义的 component/resource change detection。
+- Removed reader 和显式 `drainRemoved`。
+- 通过 `Commands` 做延迟结构修改。
+- Component lifecycle hooks：`onAdd`、`onInsert`、`onReplace`、`onRemove`、`onDespawn`。
+- 通过 `deps` 表达硬依赖。
+- 通过 `world.batch(...)` 做 deferred structural validation。
+- Scheduler：stage、label、system set、排序、fixed update、可组合 `runIf`。
+- State machine、message、observer-style immediate event。
 
-## Examples
+## 推荐的阅读顺序
+
+如果你是第一次看这个项目，建议把它当成“几个工作流”来理解，而不是一口气扫完整个 API 表面：
+
+- [Queries](docs/zh/queries.md)：query、filter、optional component 和 `QueryState`。
+- [Scheduler](docs/zh/scheduler.md)：system 什么时候跑、怎么排序、怎么组合条件。
+- [Change Detection](docs/zh/change-detection.md)：`added`、`changed`、removed readers 和 message 的行为。
+
+如果你更想先看代码而不是说明，examples 是更好的入口：
 
 ```sh
 npm run examples:check
@@ -88,7 +108,7 @@ npm run example:net-entity-map
 npm run example:ui
 ```
 
-## Tests And Benchmarks
+## 开发与验证
 
 ```sh
 npm test
@@ -99,10 +119,8 @@ npm run benchmark:json
 npm run benchmark:compare -- --baseline /tmp/ecs-baseline.json --current /tmp/ecs-current.json
 ```
 
-Tests use Node's built-in `node:test` runner through `tsx`. `npm run examples:check` smoke-tests every example entrypoint. `npm run benchmark:smoke` runs a reduced benchmark profile suitable for CI, while `npm run benchmark` keeps the full multi-sample workload. Use `npm --silent run benchmark:json > /tmp/ecs-baseline.json` for machine-readable output, then compare same-machine reports with `npm run benchmark:compare -- --baseline <baseline.json> --current <current.json> --threshold 15%`.
+测试通过 `tsx` 使用 Node 内置的 `node:test` runner。benchmark 同时提供更快的 smoke profile 和适合同机对比的完整 profile。
 
-## Future Work
+## 当前状态
 
-- Scheduler improvements: add more direct scheduler unit tests and richer diagnostics.
-- Tests and benchmarks: expand coverage for edge cases and add more stable benchmark baselines.
-- Storage strategy experiments: keep SparseSet as the current baseline, then explore Archetype/Table or hybrid storage for faster multi-component queries.
+这个项目已经有一套比较明确的设计方向，但仍然是一个持续打磨中的小型 ECS runtime。API 基本方向已经比较清楚，不过在文档、ergonomics 和部分内部性能权衡上，仍然会继续调整。

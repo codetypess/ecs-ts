@@ -143,11 +143,6 @@ export class Messages<T> {
     }
 }
 
-/** Defines a message channel for queued multi-reader communication in the provided registry. */
-export function defineMessage<T>(registry: Registry, name: string): MessageType<T> {
-    return registry.defineMessage<T>(name);
-}
-
 /** Creates a cursor-based reader that starts at the current channel origin. */
 export function messageReader<T>(type: MessageType<T>): MessageReader<T> {
     return new MessageReader(type);

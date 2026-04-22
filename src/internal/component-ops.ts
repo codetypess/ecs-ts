@@ -22,6 +22,7 @@ import {
     untrackEntityComponent,
     type EntityComponentIndexContext,
 } from "./entity-component-index";
+import { sortComponentTypesByDependencies } from "./component-dependencies";
 
 interface ComponentOpsContextOptions {
     readonly entities: EntityManager;
@@ -206,16 +207,41 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
         return false;
     }
 
-    const componentIds = takeEntityComponents(context.entityComponents, entity).sort(
-        (left, right) => left - right
+    const componentIds = takeEntityComponents(context.entityComponents, entity);
+
+    if (!despawnNeedsDependencyOrder(context, componentIds)) {
+        componentIds.sort((left, right) => left - right);
+
+        for (const componentId of componentIds) {
+            const store = context.componentStores.stores[componentId];
+            const type = getComponentType(context.componentStores, componentId);
+            const component = store?.get(entity) as object | undefined;
+
+            if (type !== undefined && component !== undefined) {
+                context.runComponentHooks(type, "onReplace", entity, component);
+                context.runComponentHooks(type, "onRemove", entity, component);
+                context.runComponentHooks(type, "onDespawn", entity, component);
+                context.recordRemoved(type, entity, component);
+            }
+
+            store?.delete(entity);
+        }
+
+        return context.entities.destroy(entity);
+    }
+
+    const componentTypes = sortComponentTypesByDependencies(
+        componentIds
+            .map((componentId) => getComponentType(context.componentStores, componentId))
+            .filter((type): type is AnyComponentType => type !== undefined),
+        "dependentsFirst"
     );
 
-    for (const componentId of componentIds) {
-        const store = context.componentStores.stores[componentId];
-        const type = getComponentType(context.componentStores, componentId);
+    for (const type of componentTypes) {
+        const store = context.componentStores.stores[type.id];
         const component = store?.get(entity) as object | undefined;
 
-        if (type !== undefined && component !== undefined) {
+        if (component !== undefined) {
             context.runComponentHooks(type, "onReplace", entity, component);
             context.runComponentHooks(type, "onRemove", entity, component);
             context.runComponentHooks(type, "onDespawn", entity, component);
@@ -237,13 +263,11 @@ function insertComponentOnly<T extends object>(
 ): void {
     assertComponentValue(type, value);
     const store = ensureComponentStore(context.componentStores, type);
-    const previous = store.get(entity);
+    const previous = store.set(entity, value, context.getChangeTick());
 
     if (previous !== undefined) {
         context.runComponentHooks(type, "onReplace", entity, previous);
     }
-
-    store.set(entity, value, context.getChangeTick());
 
     if (previous === undefined) {
         trackEntityComponent(context.entityComponents, entity, type.id);
@@ -258,4 +282,23 @@ function assertAlive(context: ComponentOpsContext, entity: Entity): void {
     if (!context.entities.isAlive(entity)) {
         throw new Error(`Entity is not alive: ${formatEntity(entity)}`);
     }
+}
+
+function despawnNeedsDependencyOrder(
+    context: ComponentOpsContext,
+    componentIds: readonly number[]
+): boolean {
+    if (componentIds.length < 2) {
+        return false;
+    }
+
+    for (const componentId of componentIds) {
+        const type = getComponentType(context.componentStores, componentId);
+
+        if (type !== undefined && type.deps.length > 0) {
+            return true;
+        }
+    }
+
+    return false;
 }

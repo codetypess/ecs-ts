@@ -70,13 +70,15 @@ export class SparseSet<T> {
     }
 
     /** Inserts or replaces a value while keeping dense iteration packed. */
-    set(entity: Entity, value: T, tick: number): void {
+    set(entity: Entity, value: T, tick: number): T | undefined {
         const existingIndex = this.denseIndexOf(entity);
 
         if (existingIndex !== MISSING) {
+            const previous = this.denseValues[existingIndex];
             this.denseValues[existingIndex] = value;
             this.changedTicks[existingIndex] = tick;
-            return;
+
+            return previous;
         }
 
         const denseIndex = this.denseEntities.length;
@@ -85,6 +87,8 @@ export class SparseSet<T> {
         this.denseValues.push(value);
         this.addedTicks.push(tick);
         this.changedTicks.push(tick);
+
+        return undefined;
     }
 
     /** Removes a value with swap-remove to keep dense iteration compact. */

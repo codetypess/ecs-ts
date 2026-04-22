@@ -1,6 +1,7 @@
 import type { AnyComponentEntry, ComponentType } from "./component";
 import type { Entity, EntityType } from "./entity";
 import type { EventType } from "./event";
+import { sortEntriesByDependencies } from "./internal/component-dependencies";
 import type { MessageType } from "./message";
 import type { ResourceType } from "./resource";
 import type { StateType, StateValue } from "./state";
@@ -120,9 +121,12 @@ export class Commands {
     /** Reserves an entity immediately, then queues component insertion into it. */
     private spawnWithEntries(etype: EntityType, entries: readonly AnyComponentEntry[]): Entity {
         const entity = this.world.spawn(etype);
+        const orderedEntries = entries.some((entry) => entry.type.deps.length > 0)
+            ? sortEntriesByDependencies(entries)
+            : entries;
 
         this.enqueue((world) => {
-            for (const entry of entries) {
+            for (const entry of orderedEntries) {
                 world.addComponent(entity, entry.type, entry.value);
             }
         });

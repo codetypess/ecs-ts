@@ -1,7 +1,6 @@
 import type { ComponentType } from "../component";
 import type { Registry } from "../registry";
 import { SparseSet } from "../sparse-set";
-import { ensureIndexedEntry } from "./collection-utils";
 
 /** Registry of component stores keyed by registry-local component ids. */
 export interface ComponentStoreContext {
@@ -24,10 +23,17 @@ export function ensureComponentStore<T extends object>(
     context: ComponentStoreContext,
     type: ComponentType<T>
 ): SparseSet<T> {
-    return ensureIndexedEntry(context.stores, type.id, () => {
-        context.storeVersion++;
-        return new SparseSet<unknown>();
-    }) as SparseSet<T>;
+    const existing = context.stores[type.id];
+
+    if (existing !== undefined) {
+        return existing as SparseSet<T>;
+    }
+
+    const created = new SparseSet<unknown>();
+    context.stores[type.id] = created;
+    context.storeVersion++;
+
+    return created as SparseSet<T>;
 }
 
 /** Returns the existing store for a component type, if any. */

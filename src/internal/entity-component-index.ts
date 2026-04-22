@@ -78,3 +78,11 @@ export function takeEntityComponents(
 
     return componentIds;
 }
+
+/** Returns the tracked component ids for an entity without transferring ownership. */
+export function getEntityComponents(
+    context: EntityComponentIndexContext,
+    entity: Entity
+): readonly number[] {
+    return context.componentIdsByEntity[entityIndex(entity)] ?? [];
+}

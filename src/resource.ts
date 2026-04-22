@@ -16,11 +16,6 @@ export type AnyResourceType = ResourceType<unknown>;
 export type ResourceData<TResource extends ResourceType<unknown>> =
     TResource extends ResourceType<infer TData> ? TData : never;
 
-/** Defines a resource slot in the provided registry. */
-export function defineResource<T>(registry: Registry, name: string): ResourceType<T> {
-    return registry.defineResource<T>(name);
-}
-
 /** Throws unless the resource belongs to the expected registry. */
 export function assertRegisteredResource(
     registry: Registry,

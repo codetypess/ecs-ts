@@ -91,3 +91,29 @@ test("registry rejects blank names", () => {
         /Cannot define component: name must be a non-empty string/
     );
 });
+
+test("registry stores component dependencies and rejects invalid dependency metadata", () => {
+    const registry = createRegistry("registry-component-deps-test");
+    const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
+    const Element = registry.defineComponent<{ name: string }>("Element", {
+        deps: [Transform],
+    });
+    const otherRegistry = createRegistry("registry-component-deps-other");
+    const Foreign = otherRegistry.defineComponent("Foreign");
+
+    assert.deepEqual(Element.deps, [Transform]);
+    assert.throws(
+        () =>
+            registry.defineComponent("ForeignDependent", {
+                deps: [Foreign],
+            }),
+        /dependency Foreign is not registered in registry-component-deps-test/
+    );
+    assert.throws(
+        () =>
+            registry.defineComponent("DuplicatedDependent", {
+                deps: [Transform, Transform],
+            }),
+        /dependency Transform is duplicated/
+    );
+});
