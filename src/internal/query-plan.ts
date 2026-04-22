@@ -153,7 +153,7 @@ export function resolveQueryPlan(
         return undefined;
     }
 
-    const filterStores = resolveFilterStores(context, filter);
+    const filterStores = resolveFilterStores(context, filter, types, stores);
 
     if (filterStores === undefined) {
         return undefined;
@@ -175,7 +175,7 @@ export function resolveOptionalQueryPlan(
         return undefined;
     }
 
-    const filterStores = resolveFilterStores(context, filter);
+    const filterStores = resolveFilterStores(context, filter, required, requiredStores);
 
     if (filterStores === undefined) {
         return undefined;
@@ -284,18 +284,25 @@ function resolveOptionalStores(
 
 function resolveFilterStores(
     context: QueryPlanContext,
-    filter: QueryFilter
+    filter: QueryFilter,
+    knownTypes?: readonly AnyComponentType[],
+    knownStores?: SparseSet<unknown>[]
 ): ResolvedQueryFilter | undefined {
-    const withStores = resolveRequiredFilterStores(context, filter.with);
+    const withStores = resolveRequiredFilterStores(context, filter.with, knownTypes, knownStores);
     if (withStores === undefined) return undefined;
 
-    const addedStores = resolveRequiredFilterStores(context, filter.added);
+    const addedStores = resolveRequiredFilterStores(context, filter.added, knownTypes, knownStores);
     if (addedStores === undefined) return undefined;
 
-    const changedStores = resolveRequiredFilterStores(context, filter.changed);
+    const changedStores = resolveRequiredFilterStores(
+        context,
+        filter.changed,
+        knownTypes,
+        knownStores
+    );
     if (changedStores === undefined) return undefined;
 
-    const orStores = resolveOptionalFilterStores(context, filter.or);
+    const orStores = resolveOptionalFilterStores(context, filter.or, knownTypes, knownStores);
 
     if (filter.or !== undefined && filter.or.length > 0 && orStores.length === 0) {
         return undefined;
@@ -303,7 +310,7 @@ function resolveFilterStores(
 
     return {
         with: withStores,
-        without: resolveOptionalFilterStores(context, filter.without),
+        without: resolveOptionalFilterStores(context, filter.without, knownTypes, knownStores),
         or: orStores,
         added: addedStores,
         changed: changedStores,
@@ -316,9 +323,14 @@ function resolveFilterStores(
  */
 function resolveRequiredFilterStores(
     context: QueryPlanContext,
-    types: readonly AnyComponentType[] | undefined
+    types: readonly AnyComponentType[] | undefined,
+    knownTypes?: readonly AnyComponentType[],
+    knownStores?: SparseSet<unknown>[]
 ): SparseSet<unknown>[] | undefined {
     if (!types || types.length === 0) return [];
+    if (knownTypes !== undefined && knownStores !== undefined && types === knownTypes) {
+        return knownStores;
+    }
 
     const stores: SparseSet<unknown>[] = [];
 
@@ -340,9 +352,14 @@ function resolveRequiredFilterStores(
  */
 function resolveOptionalFilterStores(
     context: QueryPlanContext,
-    types: readonly AnyComponentType[] | undefined
+    types: readonly AnyComponentType[] | undefined,
+    knownTypes?: readonly AnyComponentType[],
+    knownStores?: SparseSet<unknown>[]
 ): SparseSet<unknown>[] {
     if (!types || types.length === 0) return [];
+    if (knownTypes !== undefined && knownStores !== undefined && types === knownTypes) {
+        return knownStores;
+    }
 
     const stores: SparseSet<unknown>[] = [];
 

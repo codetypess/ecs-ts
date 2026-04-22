@@ -61,6 +61,17 @@ export function add<T extends object>(
     value: T
 ): void {
     assertAlive(context, entity);
+    assertComponentValue(type, value);
+    insertComponentOnly(context, entity, type, value);
+}
+
+/** Inserts or replaces a component after the caller has already validated liveness and payload. */
+export function addValidated<T extends object>(
+    context: ComponentOpsContext,
+    entity: Entity,
+    type: ComponentType<T>,
+    value: T
+): void {
     insertComponentOnly(context, entity, type, value);
 }
 
@@ -261,7 +272,6 @@ function insertComponentOnly<T extends object>(
     type: ComponentType<T>,
     value: T
 ): void {
-    assertComponentValue(type, value);
     const store = ensureComponentStore(context.componentStores, type);
     const previous = store.set(entity, value, context.getChangeTick());
 

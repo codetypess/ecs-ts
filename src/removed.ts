@@ -177,6 +177,7 @@ export class RemovedComponents<TComponent extends AnyComponentType> {
     private compactAfterRead(reader: RemovedReader<TComponent>): void {
         if (this.activeReaders.size === 1 && this.activeReaders.has(reader)) {
             this.removed.length = 0;
+            this.startIndex = 0;
             this.firstRemovedId = this.nextRemovedId;
 
             return;

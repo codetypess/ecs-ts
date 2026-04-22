@@ -209,3 +209,13 @@ test("nested world.batch calls are rejected", () => {
         /Nested world\.batch calls are not supported/
     );
 });
+
+test("batch writer cannot be reused after the callback returns", () => {
+    const world = new World(createRegistry("world-batch-closed-writer-test"));
+    const batch = world.batch((writer) => writer);
+
+    assert.throws(
+        () => batch.spawn(),
+        /Cannot use world\.batch after the callback has already returned/
+    );
+});

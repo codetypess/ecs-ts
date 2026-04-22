@@ -207,6 +207,40 @@ test("closing a removed reader releases any history pinned by its cursor", () =>
     assert.equal(world.drainRemoved(Position).length, 0);
 });
 
+test("removed readers still see new removals after single-reader compaction", () => {
+    const Position = registry.defineComponent<{ x: number; y: number }>(
+        "RemovedSingleReaderCompactionPosition"
+    );
+    const world = new World(registry);
+    const readerA = world.removedReader(Position);
+    const readerB = world.removedReader(Position);
+    const initialEntities = Array.from({ length: 5 }, (_value, index) =>
+        world.spawn(withComponent(Position, { x: index, y: index + 1 }))
+    );
+
+    for (const entity of initialEntities) {
+        world.removeComponent(entity, Position);
+    }
+
+    assert.equal(readerA.read().length, 5);
+
+    readerB.advanceTo(2);
+    readerA.close();
+
+    assert.equal(readerB.read().length, 3);
+
+    const extra = world.spawn(withComponent(Position, { x: 99, y: 100 }));
+
+    world.removeComponent(extra, Position);
+
+    const unread = readerB.read();
+
+    assert.equal(unread.length, 1);
+    assert.equal(unread[0]?.entity, extra);
+    assert.deepEqual(unread[0]?.component, { x: 99, y: 100 });
+    assert.equal(world.drainRemoved(Position).length, 0);
+});
+
 test("late removed readers only see history retained by currently live readers", () => {
     const Position = registry.defineComponent<{ x: number; y: number }>(
         "RemovedLateReaderPosition"

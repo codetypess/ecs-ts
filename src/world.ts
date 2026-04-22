@@ -21,6 +21,7 @@ import {
     remove as deleteComponent,
     despawn as despawnEntity,
     add as insertComponent,
+    addValidated as insertValidatedComponent,
     markChanged as markStoredComponentChanged,
     type ComponentOpsContext,
 } from "./internal/component-ops";
@@ -885,7 +886,7 @@ export class World extends WorldQueryMethods {
             entityComponentIds: (entity) => getEntityComponents(this.entityComponents, entity),
             componentTypeById: (componentId) => this.registry.componentType(componentId),
             insertComponent: (entity, type, value) => {
-                insertComponent(this.componentContext, entity, type, value);
+                insertValidatedComponent(this.componentContext, entity, type, value);
             },
             removeComponent: (entity, type) => deleteComponent(this.componentContext, entity, type),
             despawnEntity: (entity) => despawnEntity(this.componentContext, entity),

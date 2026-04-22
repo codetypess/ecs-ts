@@ -101,6 +101,7 @@ function createBatchWriter(runtime: WorldBatchRuntime, context: BatchContext) {
     function spawn(...entries: AnyComponentEntry[]): Entity;
     function spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
     function spawn(...args: [EntityType, ...AnyComponentEntry[]] | AnyComponentEntry[]): Entity {
+        ensureBatchContextOpen(context);
         const [etype, entries] =
             args.length > 0 && typeof args[0] !== "object"
                 ? [args[0] as EntityType, args.slice(1) as AnyComponentEntry[]]
@@ -163,7 +164,7 @@ function stageBatchSpawn(
     context.entityStates.set(entity, entityState);
 
     for (const entry of entries) {
-        stageBatchAddComponent(runtime, context, entity, entry.type, entry.value);
+        stageBatchAddKnownComponent(runtime, context, entity, entry.type, entry.value);
     }
 
     return entity;
@@ -177,6 +178,16 @@ function stageBatchAddComponent<T extends object>(
     value: T
 ): void {
     runtime.assertComponentRegistered(type, "add");
+    stageBatchAddKnownComponent(runtime, context, entity, type, value);
+}
+
+function stageBatchAddKnownComponent<T extends object>(
+    runtime: WorldBatchRuntime,
+    context: BatchContext,
+    entity: Entity,
+    type: ComponentType<T>,
+    value: T
+): void {
     assertComponentValue(type, value);
 
     const entityState = ensureBatchEntityState(runtime, context, entity);
