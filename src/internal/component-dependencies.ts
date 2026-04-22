@@ -160,9 +160,10 @@ function createDependencyRank(types: readonly AnyComponentType[]): Map<number, n
     const includedTypeIds = new Set<number>(types.map((type) => type.id));
     const visiting = new Set<number>();
     const rankByTypeId = new Map<number, number>();
+    const path: AnyComponentType[] = [];
     let nextRank = 0;
 
-    const visit = (type: AnyComponentType, path: readonly AnyComponentType[]): void => {
+    const visit = (type: AnyComponentType): void => {
         if (rankByTypeId.has(type.id)) {
             return;
         }
@@ -176,20 +177,22 @@ function createDependencyRank(types: readonly AnyComponentType[]): Map<number, n
         }
 
         visiting.add(type.id);
+        path.push(type);
 
         for (const dep of type.deps) {
             if (includedTypeIds.has(dep.id)) {
-                visit(dep, [...path, type]);
+                visit(dep);
             }
         }
 
+        path.pop();
         visiting.delete(type.id);
         // Post-order assignment guarantees every dependency receives a smaller rank.
         rankByTypeId.set(type.id, nextRank++);
     };
 
     for (const type of types) {
-        visit(type, []);
+        visit(type);
     }
 
     return rankByTypeId;

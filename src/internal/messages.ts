@@ -1,16 +1,17 @@
 import { Messages } from "../message";
 import type { MessageId, MessageReader, MessageType } from "../message";
-import { ensureIndexedEntry } from "./collection-utils";
 
 /** Indexed storage for every registered message channel. */
 export interface MessageContext {
     readonly messageStores: (Messages<unknown> | undefined)[];
+    readonly registeredStores: Messages<unknown>[];
 }
 
 /** Creates the message context used by a world. */
 export function createMessageContext(): MessageContext {
     return {
         messageStores: [],
+        registeredStores: [],
     };
 }
 
@@ -55,15 +56,21 @@ export function clearMessages<T>(context: MessageContext, type: MessageType<T>):
 
 /** Rotates every message buffer once per frame. */
 export function updateMessages(context: MessageContext): void {
-    for (const messages of context.messageStores) {
-        messages?.update();
+    for (const messages of context.registeredStores) {
+        messages.update();
     }
 }
 
 function ensureMessageStore<T>(context: MessageContext, type: MessageType<T>): Messages<T> {
-    return ensureIndexedEntry(
-        context.messageStores,
-        type.id,
-        () => new Messages<unknown>()
-    ) as Messages<T>;
+    const existing = context.messageStores[type.id] as Messages<T> | undefined;
+
+    if (existing !== undefined) {
+        return existing;
+    }
+
+    const created = new Messages<unknown>();
+    context.messageStores[type.id] = created;
+    context.registeredStores.push(created);
+
+    return created as unknown as Messages<T>;
 }

@@ -7,6 +7,11 @@ const MISSING = -1;
  *
  * Values are stored densely for iteration while the sparse index provides O(1)-ish
  * lookups by entity slot.
+ *
+ * The sparse array uses a regular `number[]` so V8 can keep it as an unboxed SMI
+ * array.  Uninitialised slots return `undefined`, and deleted slots are written to
+ * `MISSING = -1`.  Both are `< 0`, so the presence test collapses to a single
+ * `!(denseIndex >= 0)` instead of the prior double `=== undefined || === MISSING`.
  */
 export class SparseSet<T> {
     private readonly sparse: number[] = [];
@@ -123,7 +128,8 @@ export class SparseSet<T> {
     private denseIndexOf(entity: Entity): number {
         const denseIndex = this.sparse[entityIndex(entity)];
 
-        if (denseIndex === undefined || denseIndex === MISSING) {
+        // Both `undefined` (uninitialised slot) and `MISSING = -1` (deleted) are < 0.
+        if (!(denseIndex >= 0)) {
             return MISSING;
         }
 

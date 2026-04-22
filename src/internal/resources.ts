@@ -38,10 +38,12 @@ export function setResource<T>(context: ResourceContext, type: ResourceType<T>, 
         return;
     }
 
+    const tick = context.getChangeTick();
+
     context.resources.set(type.id, {
         value,
-        addedTick: context.getChangeTick(),
-        changedTick: context.getChangeTick(),
+        addedTick: tick,
+        changedTick: tick,
     } satisfies ResourceEntry<T> as ResourceEntry<unknown>);
 }
 
