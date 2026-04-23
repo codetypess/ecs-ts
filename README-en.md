@@ -31,7 +31,7 @@ That last point is especially important: if `Element` depends on `Transform`, th
 ## Quick Example
 
 ```ts
-import { World, createRegistry, withComponent, withMarker } from "ecs-ts";
+import { World, createRegistry, withComponent, withMarker } from "@codetypess/ecs-ts";
 
 const registry = createRegistry("ui");
 
@@ -75,6 +75,19 @@ if (world.hasComponent(entity, Element)) {
 - Scheduler support for stages, labels, system sets, ordering, fixed update, and composable `runIf`.
 - State machines, messages, and immediate observer-style events.
 
+## Package Surface
+
+- The supported public entry point is the package root only: `import { ... } from "@codetypess/ecs-ts"`.
+- `dist/internal/*` is bundled because the runtime uses it internally, but those files are implementation details, not public API, and not covered by semver guarantees.
+- Application code, examples, and third-party wrappers should depend on root exports only.
+
+## Structural Timing Semantics
+
+- `Commands` is a deferred queue. Work runs on `flush()` or after a system/observer completes.
+- `world.batch(...)` validates the final structural state first, then commits the net diff; it is the transactional option.
+- `commands.spawn(...)` returns a reserved entity handle and does not publish a live entity before flush.
+- `world.shutdown()` is terminal. Calling `update()` afterward will not run startup or update stages again.
+
 ## A Better Way To Read The Project
 
 If you open the docs first, the project is easier to understand as a set of workflows rather than as a list of methods:
@@ -116,9 +129,12 @@ npm run benchmark:json
 npm run benchmark:compare -- --baseline /tmp/ecs-baseline.json --current /tmp/ecs-current.json
 npm run build
 npm run package:smoke
+npm run release:check
 ```
 
 Tests use Node's built-in `node:test` runner through `tsx`. The benchmark scripts support both a smoke profile for quick checks and a fuller multi-sample profile for same-machine comparisons.
+
+If you are preparing a public release, see [Releasing](docs/releasing.md).
 
 ## Status
 

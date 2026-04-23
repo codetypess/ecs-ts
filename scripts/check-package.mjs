@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { World, createRegistry, queryState, withComponent, withMarker } from "ecs-ts";
+import { World, createRegistry, queryState, withComponent, withMarker } from "@codetypess/ecs-ts";
 
 const registry = createRegistry("package-smoke");
 

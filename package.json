@@ -1,15 +1,36 @@
 {
-  "name": "ecs-ts",
+  "name": "@codetypess/ecs-ts",
   "version": "0.1.0",
-  "private": true,
+  "description": "A small TypeScript ECS focused on explicit runtime behavior and practical ergonomics.",
+  "license": "MIT",
   "type": "module",
+  "sideEffects": false,
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codetypess/ecs-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/codetypess/ecs-ts/issues"
+  },
+  "homepage": "https://github.com/codetypess/ecs-ts#readme",
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "ecs",
+    "typescript",
+    "game-dev",
+    "runtime",
+    "scheduler"
+  ],
   "files": [
     "README.md",
     "README-en.md",
@@ -31,7 +52,8 @@
     "typecheck": "tsc --noEmit",
     "build": "npm run clean:dist && tsc -p tsconfig.build.json",
     "package:smoke": "node scripts/check-package.mjs",
-    "pack:check": "npm pack --dry-run",
+    "pack:check": "node scripts/pack-check.mjs",
+    "release:check": "npm run check && npm test && npm run examples:check && npm run benchmark:smoke && npm run build && npm run package:smoke && npm run pack:check",
     "test": "node --import tsx --test tests/*.test.ts",
     "examples:check": "node --import tsx scripts/check-examples.ts",
     "benchmark": "node --import tsx benchmarks/ecs-benchmark.ts",
@@ -53,7 +75,8 @@
     "example:scheduler": "node --import tsx examples/scheduler.ts",
     "example:scheduler-showcase": "node --import tsx examples/scheduler-showcase.ts",
     "example:state": "node --import tsx examples/state.ts",
-    "example:ui": "node --import tsx examples/ui-lifecycle.ts"
+    "example:ui": "node --import tsx examples/ui-lifecycle.ts",
+    "prepublishOnly": "npm run release:check"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

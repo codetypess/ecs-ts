@@ -34,7 +34,7 @@ English README: [README-en.md](README-en.md).
 ## 快速示例
 
 ```ts
-import { World, createRegistry, withComponent, withMarker } from "ecs-ts";
+import { World, createRegistry, withComponent, withMarker } from "@codetypess/ecs-ts";
 
 const registry = createRegistry("ui");
 
@@ -78,6 +78,19 @@ if (world.hasComponent(entity, Element)) {
 - Scheduler：stage、label、system set、排序、fixed update、可组合 `runIf`。
 - State machine、message、observer-style immediate event。
 
+## 包导出边界
+
+- 对外支持的入口只有包根：`import { ... } from "@codetypess/ecs-ts"`。
+- `dist/internal/*` 会作为运行时实现细节一起打包，但它们不是公开 API，也不承诺 semver 稳定。
+- 如果你要写应用代码、示例代码或第三方封装，应该只依赖根导出。
+
+## 结构修改语义
+
+- `Commands` 是 deferred queue。命令会在 `flush()` 或 system/observer 结束后统一执行。
+- `world.batch(...)` 会先验证最终结构状态，再一次性提交净变化；它更接近一次 transactional commit。
+- `commands.spawn(...)` 在 flush 前只返回一个保留的 entity handle，不会立刻变成 live entity。
+- `world.shutdown()` 是终态。shutdown 后再次 `update()` 不会继续跑 startup 或 update。
+
 ## 推荐的阅读顺序
 
 如果你是第一次看这个项目，建议把它当成“几个工作流”来理解，而不是一口气扫完整个 API 表面：
@@ -119,9 +132,12 @@ npm run benchmark:json
 npm run benchmark:compare -- --baseline /tmp/ecs-baseline.json --current /tmp/ecs-current.json
 npm run build
 npm run package:smoke
+npm run release:check
 ```
 
 测试通过 `tsx` 使用 Node 内置的 `node:test` runner。benchmark 同时提供更快的 smoke profile 和适合同机对比的完整 profile。
+
+如果你正在准备对外发布，可以参考 [发布说明](docs/zh/releasing.md)。
 
 ## 当前状态
 
