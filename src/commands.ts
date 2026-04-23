@@ -10,6 +10,12 @@ import type { ResourceType } from "./resource";
 import type { StateType, StateValue } from "./state";
 import type { World } from "./world";
 
+export interface CommandRuntime {
+    reserveEntity(etype: EntityType): Entity;
+    commitReservedEntity(entity: Entity): void;
+    releaseReservedEntity(entity: Entity): boolean;
+}
+
 type CommandRunner = (world: World) => void;
 
 /** Deferred structural edits that are flushed after a system or observer finishes. */
@@ -17,7 +23,10 @@ export class Commands {
     private queue: CommandRunner[] = [];
     private flushing: CommandRunner[] = [];
 
-    constructor(private readonly world: World) {}
+    constructor(
+        private readonly world: World,
+        private readonly runtime: CommandRuntime
+    ) {}
 
     /** Number of queued commands waiting to be flushed. */
     get pending(): number {
@@ -121,16 +130,28 @@ export class Commands {
         return this;
     }
 
-    /** Creates an entity immediately, then queues component insertion into it. */
+    /** Reserves an entity handle immediately, then commits it during flush. */
     private spawnWithEntries(etype: EntityType, entries: readonly AnyComponentEntry[]): Entity {
-        const entity = this.world.spawn(etype);
         const orderedEntries = entriesHaveDependencyChecks(entries)
             ? sortEntriesByDependencies(entries)
             : entries;
+        const entity = this.runtime.reserveEntity(etype);
 
         this.enqueue((world) => {
-            for (const entry of orderedEntries) {
-                world.addComponent(entity, entry.type, entry.value);
+            try {
+                this.runtime.commitReservedEntity(entity);
+
+                for (const entry of orderedEntries) {
+                    world.addComponent(entity, entry.type, entry.value);
+                }
+            } catch (error) {
+                if (world.isAlive(entity)) {
+                    world.despawn(entity);
+                } else {
+                    this.runtime.releaseReservedEntity(entity);
+                }
+
+                throw error;
             }
         });
 
@@ -141,8 +162,21 @@ export class Commands {
     flush(): void {
         [this.flushing, this.queue] = [this.queue, this.flushing];
 
-        for (const command of this.flushing) {
-            command(this.world);
+        let index = 0;
+
+        try {
+            for (; index < this.flushing.length; index++) {
+                this.flushing[index]!(this.world);
+            }
+        } catch (error) {
+            const remaining = this.flushing.slice(index + 1);
+
+            if (remaining.length > 0) {
+                this.queue = [...remaining, ...this.queue];
+            }
+
+            this.flushing.length = 0;
+            throw error;
         }
 
         this.flushing.length = 0;

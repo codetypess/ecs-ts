@@ -1,4 +1,4 @@
-import { Commands } from "./commands";
+import { Commands, type CommandRuntime } from "./commands";
 import {
     AnyComponentEntry,
     AnyComponentType,
@@ -181,6 +181,7 @@ export class World extends WorldQueryMethods {
     private readonly componentHookContext: ComponentHookContext;
     private readonly componentContext: ComponentOpsContext;
     private readonly entityComponents = createEntityComponentIndexContext();
+    private readonly commandRuntime: CommandRuntime;
     private readonly stateContext: StateMachineContext;
     private readonly eventContext: EventContext;
     private readonly messageContext: MessageContext;
@@ -195,6 +196,13 @@ export class World extends WorldQueryMethods {
         super();
         this.registry = registry;
         this.entities = new EntityManager();
+        this.commandRuntime = {
+            reserveEntity: (etype) => this.entities.reserve(etype),
+            releaseReservedEntity: (entity) => this.entities.releaseReserved(entity),
+            commitReservedEntity: (entity) => {
+                this.entities.commitReserved(entity);
+            },
+        };
         this.componentStoreContext = createComponentStoreContext(registry);
 
         this.removedContext = createRemovedStoreContext({
@@ -525,6 +533,10 @@ export class World extends WorldQueryMethods {
 
     /** Advances the world by one frame, running startup once and then update schedules. */
     update(dt: number): void {
+        if (this.didShutdown) {
+            return;
+        }
+
         if (!this.didStartup) {
             this.runStartupSchedules();
         }
@@ -540,13 +552,13 @@ export class World extends WorldQueryMethods {
             return;
         }
 
-        runScheduledStage(this.scheduleContext, "shutdown", 0, this.runSystems);
         this.didShutdown = true;
+        runScheduledStage(this.scheduleContext, "shutdown", 0, this.runSystems);
     }
 
     /** Creates a deferred command queue bound to this world. */
     commands(): Commands {
-        return new Commands(this);
+        return new Commands(this, this.commandRuntime);
     }
 
     /** Registers a message channel so it exists even before the first write. */
@@ -879,11 +891,9 @@ export class World extends WorldQueryMethods {
                 }
             },
             isAlive: (entity) => this.entities.isAlive(entity),
-            reserveEntity: (etype) => this.entities.reserve(etype),
-            releaseReservedEntity: (entity) => this.entities.releaseReserved(entity),
-            commitReservedEntity: (entity) => {
-                this.entities.commitReserved(entity);
-            },
+            reserveEntity: this.commandRuntime.reserveEntity,
+            releaseReservedEntity: this.commandRuntime.releaseReservedEntity,
+            commitReservedEntity: this.commandRuntime.commitReservedEntity,
             entityComponentIds: (entity) => getEntityComponents(this.entityComponents, entity),
             componentTypeById: (componentId) => this.registry.componentType(componentId),
             insertComponent: (entity, type, value) => {

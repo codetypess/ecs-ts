@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { World, createRegistry, formatEntity, withComponent, withMarker } from "../src";
+import {
+    World,
+    createRegistry,
+    entityIndex,
+    formatEntity,
+    withComponent,
+    withMarker,
+} from "../src";
 
 const registry = createRegistry("world-test");
 
@@ -80,8 +87,8 @@ test("commands flush queued structural edits in order", () => {
     commands.removeComponent(entity, Position);
 
     assert.equal(commands.pending, 3);
-    assert.equal(world.isAlive(entity), true);
-    assert.equal(world.entityType(entity), 2);
+    assert.equal(world.isAlive(entity), false);
+    assert.equal(world.entityType(entity), undefined);
     assert.equal(world.hasAnyComponents(entity, [Position, Velocity]), false);
 
     commands.flush();
@@ -89,6 +96,26 @@ test("commands flush queued structural edits in order", () => {
     assert.equal(commands.pending, 0);
     assert.equal(world.hasComponent(entity, Position), false);
     assert.deepEqual(world.mustGetComponent(entity, Velocity), { x: 3, y: 4 });
+});
+
+test("commands spawn does not publish an empty entity when the spawn fails", () => {
+    const commandRegistry = createRegistry("world-command-failed-spawn-test");
+    const Transform = commandRegistry.defineComponent<{ x: number; y: number }>("Transform");
+    const Element = commandRegistry.defineComponent<{ name: string }>("Element", {
+        deps: [Transform],
+    });
+    const world = new World(commandRegistry);
+    const commands = world.commands();
+    const entity = commands.spawn(withComponent(Element, { name: "broken" }));
+
+    assert.equal(world.isAlive(entity), false);
+    assert.equal(world.entityType(entity), undefined);
+    assert.throws(() => commands.flush(), /missing dependency Transform/);
+
+    const next = world.spawn();
+
+    assert.equal(world.isAlive(entity), false);
+    assert.equal(entityIndex(next), 0);
 });
 
 test("commands queued during flush wait for the next flush", () => {
@@ -113,6 +140,57 @@ test("commands queued during flush wait for the next flush", () => {
 
     assert.equal(commands.pending, 0);
     assert.deepEqual(world.mustGetComponent(entity, Position), { x: 5, y: 6 });
+});
+
+test("commands flush keeps only unexecuted commands queued after a failure", () => {
+    const commandRegistry = createRegistry("world-command-flush-failure-test");
+    const Ready = commandRegistry.defineComponent("Ready");
+    const NeedsReady = commandRegistry.defineComponent("NeedsReady", {
+        deps: [Ready],
+    });
+    const world = new World(commandRegistry);
+    const commands = world.commands();
+    const first = world.spawn();
+    const second = world.spawn();
+    const third = world.spawn();
+
+    commands.addComponent(first, Ready, {});
+    commands.addComponent(second, NeedsReady, {});
+    commands.addComponent(third, Ready, {});
+
+    assert.throws(() => commands.flush(), /missing dependency Ready/);
+    assert.equal(world.hasComponent(first, Ready), true);
+    assert.equal(world.hasComponent(second, NeedsReady), false);
+    assert.equal(world.hasComponent(third, Ready), false);
+    assert.equal(commands.pending, 1);
+
+    commands.flush();
+
+    assert.equal(commands.pending, 0);
+    assert.equal(world.hasComponent(third, Ready), true);
+});
+
+test("shutdown is terminal and later updates stay inert", () => {
+    const world = new World(createRegistry("world-shutdown-terminal-test"));
+    const trace: string[] = [];
+
+    world.addSystem({
+        onStartup(): void {
+            trace.push("startup");
+        },
+        onUpdate(): void {
+            trace.push("update");
+        },
+        onShutdown(): void {
+            trace.push("shutdown");
+        },
+    });
+
+    world.shutdown();
+    world.update(0);
+    world.shutdown();
+
+    assert.deepEqual(trace, ["shutdown"]);
 });
 
 test("component lifecycle hooks fire in order and can be unsubscribed", () => {
