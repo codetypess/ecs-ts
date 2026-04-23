@@ -1,6 +1,6 @@
-import type { Commands } from "./commands";
-import type { Registry } from "./registry";
-import type { World } from "./world";
+import type { Commands } from "./commands.js";
+import type { Registry } from "./registry.js";
+import type { World } from "./world.js";
 
 declare const EventTypeBrand: unique symbol;
 

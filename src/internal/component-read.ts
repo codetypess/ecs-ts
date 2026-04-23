@@ -1,9 +1,9 @@
-import type { AnyComponentType, ComponentType } from "../component";
-import type { Entity } from "../entity";
-import { EntityManager } from "../entity";
-import type { ChangeDetectionRange, ComponentTuple } from "../query";
-import { isTickInRange } from "../query";
-import type { SparseSet } from "../sparse-set";
+import type { AnyComponentType, ComponentType } from "../component.js";
+import type { Entity } from "../entity.js";
+import { EntityManager } from "../entity.js";
+import type { ChangeDetectionRange, ComponentTuple } from "../query.js";
+import { isTickInRange } from "../query.js";
+import type { SparseSet } from "../sparse-set.js";
 
 type ComponentStores = readonly (SparseSet<unknown> | undefined)[];
 

@@ -1,28 +1,28 @@
-import type { AnyComponentType, ComponentLifecycleStage, ComponentType } from "../component";
-import { assertComponentValue } from "../component";
-import { EntityManager, formatEntity } from "../entity";
-import type { Entity } from "../entity";
-import type { ChangeDetectionRange, ComponentTuple } from "../query";
+import type { AnyComponentType, ComponentLifecycleStage, ComponentType } from "../component.js";
+import { assertComponentValue } from "../component.js";
+import { EntityManager, formatEntity } from "../entity.js";
+import type { Entity } from "../entity.js";
+import type { ChangeDetectionRange, ComponentTuple } from "../query.js";
 import {
     ensureComponentStore,
     getComponentStore,
     getComponentType,
     type ComponentStoreContext,
-} from "./component-store";
+} from "./component-store.js";
 import {
     getManyComponents,
     hasAllComponents,
     hasAnyComponents,
     isComponentAdded,
     isComponentChanged,
-} from "./component-read";
+} from "./component-read.js";
 import {
     takeEntityComponents,
     trackEntityComponent,
     untrackEntityComponent,
     type EntityComponentIndexContext,
-} from "./entity-component-index";
-import { sortComponentTypesByDependencies } from "./component-dependencies";
+} from "./entity-component-index.js";
+import { sortComponentTypesByDependencies } from "./component-dependencies.js";
 
 interface ComponentOpsContextOptions {
     readonly entities: EntityManager;

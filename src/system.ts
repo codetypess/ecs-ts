@@ -1,6 +1,6 @@
-import type { StateValue } from "./state";
-import type { Commands } from "./commands";
-import type { World } from "./world";
+import type { StateValue } from "./state.js";
+import type { Commands } from "./commands.js";
+import type { World } from "./world.js";
 
 /** Object-style system whose lifecycle methods are attached to scheduler stages. */
 export interface System {

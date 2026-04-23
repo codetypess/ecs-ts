@@ -1,8 +1,8 @@
-import type { Entity } from "../entity";
-import type { ChangeDetectionRange } from "../query";
-import { isTickInRange } from "../query";
-import type { SparseSet } from "../sparse-set";
-import type { QueryFilterMode, ResolvedQueryFilter } from "./query-plan";
+import type { Entity } from "../entity.js";
+import type { ChangeDetectionRange } from "../query.js";
+import { isTickInRange } from "../query.js";
+import type { SparseSet } from "../sparse-set.js";
+import type { QueryFilterMode, ResolvedQueryFilter } from "./query-plan.js";
 
 interface FilteredQueryPlan {
     readonly filterMode: QueryFilterMode;

@@ -4,7 +4,7 @@
 
 它想解决的问题不是“把所有能力都塞进一个巨大框架里”，而是给你一个足够扎实的 ECS runtime：组件存储和查询有合理性能，world 的结构修改时机明确，常见业务代码写起来也不会太别扭。
 
-English README: [README.md](README-en.md).
+English README: [README-en.md](README-en.md).
 
 ## 这个项目想做什么
 
@@ -34,7 +34,7 @@ English README: [README.md](README-en.md).
 ## 快速示例
 
 ```ts
-import { World, createRegistry, withComponent, withMarker } from "./src";
+import { World, createRegistry, withComponent, withMarker } from "ecs-ts";
 
 const registry = createRegistry("ui");
 
@@ -117,6 +117,8 @@ npm run benchmark:smoke
 npm run benchmark
 npm run benchmark:json
 npm run benchmark:compare -- --baseline /tmp/ecs-baseline.json --current /tmp/ecs-current.json
+npm run build
+npm run package:smoke
 ```
 
 测试通过 `tsx` 使用 Node 内置的 `node:test` runner。benchmark 同时提供更快的 smoke profile 和适合同机对比的完整 profile。

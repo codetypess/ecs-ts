@@ -1,5 +1,5 @@
-import type { AnyComponentType } from "../component";
-import type { Entity } from "../entity";
+import type { AnyComponentType } from "../component.js";
+import type { Entity } from "../entity.js";
 import type {
     ChangeDetectionRange,
     OptionalQueryRow,
@@ -7,10 +7,10 @@ import type {
     QueryFilter,
     QueryRow,
     QueryState,
-} from "../query";
-import type { Registry } from "../registry";
-import { SparseSet } from "../sparse-set";
-import { compileQueryFilterMatcher, type QueryFilterMatcher } from "./query-filter";
+} from "../query.js";
+import type { Registry } from "../registry.js";
+import { SparseSet } from "../sparse-set.js";
+import { compileQueryFilterMatcher, type QueryFilterMatcher } from "./query-filter.js";
 
 import {
     compileOptionalQueryCount,
@@ -19,7 +19,7 @@ import {
     compileRequiredQueryCount,
     compileRequiredQueryEach,
     compileRequiredQueryIterate,
-} from "./query-plan-executors";
+} from "./query-plan-executors.js";
 
 /**
  * Query execution is compiled at plan-creation time into specialised functions for

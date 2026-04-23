@@ -1,4 +1,4 @@
-import type { Registry } from "./registry";
+import type { Registry } from "./registry.js";
 
 declare const MessageTypeBrand: unique symbol;
 declare const MessageIdBrand: unique symbol;

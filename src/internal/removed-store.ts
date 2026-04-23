@@ -1,8 +1,8 @@
-import type { AnyComponentType, ComponentData } from "../component";
-import type { Entity } from "../entity";
-import type { RemovedComponent, RemovedReader, RemovedReaderOptions } from "../removed";
-import { RemovedComponents, RemovedReader as BoundRemovedReader } from "../removed";
-import { ensureMapEntry } from "./collection-utils";
+import type { AnyComponentType, ComponentData } from "../component.js";
+import type { Entity } from "../entity.js";
+import type { RemovedComponent, RemovedReader, RemovedReaderOptions } from "../removed.js";
+import { RemovedComponents, RemovedReader as BoundRemovedReader } from "../removed.js";
+import { ensureMapEntry } from "./collection-utils.js";
 
 interface RemovedStoreOptions {
     readonly getChangeTick: () => number;

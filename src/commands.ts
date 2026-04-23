@@ -1,14 +1,14 @@
-import type { AnyComponentEntry, ComponentType } from "./component";
-import type { Entity, EntityType } from "./entity";
-import type { EventType } from "./event";
+import type { AnyComponentEntry, ComponentType } from "./component.js";
+import type { Entity, EntityType } from "./entity.js";
+import type { EventType } from "./event.js";
 import {
     entriesHaveDependencyChecks,
     sortEntriesByDependencies,
-} from "./internal/component-dependencies";
-import type { MessageType } from "./message";
-import type { ResourceType } from "./resource";
-import type { StateType, StateValue } from "./state";
-import type { World } from "./world";
+} from "./internal/component-dependencies.js";
+import type { MessageType } from "./message.js";
+import type { ResourceType } from "./resource.js";
+import type { StateType, StateValue } from "./state.js";
+import type { World } from "./world.js";
 
 export interface CommandRuntime {
     reserveEntity(etype: EntityType): Entity;

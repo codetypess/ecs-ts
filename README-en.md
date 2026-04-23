@@ -4,7 +4,7 @@
 
 It is built for codebases that want the usual ECS benefits, such as dense iteration and data-oriented composition, without turning the public surface into a wall of type-level machinery.
 
-中文说明见 [README-zh.md](README.md).
+中文说明见 [README.md](README.md).
 
 ## What It Tries To Be
 
@@ -31,7 +31,7 @@ That last point is especially important: if `Element` depends on `Transform`, th
 ## Quick Example
 
 ```ts
-import { World, createRegistry, withComponent, withMarker } from "./src";
+import { World, createRegistry, withComponent, withMarker } from "ecs-ts";
 
 const registry = createRegistry("ui");
 
@@ -114,6 +114,8 @@ npm run benchmark:smoke
 npm run benchmark
 npm run benchmark:json
 npm run benchmark:compare -- --baseline /tmp/ecs-baseline.json --current /tmp/ecs-current.json
+npm run build
+npm run package:smoke
 ```
 
 Tests use Node's built-in `node:test` runner through `tsx`. The benchmark scripts support both a smoke profile for quick checks and a fuller multi-sample profile for same-machine comparisons.

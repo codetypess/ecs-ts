@@ -1,6 +1,6 @@
-import type { ComponentHook, ComponentLifecycleStage, ComponentType } from "../component";
-import type { Entity } from "../entity";
-import type { World } from "../world";
+import type { ComponentHook, ComponentLifecycleStage, ComponentType } from "../component.js";
+import type { Entity } from "../entity.js";
+import type { World } from "../world.js";
 
 /** Additional runtime hooks registered on top of component type metadata. */
 export type ComponentHookRegistry = {

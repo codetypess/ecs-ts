@@ -1,5 +1,5 @@
-import { entityIndex } from "../entity";
-import type { Entity } from "../entity";
+import { entityIndex } from "../entity.js";
+import type { Entity } from "../entity.js";
 
 /** Tracks which component ids are currently attached to each live entity slot. */
 export interface EntityComponentIndexContext {

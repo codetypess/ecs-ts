@@ -1,5 +1,5 @@
-import type { Entity } from "../entity";
-import type { SparseSet } from "../sparse-set";
+import type { Entity } from "../entity.js";
+import type { SparseSet } from "../sparse-set.js";
 
 /** Fills an output array with required component values, aborting on the first miss. */
 export function fillComponents(

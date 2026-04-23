@@ -1,4 +1,4 @@
-import type { Registry } from "./registry";
+import type { Registry } from "./registry.js";
 
 declare const ResourceTypeBrand: unique symbol;
 

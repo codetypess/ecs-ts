@@ -1,8 +1,8 @@
-import type { AnyComponentType, ComponentData } from "./component";
-import type { Entity } from "./entity";
-import type { Registry } from "./registry";
-import type { SparseSet } from "./sparse-set";
-import type { World } from "./world";
+import type { AnyComponentType, ComponentData } from "./component.js";
+import type { Entity } from "./entity.js";
+import type { Registry } from "./registry.js";
+import type { SparseSet } from "./sparse-set.js";
+import type { World } from "./world.js";
 
 /** Maps a component-type tuple to the tuple of resolved component payload types. */
 export type ComponentTuple<TComponents extends readonly AnyComponentType[]> = {

@@ -5,7 +5,7 @@ import type {
     SystemRunCondition,
     SystemSetLabel,
     SystemSetOptions,
-} from "../scheduler";
+} from "../scheduler.js";
 import {
     createScheduleCacheEntries,
     createSchedules,
@@ -13,8 +13,8 @@ import {
     createSystemSetStageConfigs,
     scheduleStages,
     sortSystemRunners,
-} from "../scheduler";
-import type { World } from "../world";
+} from "../scheduler.js";
+import type { World } from "../world.js";
 
 interface ScheduleCacheEntry {
     dirty: boolean;

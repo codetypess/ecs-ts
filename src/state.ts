@@ -1,4 +1,4 @@
-import type { Registry } from "./registry";
+import type { Registry } from "./registry.js";
 
 /** Primitive values supported by the built-in state machine. */
 export type StateValue = string | number | symbol | boolean;

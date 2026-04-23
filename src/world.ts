@@ -1,4 +1,4 @@
-import { Commands, type CommandRuntime } from "./commands";
+import { Commands, type CommandRuntime } from "./commands.js";
 import {
     AnyComponentEntry,
     AnyComponentType,
@@ -6,16 +6,16 @@ import {
     ComponentHook,
     ComponentLifecycleStage,
     ComponentType,
-} from "./component";
-import { Entity, EntityManager, formatEntity, type EntityType } from "./entity";
-import { assertRegisteredEvent, type EventObserver, type EventType } from "./event";
-import { runSystemWithCommands } from "./internal/command-execution";
+} from "./component.js";
+import { Entity, EntityManager, formatEntity, type EntityType } from "./entity.js";
+import { assertRegisteredEvent, type EventObserver, type EventType } from "./event.js";
+import { runSystemWithCommands } from "./internal/command-execution.js";
 import {
     createComponentHookContext,
     runComponentHooks as dispatchComponentHooks,
     addComponentHook as registerComponentHook,
     type ComponentHookContext,
-} from "./internal/component-hooks";
+} from "./internal/component-hooks.js";
 import {
     createComponentOpsContext,
     remove as deleteComponent,
@@ -24,22 +24,22 @@ import {
     addValidated as insertValidatedComponent,
     markChanged as markStoredComponentChanged,
     type ComponentOpsContext,
-} from "./internal/component-ops";
+} from "./internal/component-ops.js";
 import {
     getManyComponents,
     hasAllComponents,
     hasAnyComponents,
     isComponentAdded,
     isComponentChanged,
-} from "./internal/component-read";
+} from "./internal/component-read.js";
 import {
     createComponentStoreContext,
     type ComponentStoreContext,
-} from "./internal/component-store";
+} from "./internal/component-store.js";
 import {
     createEntityComponentIndexContext,
     getEntityComponents,
-} from "./internal/entity-component-index";
+} from "./internal/entity-component-index.js";
 import {
     assertComponentDepsPresent,
     assertComponentHasNoDependents,
@@ -47,13 +47,13 @@ import {
     currentEntityComponentTypes,
     entriesHaveDependencyChecks,
     sortEntriesByDependencies,
-} from "./internal/component-dependencies";
+} from "./internal/component-dependencies.js";
 import {
     createEventContext,
     observeEvent,
     triggerEvent,
     type EventContext,
-} from "./internal/events";
+} from "./internal/events.js";
 import {
     addMessageType,
     clearMessages as clearStoredMessages,
@@ -63,16 +63,16 @@ import {
     updateMessages as updateStoredMessages,
     writeMessage as writeStoredMessage,
     type MessageContext,
-} from "./internal/messages";
-import type { QueryExecutorContext } from "./internal/query-executor";
-import { createQueryPlanContext } from "./internal/query-plan";
+} from "./internal/messages.js";
+import type { QueryExecutorContext } from "./internal/query-executor.js";
+import { createQueryPlanContext } from "./internal/query-plan.js";
 import {
     createRemovedReader as createBoundRemovedReader,
     createRemovedStoreContext,
     drainRemoved as drainRemovedComponents,
     recordRemoved as recordRemovedComponent,
     type RemovedStoreContext,
-} from "./internal/removed-store";
+} from "./internal/removed-store.js";
 import {
     createResourceContext,
     getResource as getStoredResource,
@@ -84,7 +84,7 @@ import {
     removeResource as removeStoredResource,
     setResource as setStoredResource,
     type ResourceContext,
-} from "./internal/resources";
+} from "./internal/resources.js";
 import {
     addSystemRunner as addScheduledSystemRunner,
     configureSet as configureScheduleSet,
@@ -95,8 +95,8 @@ import {
     setFixedTimeStep as setScheduleFixedTimeStep,
     shouldRunSystem as shouldRunScheduledSystem,
     type ScheduleEngineContext,
-} from "./internal/schedule-engine";
-import { runWorldBatch, type WorldBatchRuntime } from "./internal/world-batch";
+} from "./internal/schedule-engine.js";
+import { runWorldBatch, type WorldBatchRuntime } from "./internal/world-batch.js";
 import {
     addStateSystem as addStateLifecycleSystem,
     addTransitionSystem as addStateTransitionSystem,
@@ -112,18 +112,18 @@ import {
     runInitialEnters,
     setState,
     type StateMachineContext,
-} from "./internal/state-machine";
-import { WorldQueryMethods } from "./internal/world-query-methods";
+} from "./internal/state-machine.js";
+import { WorldQueryMethods } from "./internal/world-query-methods.js";
 import {
     assertRegisteredMessage,
     type MessageId,
     type MessageReader,
     type MessageType,
-} from "./message";
-import type { ChangeDetectionRange, ComponentTuple } from "./query";
-import type { Registry } from "./registry";
-import type { RemovedComponent, RemovedReader, RemovedReaderOptions } from "./removed";
-import { assertRegisteredResource, type ResourceType } from "./resource";
+} from "./message.js";
+import type { ChangeDetectionRange, ComponentTuple } from "./query.js";
+import type { Registry } from "./registry.js";
+import type { RemovedComponent, RemovedReader, RemovedReaderOptions } from "./removed.js";
+import { assertRegisteredResource, type ResourceType } from "./resource.js";
 import type {
     ScheduleStage,
     SystemCallback,
@@ -131,21 +131,21 @@ import type {
     SystemRunner,
     SystemSetLabel,
     SystemSetOptions,
-} from "./scheduler";
-import { createSystemRunner, scheduleStageDefinitions } from "./scheduler";
-import { assertRegisteredState, type StateType, type StateValue } from "./state";
-import type { StateSystem, System, TransitionSystem } from "./system";
+} from "./scheduler.js";
+import { createSystemRunner, scheduleStageDefinitions } from "./scheduler.js";
+import { assertRegisteredState, type StateType, type StateValue } from "./state.js";
+import type { StateSystem, System, TransitionSystem } from "./system.js";
 
-export { Commands } from "./commands";
-export { OptionalQueryState, optionalQueryState, QueryState, queryState } from "./query";
+export { Commands } from "./commands.js";
+export { OptionalQueryState, optionalQueryState, QueryState, queryState } from "./query.js";
 export type {
     ComponentTuple,
     OptionalComponentTuple,
     OptionalQueryRow,
     QueryFilter,
     QueryRow,
-} from "./query";
-export { scheduleStages } from "./scheduler";
+} from "./query.js";
+export { scheduleStages } from "./scheduler.js";
 export type {
     ScheduleStage,
     SystemLabel,
@@ -153,8 +153,8 @@ export type {
     SystemRunCondition,
     SystemSetLabel,
     SystemSetOptions,
-} from "./scheduler";
-export type { StateSystem, System, TransitionSystem } from "./system";
+} from "./scheduler.js";
+export type { StateSystem, System, TransitionSystem } from "./system.js";
 
 /** Batched structural edits that are committed together after validation succeeds. */
 export interface WorldBatch {

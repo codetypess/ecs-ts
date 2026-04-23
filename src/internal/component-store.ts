@@ -1,6 +1,6 @@
-import type { ComponentType } from "../component";
-import type { Registry } from "../registry";
-import { SparseSet } from "../sparse-set";
+import type { ComponentType } from "../component.js";
+import type { Registry } from "../registry.js";
+import { SparseSet } from "../sparse-set.js";
 
 /** Registry of component stores keyed by registry-local component ids. */
 export interface ComponentStoreContext {

@@ -1,6 +1,6 @@
-import type { EventObserver } from "../event";
-import type { World } from "../world";
-import { runEventObserverWithCommands } from "./command-execution";
+import type { EventObserver } from "../event.js";
+import type { World } from "../world.js";
+import { runEventObserverWithCommands } from "./command-execution.js";
 
 /** Observer registry keyed by event type id. */
 export interface EventContext {

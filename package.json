@@ -11,7 +11,8 @@
     }
   },
   "files": [
-    "README-zh.md",
+    "README.md",
+    "README-en.md",
     "docs/*.md",
     "docs/zh/*.md",
     "dist/*.d.ts",
@@ -23,11 +24,13 @@
   ],
   "scripts": {
     "check": "npm run typecheck && npm run lint",
+    "clean:dist": "node scripts/clean-dist.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "npm run clean:dist && tsc -p tsconfig.build.json",
+    "package:smoke": "node scripts/check-package.mjs",
     "pack:check": "npm pack --dry-run",
     "test": "node --import tsx --test tests/*.test.ts",
     "examples:check": "node --import tsx scripts/check-examples.ts",

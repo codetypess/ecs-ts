@@ -41,5 +41,8 @@ jobs:
             - name: Build
               run: npm run build
 
+            - name: Package Smoke
+              run: npm run package:smoke
+
             - name: Pack
               run: npm run pack:check

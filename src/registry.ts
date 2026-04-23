@@ -4,11 +4,11 @@ import type {
     ComponentDataWithTemplate,
     ComponentOptions,
     ComponentType,
-} from "./component";
-import type { AnyEventType, EventType } from "./event";
-import type { AnyMessageType, MessageType } from "./message";
-import type { AnyResourceType, ResourceType } from "./resource";
-import type { AnyStateType, StateType, StateValue } from "./state";
+} from "./component.js";
+import type { AnyEventType, EventType } from "./event.js";
+import type { AnyMessageType, MessageType } from "./message.js";
+import type { AnyResourceType, ResourceType } from "./resource.js";
+import type { AnyStateType, StateType, StateValue } from "./state.js";
 
 export type AnyRegistryType =
     | AnyComponentType

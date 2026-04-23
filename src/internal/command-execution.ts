@@ -1,6 +1,6 @@
-import type { EventObserver } from "../event";
-import type { SystemRunner } from "../scheduler";
-import type { World } from "../world";
+import type { EventObserver } from "../event.js";
+import type { SystemRunner } from "../scheduler.js";
+import type { World } from "../world.js";
 
 /** Runs a system with a fresh deferred command queue and flushes afterward. */
 export function runSystemWithCommands(world: World, system: SystemRunner, dt: number): void {

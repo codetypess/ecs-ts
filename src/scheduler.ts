@@ -1,5 +1,5 @@
-import type { Commands } from "./commands";
-import type { World } from "./world";
+import type { Commands } from "./commands.js";
+import type { World } from "./world.js";
 
 /** Ordered scheduler stages supported by object-style systems. */
 export const scheduleStageDefinitions = [

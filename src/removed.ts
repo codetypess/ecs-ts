@@ -1,5 +1,5 @@
-import type { AnyComponentType, ComponentData } from "./component";
-import type { Entity } from "./entity";
+import type { AnyComponentType, ComponentData } from "./component.js";
+import type { Entity } from "./entity.js";
 
 declare const RemovedComponentIdBrand: unique symbol;
 
