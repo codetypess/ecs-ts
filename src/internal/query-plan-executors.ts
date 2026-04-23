@@ -16,6 +16,9 @@ import type {
     ResolvedQueryPlan,
 } from "./query-plan";
 
+// These loops are intentionally specialised rather than shared through helpers.
+// Query iteration is hot enough that the duplicated 1/2/3-component paths matter.
+
 export function compileRequiredQueryIterate(
     storeCount: number,
     filterMode: QueryFilterMode
@@ -919,9 +922,11 @@ function countOptionalQueryMatchesFiltered(
 }
 
 function currentRequiredBaseStore(plan: ResolvedQueryPlan): SparseSet<unknown> {
+    // Re-pick at run time because store sizes can skew without changing store topology.
     return chooseSmallestStore(plan.stores, plan.filterStores.with);
 }
 
 function currentOptionalBaseStore(plan: ResolvedOptionalQueryPlan): SparseSet<unknown> {
+    // Required stores still define row membership; `with` stores are extra scan candidates.
     return chooseSmallestStore(plan.requiredStores, plan.filterStores.with);
 }

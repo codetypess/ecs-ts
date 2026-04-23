@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { World, createRegistry, withComponent } from "../src";
+import { World, createRegistry, entityIndex, withComponent } from "../src";
 
 test("world enforces component dependencies on direct writes", () => {
     const registry = createRegistry("world-component-deps-test");
@@ -44,6 +44,25 @@ test("visible dependent components can safely mustGet their dependencies", () =>
     assert.deepEqual(world.mustGetComponent(entity, Transform), { x: 4, y: 5 });
 });
 
+test("failed dependency spawn does not publish an empty entity", () => {
+    const registry = createRegistry("world-component-deps-failed-spawn-test");
+    const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
+    const Element = registry.defineComponent<{ name: string }>("Element", {
+        deps: [Transform],
+    });
+    const world = new World(registry);
+
+    assert.throws(
+        () => world.spawn(withComponent(Element, { name: "broken" })),
+        /missing dependency Transform/
+    );
+
+    const entity = world.spawn();
+
+    assert.equal(entityIndex(entity), 0);
+    assert.equal(world.isAlive(entity), true);
+});
+
 test("spawn inserts dependencies before dependents and despawn removes dependents first", () => {
     const registry = createRegistry("world-component-deps-order-test");
     const events: string[] = [];
@@ -76,6 +95,22 @@ test("spawn inserts dependencies before dependents and despawn removes dependent
     world.despawn(entity);
 
     assert.deepEqual(events, ["element:despawn:transform=true", "transform:despawn:element=false"]);
+});
+
+test("dependency sorting preserves duplicate component entry order", () => {
+    const registry = createRegistry("world-component-deps-duplicate-order-test");
+    const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
+    const Element = registry.defineComponent<{ name: string }>("Element", {
+        deps: [Transform],
+    });
+    const world = new World(registry);
+    const entity = world.spawn(
+        withComponent(Element, { name: "first" }),
+        withComponent(Transform, { x: 1, y: 2 }),
+        withComponent(Element, { name: "second" })
+    );
+
+    assert.deepEqual(world.mustGetComponent(entity, Element), { name: "second" });
 });
 
 test("batch validates final component state and returns committed entities", () => {

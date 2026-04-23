@@ -163,6 +163,7 @@ export function sortSystemRunners(
         }
     }
 
+    // Edges are stored as dependent -> dependencies; DFS visits dependencies first.
     const edges = new Map<SystemRunner, SystemRunner[]>();
 
     for (const system of systems) {
@@ -242,6 +243,7 @@ function addBeforeEdges(
     edges: ReadonlyMap<SystemRunner, SystemRunner[]>
 ): void {
     for (const target of systemsForOrderLabel(targetLabel, systemLabels, setMembers)) {
+        // `system before target` means the target depends on this system.
         addDependency(target, system, edges);
     }
 }
@@ -254,6 +256,7 @@ function addAfterEdges(
     edges: ReadonlyMap<SystemRunner, SystemRunner[]>
 ): void {
     for (const target of systemsForOrderLabel(targetLabel, systemLabels, setMembers)) {
+        // `system after target` means this system depends on the target.
         addDependency(system, target, edges);
     }
 }

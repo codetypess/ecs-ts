@@ -196,6 +196,7 @@ export function resolveQueryStateCache<const TComponents extends readonly AnyCom
     const key = state as QueryState<readonly AnyComponentType[]>;
     const existing = context.queryStateCaches.get(key);
 
+    // Store version tracks topology only; cached plans remain valid across value/tick changes.
     if (existing?.storeVersion === context.getStoreVersion()) {
         return existing.plan;
     }
@@ -304,6 +305,7 @@ function resolveFilterStores(
 
     const orStores = resolveOptionalFilterStores(context, filter.or, knownTypes, knownStores);
 
+    // An `or` filter with no existing candidate stores can never match any entity.
     if (filter.or !== undefined && filter.or.length > 0 && orStores.length === 0) {
         return undefined;
     }

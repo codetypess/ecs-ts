@@ -176,6 +176,7 @@ export class RemovedComponents<TComponent extends AnyComponentType> {
 
     private compactAfterRead(reader: RemovedReader<TComponent>): void {
         if (this.activeReaders.size === 1 && this.activeReaders.has(reader)) {
+            // The only reader consumed through nextRemovedId, so no buffered history is pinned.
             this.removed.length = 0;
             this.startIndex = 0;
             this.firstRemovedId = this.nextRemovedId;
@@ -217,6 +218,7 @@ export class RemovedComponents<TComponent extends AnyComponentType> {
 
         this.startIndex += compacted;
         this.firstRemovedId += compacted;
+        // Logical compaction is cheap; physical splice is deferred until enough prefix accrues.
         this.compactPhysicalPrefix();
     }
 

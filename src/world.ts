@@ -45,6 +45,7 @@ import {
     assertComponentHasNoDependents,
     assertSpawnEntriesSatisfied,
     currentEntityComponentTypes,
+    entriesHaveDependencyChecks,
     sortEntriesByDependencies,
 } from "./internal/component-dependencies";
 import {
@@ -895,10 +896,11 @@ export class World extends WorldQueryMethods {
 
     private spawnWithEntries(etype: EntityType, entries: readonly AnyComponentEntry[]): Entity {
         this.assertEntriesRegistered(entries, "spawn");
-        const entity = this.entities.create(etype);
-        const orderedEntries = entries.some((entry) => entry.type.deps.length > 0)
+        // Validate dependency closure before creating the entity, so failed spawns leave no shell.
+        const orderedEntries = entriesHaveDependencyChecks(entries)
             ? (assertSpawnEntriesSatisfied(entries), sortEntriesByDependencies(entries))
             : entries;
+        const entity = this.entities.create(etype);
 
         for (const entry of orderedEntries) {
             insertComponent(this.componentContext, entity, entry.type, entry.value);

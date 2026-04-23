@@ -2,6 +2,7 @@ import type { AnyComponentEntry, AnyComponentType } from "../component";
 import { formatEntity, type Entity } from "../entity";
 
 type DependencyOrder = "dependenciesFirst" | "dependentsFirst";
+type DependencyRank = number[];
 
 /** Resolves tracked component ids without coupling this helper to Registry or World. */
 export function currentEntityComponentTypes(
@@ -31,7 +32,11 @@ export function assertComponentDepsPresent(
         return;
     }
 
-    const currentTypeIds = new Set<number>(currentTypes.map((currentType) => currentType.id));
+    const currentTypeIds = new Set<number>();
+
+    for (const currentType of currentTypes) {
+        currentTypeIds.add(currentType.id);
+    }
 
     for (const dep of type.deps) {
         if (!currentTypeIds.has(dep.id)) {
@@ -53,10 +58,12 @@ export function assertComponentHasNoDependents(
     }
 
     for (const currentType of currentTypes) {
-        if (currentType.deps.some((dep) => dep.id === type.id)) {
-            throw new Error(
-                `Cannot ${action} component ${type.name} from ${formatEntity(entity)}: component ${currentType.name} depends on it`
-            );
+        for (const dep of currentType.deps) {
+            if (dep.id === type.id) {
+                throw new Error(
+                    `Cannot ${action} component ${type.name} from ${formatEntity(entity)}: component ${currentType.name} depends on it`
+                );
+            }
         }
     }
 }
@@ -79,13 +86,23 @@ export function assertComponentSetDepsSatisfied(
 }
 
 export function assertSpawnEntriesSatisfied(entries: readonly AnyComponentEntry[]): void {
-    if (!entries.some((entry) => entry.type.deps.length > 0)) {
+    if (!entriesHaveDependencyChecks(entries)) {
         return;
     }
 
     assertComponentTypeSetDepsSatisfied(uniqueEntryTypes(entries), (type, dep) => {
         throw new Error(`Cannot spawn component ${type.name}: missing dependency ${dep.name}`);
     });
+}
+
+export function entriesHaveDependencyChecks(entries: readonly AnyComponentEntry[]): boolean {
+    for (const entry of entries) {
+        if (entry.type.deps.length > 0) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /** Returns component types in dependency order while preserving unrelated definition order. */
@@ -113,16 +130,17 @@ export function sortComponentTypesByDependencies(
         return [...uniqueTypes];
     }
 
-    const dependencyRank = createDependencyRank(uniqueTypes);
-    const sorted = [...uniqueTypes].sort(
-        (left, right) => dependencyRank.get(left.id)! - dependencyRank.get(right.id)!
-    );
+    const dependencyRank = createDependencyRank(uniqueTypes, uniqueTypeIds);
 
-    if (order === "dependentsFirst") {
-        sorted.reverse();
+    if (isTypeOrderSorted(uniqueTypes, dependencyRank, order)) {
+        return [...uniqueTypes];
     }
 
-    return sorted;
+    const direction = order === "dependenciesFirst" ? 1 : -1;
+
+    return [...uniqueTypes].sort(
+        (left, right) => direction * (dependencyRank[left.id]! - dependencyRank[right.id]!)
+    );
 }
 
 /** Returns component entries ordered so dependencies are inserted before their dependents. */
@@ -133,42 +151,41 @@ export function sortEntriesByDependencies(
         return [...entries];
     }
 
-    const uniqueTypes = uniqueEntryTypes(entries);
+    const uniqueTypeIds = new Set<number>();
+    const uniqueTypes = uniqueEntryTypes(entries, uniqueTypeIds);
 
-    if (!hasIncludedDependencyEdges(uniqueTypes, new Set(uniqueTypes.map((type) => type.id)))) {
+    if (!hasIncludedDependencyEdges(uniqueTypes, uniqueTypeIds)) {
         return [...entries];
     }
 
-    const dependencyRank = createDependencyRank(uniqueTypes);
+    const dependencyRank = createDependencyRank(uniqueTypes, uniqueTypeIds);
 
-    return entries
-        .map((entry, index) => ({ entry, index }))
-        .sort((left, right) => {
-            const rankDelta =
-                dependencyRank.get(left.entry.type.id)! - dependencyRank.get(right.entry.type.id)!;
+    if (areEntriesInDependencyOrder(entries, dependencyRank)) {
+        return [...entries];
+    }
 
-            if (rankDelta !== 0) {
-                return rankDelta;
-            }
-
-            return left.index - right.index;
-        })
-        .map(({ entry }) => entry);
+    // ES2019+ stable sort preserves caller order for duplicate or same-rank entries.
+    return [...entries].sort(
+        (left, right) => dependencyRank[left.type.id]! - dependencyRank[right.type.id]!
+    );
 }
 
-function createDependencyRank(types: readonly AnyComponentType[]): Map<number, number> {
-    const includedTypeIds = new Set<number>(types.map((type) => type.id));
-    const visiting = new Set<number>();
-    const rankByTypeId = new Map<number, number>();
+function createDependencyRank(
+    types: readonly AnyComponentType[],
+    includedTypeIds: ReadonlySet<number>
+): DependencyRank {
+    // Component ids are dense per registry, so arrays avoid Map lookups in sort comparators.
+    const visiting: boolean[] = [];
+    const rankByTypeId: DependencyRank = [];
     const path: AnyComponentType[] = [];
     let nextRank = 0;
 
     const visit = (type: AnyComponentType): void => {
-        if (rankByTypeId.has(type.id)) {
+        if (rankByTypeId[type.id] !== undefined) {
             return;
         }
 
-        if (visiting.has(type.id)) {
+        if (visiting[type.id] === true) {
             throw new Error(
                 `Component dependency cycle detected: ${[...path, type]
                     .map((item) => item.name)
@@ -176,19 +193,20 @@ function createDependencyRank(types: readonly AnyComponentType[]): Map<number, n
             );
         }
 
-        visiting.add(type.id);
+        visiting[type.id] = true;
         path.push(type);
 
         for (const dep of type.deps) {
+            // Missing external deps are validated separately; rank only edges within this set.
             if (includedTypeIds.has(dep.id)) {
                 visit(dep);
             }
         }
 
         path.pop();
-        visiting.delete(type.id);
+        visiting[type.id] = false;
         // Post-order assignment guarantees every dependency receives a smaller rank.
-        rankByTypeId.set(type.id, nextRank++);
+        rankByTypeId[type.id] = nextRank++;
     };
 
     for (const type of types) {
@@ -198,8 +216,24 @@ function createDependencyRank(types: readonly AnyComponentType[]): Map<number, n
     return rankByTypeId;
 }
 
-function uniqueEntryTypes(entries: readonly AnyComponentEntry[]): AnyComponentType[] {
-    return [...new Map(entries.map((entry) => [entry.type.id, entry.type])).values()];
+function uniqueEntryTypes(
+    entries: readonly AnyComponentEntry[],
+    uniqueTypeIds = new Set<number>()
+): AnyComponentType[] {
+    const uniqueTypes: AnyComponentType[] = [];
+
+    for (const entry of entries) {
+        const type = entry.type;
+
+        if (uniqueTypeIds.has(type.id)) {
+            continue;
+        }
+
+        uniqueTypeIds.add(type.id);
+        uniqueTypes.push(type);
+    }
+
+    return uniqueTypes;
 }
 
 /** Shares the same dependency-closure walk while letting callers keep context-specific errors. */
@@ -207,7 +241,11 @@ function assertComponentTypeSetDepsSatisfied(
     types: readonly AnyComponentType[],
     onMissingDependency: (type: AnyComponentType, dep: AnyComponentType) => never
 ): void {
-    const typeIds = new Set<number>(types.map((type) => type.id));
+    const typeIds = new Set<number>();
+
+    for (const type of types) {
+        typeIds.add(type.id);
+    }
 
     for (const type of types) {
         for (const dep of type.deps) {
@@ -219,7 +257,13 @@ function assertComponentTypeSetDepsSatisfied(
 }
 
 function mayHaveDependencyChecks(types: readonly AnyComponentType[]): boolean {
-    return types.some((type) => type.deps.length > 0);
+    for (const type of types) {
+        if (type.deps.length > 0) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 function hasIncludedDependencyEdges(
@@ -235,4 +279,43 @@ function hasIncludedDependencyEdges(
     }
 
     return false;
+}
+
+function isTypeOrderSorted(
+    types: readonly AnyComponentType[],
+    dependencyRank: DependencyRank,
+    order: DependencyOrder
+): boolean {
+    let previousRank = dependencyRank[types[0]!.id]!;
+
+    for (let index = 1; index < types.length; index++) {
+        const rank = dependencyRank[types[index]!.id]!;
+
+        if (order === "dependenciesFirst" ? previousRank > rank : previousRank < rank) {
+            return false;
+        }
+
+        previousRank = rank;
+    }
+
+    return true;
+}
+
+function areEntriesInDependencyOrder(
+    entries: readonly AnyComponentEntry[],
+    dependencyRank: DependencyRank
+): boolean {
+    let previousRank = dependencyRank[entries[0]!.type.id]!;
+
+    for (let index = 1; index < entries.length; index++) {
+        const rank = dependencyRank[entries[index]!.type.id]!;
+
+        if (previousRank > rank) {
+            return false;
+        }
+
+        previousRank = rank;
+    }
+
+    return true;
 }

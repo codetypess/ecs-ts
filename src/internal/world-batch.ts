@@ -198,6 +198,7 @@ function stageBatchAddKnownComponent<T extends object>(
         );
     }
 
+    // One state per component id means later staged writes replace earlier writes.
     entityState.componentStates.set(type.id, {
         type,
         present: true,
@@ -241,6 +242,7 @@ function stageBatchDespawn(
 ): void {
     const entityState = ensureBatchEntityState(runtime, context, entity);
 
+    // Despawn wins over per-component edits; commit handles new vs existing entities.
     entityState.despawned = true;
     entityState.componentStates.clear();
 }
@@ -335,6 +337,7 @@ function commitBatchContext(runtime: WorldBatchRuntime, context: BatchContext): 
         }
 
         if (entityState.isNew) {
+            // Publish reserved entities only after validation, so failed batches leak no live entity.
             runtime.commitReservedEntity(entityState.entity);
             commitBatchNewEntity(runtime, entityState);
             continue;
