@@ -20,7 +20,7 @@ world.spawn(
     withMarker(Sleeping)
 );
 
-world.eachWhere(
+world.each(
     [Position, Velocity],
     { with: [Player], without: [Sleeping] },
     (entity, position, velocity) => {

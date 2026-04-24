@@ -1,5 +1,4 @@
 import {
-    type Entity,
     World,
     anyMatch,
     createRegistry,
@@ -19,6 +18,7 @@ import {
     stateMatches,
     withComponent,
     withMarker,
+    type Entity,
     type MessageReader,
     type OptionalQueryRow,
     type OptionalQueryState,
@@ -49,10 +49,10 @@ const player = world.spawn(
 );
 
 expectType<IterableIterator<QueryRow<readonly [typeof Position, typeof Velocity]>>>(
-    world.query(Position, Velocity)
+    world.query([Position, Velocity])
 );
 expectType<IterableIterator<QueryRow<readonly [typeof Position, typeof Velocity]>>>(
-    world.queryWhere([Position, Velocity], { with: [Player] })
+    world.query([Position, Velocity], { with: [Player] })
 );
 expectType<
     IterableIterator<
@@ -60,7 +60,7 @@ expectType<
     >
 >(world.queryOptional([Position], [Velocity, Name], { with: [Player] }));
 
-for (const [entity, position, velocity] of world.query(Position, Velocity)) {
+for (const [entity, position, velocity] of world.query([Position, Velocity])) {
     expectType<Entity>(entity);
     expectType<{ x: number; y: number }>(position);
     expectType<{ x: number; y: number }>(velocity);

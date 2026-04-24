@@ -219,7 +219,7 @@ test("batch does not commit when the callback throws or validation fails", () =>
             }),
         /abort batch/
     );
-    assert.equal(Array.from(world.query(Transform)).length, 0);
+    assert.equal(Array.from(world.query([Transform])).length, 0);
 
     assert.throws(
         () =>
@@ -230,7 +230,7 @@ test("batch does not commit when the callback throws or validation fails", () =>
             }),
         /component Element requires Transform/
     );
-    assert.equal(Array.from(world.query(Element)).length, 0);
+    assert.equal(Array.from(world.query([Element])).length, 0);
 });
 
 test("nested world.batch calls are rejected", () => {

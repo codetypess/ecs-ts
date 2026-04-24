@@ -52,7 +52,7 @@ const entity = world.spawn(
     withMarker(Selected)
 );
 
-world.eachWhere([Transform], { with: [Element] }, (_entity, transform) => {
+world.each([Transform], { with: [Element] }, (_entity, transform) => {
     transform.x += 10;
 });
 
@@ -134,12 +134,13 @@ npm run benchmark:smoke
 npm run benchmark
 npm run benchmark:json
 npm run benchmark:compare -- --baseline /tmp/ecs-baseline.json --current /tmp/ecs-current.json
+npm run benchmark:paired -- --baseline-dir /tmp/ecs-baseline --current-dir . --rounds 6 -- --profile smoke
 npm run build
 npm run package:smoke
 npm run release:check
 ```
 
-测试通过 `tsx` 使用 Node 内置的 `node:test` runner。benchmark 同时提供更快的 smoke profile 和适合同机对比的完整 profile。
+测试通过 `tsx` 使用 Node 内置的 `node:test` runner。benchmark 同时提供更快的 smoke profile、适合同机对比的完整 profile，以及用 ABBA/交替顺序减小版本顺序偏差的 paired compare。
 
 如果你正在准备对外发布，可以参考 [发布说明](docs/zh/releasing.md)。
 

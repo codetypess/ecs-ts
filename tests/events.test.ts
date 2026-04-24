@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { World, createRegistry, withComponent, withMarker } from "../src";
+import { World, createRegistry, withComponent, withMarker, type Entity } from "../src";
 
 const registry = createRegistry("event-test");
 
@@ -19,8 +19,8 @@ test("multiple observers for the same event all receive the value", () => {
 
 test("observer commands are flushed after each observer returns", () => {
     const Health = registry.defineComponent<{ value: number }>("EventHealth");
-    const Damage = registry.defineEvent<{ target: number; amount: number }>("EventDamage");
-    const Died = registry.defineEvent<{ entity: number }>("EventDied");
+    const Damage = registry.defineEvent<{ target: Entity; amount: number }>("EventDamage");
+    const Died = registry.defineEvent<{ entity: Entity }>("EventDied");
     const world = new World(registry);
     const log: string[] = [];
 

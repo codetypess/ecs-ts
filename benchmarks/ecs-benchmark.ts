@@ -602,7 +602,7 @@ pushPreparedBenchmark(results, "query Position+Velocity", {
         let operations = 0;
 
         for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-            for (const [, position, velocity] of movement.world.query(Position, Velocity)) {
+            for (const [, position, velocity] of movement.world.query([Position, Velocity])) {
                 position.x += velocity.x * 0.001;
                 checksum += position.y;
                 operations++;
@@ -673,7 +673,7 @@ pushPreparedBenchmark(results, "filtered query Player not Sleeping", {
         let operations = 0;
 
         for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-            for (const [, position] of movement.world.queryWhere([Position], {
+            for (const [, position] of movement.world.query([Position], {
                 with: [Player],
                 without: [Sleeping],
             })) {

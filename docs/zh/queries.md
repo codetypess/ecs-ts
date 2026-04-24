@@ -17,7 +17,7 @@ world.each([Position, Velocity], (_entity, position, velocity) => {
 
 ## 过滤器
 
-`queryWhere(...)` 和 `eachWhere(...)` 支持这些过滤器：
+`query(...)` 和 `each(...)` 支持这些过滤器：
 
 - `with`：entity 必须拥有列出的全部 component。
 - `without`：entity 不能拥有列出的任何 component。
@@ -26,7 +26,7 @@ world.each([Position, Velocity], (_entity, position, velocity) => {
 - `changed`：列出的至少一个 component 必须在当前活跃的变更检测范围内发生过变化。
 
 ```ts
-world.eachWhere(
+world.each(
     [Position, Velocity],
     { with: [Player], without: [Sleeping] },
     (_entity, position, velocity) => {

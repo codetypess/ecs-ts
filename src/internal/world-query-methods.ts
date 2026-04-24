@@ -13,17 +13,17 @@ import type {
 import { optionalQueryState, queryState } from "../query.js";
 import type { QueryExecutorContext } from "./query-executor.js";
 import {
-    each as eachQuery,
     eachOptional as eachOptionalQuery,
     eachOptionalWithState as eachOptionalQueryWithState,
+    each as eachQuery,
     eachWithState as eachQueryWithState,
     matchesAnyOptionalWithState as matchesAnyOptionalQueryWithState,
     matchesAnyWithState as matchesAnyQueryWithState,
     matchesSingleOptionalWithState as matchesSingleOptionalQueryWithState,
     matchesSingleWithState as matchesSingleQueryWithState,
-    query as runQuery,
     queryOptional as runOptionalQuery,
     queryOptionalWithState as runOptionalQueryWithState,
+    query as runQuery,
     queryWithState as runQueryWithState,
 } from "./query-executor.js";
 
@@ -32,17 +32,10 @@ export abstract class WorldQueryMethods {
     protected abstract readonly queryContext: QueryExecutorContext;
     protected abstract changeDetectionRange(): ChangeDetectionRange;
 
-    /** Iterates entities that contain all requested component types. */
+    /** Iterates entities from an explicit component tuple with an optional filter. */
     query<const TComponents extends readonly AnyComponentType[]>(
-        ...types: TComponents
-    ): IterableIterator<QueryRow<TComponents>> {
-        return runQuery(this.queryContext, types, {}, this.changeDetectionRange());
-    }
-
-    /** Iterates entities that match the requested components plus an explicit filter. */
-    queryWhere<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents,
-        filter: QueryFilter
+        filter: QueryFilter = {}
     ): IterableIterator<QueryRow<TComponents>> {
         return runQuery(this.queryContext, types, filter, this.changeDetectionRange());
     }
@@ -199,7 +192,7 @@ export abstract class WorldQueryMethods {
         types: TComponents,
         filter: QueryFilter = {}
     ): QueryRow<TComponents> | undefined {
-        const iterator = this.queryWhere(types, filter);
+        const iterator = this.query(types, filter);
         const first = iterator.next();
 
         if (first.done === true) {
@@ -229,21 +222,29 @@ export abstract class WorldQueryMethods {
         return row;
     }
 
-    /** Visits every entity that has all requested component types. */
+    /** Visits every entity for explicit component tuples with optional filter. */
     each<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
-    ): void {
-        eachQuery(this.queryContext, types, {}, this.changeDetectionRange(), visitor);
-    }
-
-    /** Visits every entity that matches the given components plus filter. */
-    eachWhere<const TComponents extends readonly AnyComponentType[]>(
+    ): void;
+    each<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents,
         filter: QueryFilter,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
+    ): void;
+    each<const TComponents extends readonly AnyComponentType[]>(
+        types: TComponents,
+        filterOrVisitor:
+            | QueryFilter
+            | ((entity: Entity, ...components: ComponentTuple<TComponents>) => void),
+        maybeVisitor?: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        eachQuery(this.queryContext, types, filter, this.changeDetectionRange(), visitor);
+        const [filter, visitor] =
+            typeof filterOrVisitor === "function"
+                ? [{}, filterOrVisitor]
+                : [filterOrVisitor, maybeVisitor];
+
+        eachQuery(this.queryContext, types, filter, this.changeDetectionRange(), visitor!);
     }
 
     /** Visits entities where at least one requested component was added recently. */

@@ -52,7 +52,7 @@ test("each skips despawned entities", () => {
     assert.deepEqual(seen, [alive]);
 });
 
-test("eachWhere respects filter", () => {
+test("each supports filter argument", () => {
     const Position = registry.defineComponent<{ x: number }>("EachWherePosition");
     const Active = registry.defineComponent("EachWhereActive");
     const world = new World(registry);
@@ -61,7 +61,7 @@ test("eachWhere respects filter", () => {
     const _b = world.spawn(withComponent(Position, { x: 2 }));
     const seen: number[] = [];
 
-    world.eachWhere([Position], { with: [Active] }, (_entity, pos) => {
+    world.each([Position], { with: [Active] }, (_entity, pos) => {
         seen.push(pos.x);
     });
 

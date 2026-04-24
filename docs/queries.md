@@ -17,7 +17,7 @@ Use `world.query(...)` when you want iterator rows, or `world.each(...)` on hot 
 
 ## Filters
 
-`queryWhere(...)` and `eachWhere(...)` support these filters:
+`query(...)` and `each(...)` support these filters:
 
 - `with`: entity must have all listed components.
 - `without`: entity must not have any listed components.
@@ -26,7 +26,7 @@ Use `world.query(...)` when you want iterator rows, or `world.each(...)` on hot 
 - `changed`: at least one listed component must have changed in the active change-detection range.
 
 ```ts
-world.eachWhere(
+world.each(
     [Position, Velocity],
     { with: [Player], without: [Sleeping] },
     (_entity, position, velocity) => {

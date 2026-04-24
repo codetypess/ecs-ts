@@ -107,7 +107,7 @@ class UiSystem {
     onUpdate(world: World, _dt: number, commands: Commands): void {
         const ui = world.resource(UiRuntimeResource);
 
-        world.eachWhere([UiSource], { without: [UiLoading, UiInstance] }, (entity, source) => {
+        world.each([UiSource], { without: [UiLoading, UiInstance] }, (entity, source) => {
             const abort = new AbortController();
             const requestId = ui.nextRequestId();
 

@@ -60,6 +60,7 @@
     "benchmark:smoke": "node --import tsx benchmarks/ecs-benchmark.ts --profile smoke",
     "benchmark:compare": "node --import tsx benchmarks/compare-benchmark.ts",
     "benchmark:json": "node --import tsx benchmarks/ecs-benchmark.ts --json",
+    "benchmark:paired": "node --import tsx benchmarks/paired-benchmark.ts",
     "example:batch": "node --import tsx examples/world-batch.ts",
     "example:changes": "node --import tsx examples/change-detection.ts",
     "example:commands": "node --import tsx examples/commands.ts",

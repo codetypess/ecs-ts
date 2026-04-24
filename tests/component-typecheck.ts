@@ -79,7 +79,7 @@ const world = new World(registry);
 const entity = world.spawn(withMarker(Marker), withComponent(Value, { value: 1 }));
 const removedValueReader = world.removedReader(Value);
 
-for (const [matched, marker, value] of world.query(Marker, Value)) {
+for (const [matched, marker, value] of world.query([Marker, Value])) {
     expectType<number>(matched);
     expectType<Record<string, never>>(marker);
     expectType<{ value: number }>(value);

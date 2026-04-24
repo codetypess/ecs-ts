@@ -302,7 +302,7 @@ test("world rejects components from a different registry", () => {
         /other-world-test, not world-test/
     );
     assert.throws(() => world.hasComponent(entity, foreign), /other-world-test, not world-test/);
-    assert.throws(() => Array.from(world.query(foreign)), /other-world-test, not world-test/);
+    assert.throws(() => Array.from(world.query([foreign])), /other-world-test, not world-test/);
 });
 
 test("world rejects registry-owned non-component types from a different registry", () => {

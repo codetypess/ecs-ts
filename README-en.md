@@ -49,7 +49,7 @@ const entity = world.spawn(
     withMarker(Selected)
 );
 
-world.eachWhere([Transform], { with: [Element] }, (_entity, transform) => {
+world.each([Transform], { with: [Element] }, (_entity, transform) => {
     transform.x += 10;
 });
 
@@ -131,12 +131,13 @@ npm run benchmark:smoke
 npm run benchmark
 npm run benchmark:json
 npm run benchmark:compare -- --baseline /tmp/ecs-baseline.json --current /tmp/ecs-current.json
+npm run benchmark:paired -- --baseline-dir /tmp/ecs-baseline --current-dir . --rounds 6 -- --profile smoke
 npm run build
 npm run package:smoke
 npm run release:check
 ```
 
-Tests use Node's built-in `node:test` runner through `tsx`. The benchmark scripts support both a smoke profile for quick checks and a fuller multi-sample profile for same-machine comparisons.
+Tests use Node's built-in `node:test` runner through `tsx`. The benchmark scripts support a smoke profile for quick checks, a fuller multi-sample profile for same-machine comparisons, and a paired compare mode that alternates run order to reduce version-order bias.
 
 If you are preparing a public release, see [Releasing](docs/releasing.md).
 
