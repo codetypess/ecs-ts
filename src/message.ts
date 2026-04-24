@@ -40,6 +40,8 @@ export interface MessageReaderOptions {
 /** Cursor-based reader that lets multiple consumers independently read the same messages. */
 export class MessageReader<T> {
     private nextMessageId: number;
+    /** @internal Reused output buffer; never hold a reference to the returned array across frames. */
+    readonly _readBuffer: T[] = [];
 
     constructor(
         readonly type: MessageType<T>,
@@ -91,7 +93,8 @@ export class Messages<T> {
 
     /** Reads unread messages from both buffers and advances the reader cursor. */
     read(reader: MessageReader<T>): readonly T[] {
-        const values: T[] = [];
+        const values = reader._readBuffer;
+        values.length = 0;
         const cursor = reader.cursor;
 
         this.collectUnread(this.previousBuffer(), cursor, values);
