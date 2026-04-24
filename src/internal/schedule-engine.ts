@@ -1,8 +1,8 @@
 import type {
     ScheduleStage,
+    SystemRunCondition,
     SystemRunner,
     SystemSetConfig,
-    SystemRunCondition,
     SystemSetLabel,
     SystemSetOptions,
 } from "../scheduler.js";
@@ -28,6 +28,7 @@ type ScheduleCollections = ReturnType<typeof createSchedules>;
 export interface ScheduleEngineContext {
     fixedTimeStep: number;
     fixedUpdateAccumulator: number;
+    maxFixedStepsPerFrame: number;
     readonly systemSets: Map<SystemSetLabel, SystemSetConfig>;
     readonly systemSetsByStage: ScheduleStageConfigs;
     readonly schedules: ScheduleCollections;
@@ -39,6 +40,7 @@ export function createScheduleEngineContext(): ScheduleEngineContext {
     return {
         fixedTimeStep: 1 / 60,
         fixedUpdateAccumulator: 0,
+        maxFixedStepsPerFrame: 8,
         systemSets: new Map(),
         systemSetsByStage: createSystemSetStageConfigs(),
         schedules: createSchedules(),
@@ -65,6 +67,15 @@ export function configureSetForStage(
 ): void {
     context.systemSetsByStage[stage].set(set, createSystemSetConfig(options));
     invalidateScheduleCache(context, stage);
+}
+
+/** Sets the maximum number of fixed-update steps allowed per frame (default 8). */
+export function setMaxFixedStepsPerFrame(context: ScheduleEngineContext, maxSteps: number): void {
+    if (!Number.isFinite(maxSteps) || maxSteps < 1 || !Number.isInteger(maxSteps)) {
+        throw new Error("Max fixed steps per frame must be a positive integer");
+    }
+
+    context.maxFixedStepsPerFrame = maxSteps;
 }
 
 /** Sets the fixed-update timestep used by the accumulator. */
@@ -124,9 +135,19 @@ export function runFixedUpdate(
 ): void {
     context.fixedUpdateAccumulator += dt;
 
-    while (context.fixedUpdateAccumulator >= context.fixedTimeStep) {
+    let steps = 0;
+
+    while (
+        context.fixedUpdateAccumulator >= context.fixedTimeStep &&
+        steps < context.maxFixedStepsPerFrame
+    ) {
         runSchedule(context, "fixedUpdate", context.fixedTimeStep, runSystems);
         context.fixedUpdateAccumulator -= context.fixedTimeStep;
+        steps++;
+    }
+
+    if (steps >= context.maxFixedStepsPerFrame) {
+        context.fixedUpdateAccumulator = 0;
     }
 }
 

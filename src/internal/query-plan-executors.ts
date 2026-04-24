@@ -1,8 +1,8 @@
 import type { AnyComponentType } from "../component.js";
 import type { ChangeDetectionRange, OptionalQueryRow, QueryRow } from "../query.js";
 import { chooseSmallestStore } from "../query.js";
-import { fillComponents, fillOptionalComponents, hasComponents } from "./query-components.js";
 import { SparseSet } from "../sparse-set.js";
+import { fillComponents, fillOptionalComponents, hasComponents } from "./query-components.js";
 import type {
     OptionalQueryCountExecutor,
     OptionalQueryEachExecutor,
@@ -300,7 +300,7 @@ function* iterateRequiredGeneric(
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = plan.scratchpad;
+    const components: unknown[] = new Array(plan.stores.length);
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
@@ -320,7 +320,7 @@ function* iterateRequiredGenericFiltered(
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = plan.scratchpad;
+    const components: unknown[] = new Array(plan.stores.length);
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
@@ -549,7 +549,7 @@ function eachRequiredGeneric(
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = plan.scratchpad;
+    const components: unknown[] = new Array(plan.stores.length);
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
@@ -570,7 +570,7 @@ function eachRequiredGenericFiltered(
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = plan.scratchpad;
+    const components: unknown[] = new Array(plan.stores.length);
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
@@ -706,7 +706,9 @@ function* iterateOptionalGeneric(
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = plan.scratchpad;
+    const components: unknown[] = new Array(
+        plan.requiredStores.length + plan.optionalStores.length
+    );
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;
@@ -825,7 +827,9 @@ function eachOptionalGeneric(
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
-    const components: unknown[] = plan.scratchpad;
+    const components: unknown[] = new Array(
+        plan.requiredStores.length + plan.optionalStores.length
+    );
 
     for (let index = 0; index < baseEntities.length; index++) {
         const entity = baseEntities[index]!;

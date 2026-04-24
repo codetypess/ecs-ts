@@ -1,8 +1,9 @@
 import type { Entity } from "./entity.js";
 import type { Registry } from "./registry.js";
+import { assertRegisteredType } from "./registry.js";
 import type { World } from "./world.js";
 
-export { createRegistry, Registry, Registry as ComponentRegistry } from "./registry.js";
+export { createRegistry, Registry } from "./registry.js";
 export type { AnyRegistryType } from "./registry.js";
 
 /** Callback used by component lifecycle hooks. */
@@ -93,13 +94,7 @@ export function assertRegisteredComponent(
     type: AnyComponentType,
     action: string
 ): void {
-    if (type.registry === registry) {
-        return;
-    }
-
-    throw new Error(
-        `Cannot ${action} component ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
-    );
+    assertRegisteredType(registry, type, "component", action);
 }
 
 /** Throws unless every component belongs to the expected registry. */

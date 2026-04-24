@@ -1,5 +1,6 @@
 import type { Commands } from "./commands.js";
 import type { Registry } from "./registry.js";
+import { assertRegisteredType } from "./registry.js";
 import type { World } from "./world.js";
 
 declare const EventTypeBrand: unique symbol;
@@ -24,11 +25,5 @@ export function assertRegisteredEvent(
     type: AnyEventType,
     action: string
 ): void {
-    if (type.registry === registry) {
-        return;
-    }
-
-    throw new Error(
-        `Cannot ${action} event ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
-    );
+    assertRegisteredType(registry, type, "event", action);
 }

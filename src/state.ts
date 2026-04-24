@@ -1,4 +1,5 @@
 import type { Registry } from "./registry.js";
+import { assertRegisteredType } from "./registry.js";
 
 /** Primitive values supported by the built-in state machine. */
 export type StateValue = string | number | symbol | boolean;
@@ -20,11 +21,5 @@ export function assertRegisteredState(
     type: AnyStateType,
     action: string
 ): void {
-    if (type.registry === registry) {
-        return;
-    }
-
-    throw new Error(
-        `Cannot ${action} state ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
-    );
+    assertRegisteredType(registry, type, "state", action);
 }

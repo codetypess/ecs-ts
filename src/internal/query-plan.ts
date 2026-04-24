@@ -88,7 +88,6 @@ export interface ResolvedQueryPlan {
     readonly iterate: QueryIterateExecutor;
     readonly each: QueryEachExecutor;
     readonly countMatches: QueryCountExecutor;
-    readonly scratchpad: unknown[];
 }
 
 /** Execution plan for a query with required and optional component sections. */
@@ -101,7 +100,6 @@ export interface ResolvedOptionalQueryPlan {
     readonly iterate: OptionalQueryIterateExecutor;
     readonly each: OptionalQueryEachExecutor;
     readonly countMatches: OptionalQueryCountExecutor;
-    readonly scratchpad: unknown[];
 }
 
 /** Cache entry for `QueryState` plans keyed by component-store topology. */
@@ -405,7 +403,6 @@ function createQueryPlan(
         iterate: compileRequiredQueryIterate(stores.length, filterMode),
         each: compileRequiredQueryEach(stores.length, filterMode),
         countMatches: compileRequiredQueryCount(filterMode),
-        scratchpad: new Array(stores.length),
     };
 }
 
@@ -432,7 +429,6 @@ function createOptionalQueryPlan(
         ),
         each: compileOptionalQueryEach(requiredStores.length, optionalStores.length, filterMode),
         countMatches: compileOptionalQueryCount(filterMode),
-        scratchpad: new Array(requiredStores.length + optionalStores.length),
     };
 }
 function assertRegisteredQueryComponent(registry: Registry, type: AnyComponentType): void {

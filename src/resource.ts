@@ -1,4 +1,5 @@
 import type { Registry } from "./registry.js";
+import { assertRegisteredType } from "./registry.js";
 
 declare const ResourceTypeBrand: unique symbol;
 
@@ -22,11 +23,5 @@ export function assertRegisteredResource(
     type: AnyResourceType,
     action: string
 ): void {
-    if (type.registry === registry) {
-        return;
-    }
-
-    throw new Error(
-        `Cannot ${action} resource ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
-    );
+    assertRegisteredType(registry, type, "resource", action);
 }

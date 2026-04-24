@@ -3,6 +3,7 @@ import {
     AnyComponentEntry,
     AnyComponentType,
     assertRegisteredComponent,
+    assertRegisteredComponents,
     ComponentHook,
     ComponentLifecycleStage,
     ComponentType,
@@ -10,6 +11,14 @@ import {
 import { Entity, EntityManager, formatEntity, type EntityType } from "./entity.js";
 import { assertRegisteredEvent, type EventObserver, type EventType } from "./event.js";
 import { runSystemWithCommands } from "./internal/command-execution.js";
+import {
+    assertComponentDepsPresent,
+    assertComponentHasNoDependents,
+    assertSpawnEntriesSatisfied,
+    currentEntityComponentTypes,
+    entriesHaveDependencyChecks,
+    sortEntriesByDependencies,
+} from "./internal/component-dependencies.js";
 import {
     createComponentHookContext,
     runComponentHooks as dispatchComponentHooks,
@@ -40,14 +49,6 @@ import {
     createEntityComponentIndexContext,
     getEntityComponents,
 } from "./internal/entity-component-index.js";
-import {
-    assertComponentDepsPresent,
-    assertComponentHasNoDependents,
-    assertSpawnEntriesSatisfied,
-    currentEntityComponentTypes,
-    entriesHaveDependencyChecks,
-    sortEntriesByDependencies,
-} from "./internal/component-dependencies.js";
 import {
     createEventContext,
     observeEvent,
@@ -93,10 +94,10 @@ import {
     runFixedUpdate as runScheduledFixedUpdate,
     runSchedule as runScheduledStage,
     setFixedTimeStep as setScheduleFixedTimeStep,
+    setMaxFixedStepsPerFrame as setScheduleMaxFixedStepsPerFrame,
     shouldRunSystem as shouldRunScheduledSystem,
     type ScheduleEngineContext,
 } from "./internal/schedule-engine.js";
-import { runWorldBatch, type WorldBatchRuntime } from "./internal/world-batch.js";
 import {
     addStateSystem as addStateLifecycleSystem,
     addTransitionSystem as addStateTransitionSystem,
@@ -113,6 +114,7 @@ import {
     setState,
     type StateMachineContext,
 } from "./internal/state-machine.js";
+import { runWorldBatch, type WorldBatchRuntime } from "./internal/world-batch.js";
 import { WorldQueryMethods } from "./internal/world-query-methods.js";
 import {
     assertRegisteredMessage,
@@ -289,9 +291,7 @@ export class World extends WorldQueryMethods {
 
     /** Inserts or replaces a component value on a live entity. */
     addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this {
-        if (type.registry !== this.registry) {
-            assertRegisteredComponent(this.registry, type, "add");
-        }
+        assertRegisteredComponent(this.registry, type, "add");
 
         if (type.deps.length > 0 && this.entities.isAlive(entity)) {
             assertComponentDepsPresent(
@@ -312,9 +312,7 @@ export class World extends WorldQueryMethods {
 
     /** Marks an existing component as changed without replacing its value. */
     markComponentChanged<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
-        if (type.registry !== this.registry) {
-            assertRegisteredComponent(this.registry, type, "mark changed");
-        }
+        assertRegisteredComponent(this.registry, type, "mark changed");
 
         return markStoredComponentChanged(this.componentContext, entity, type);
     }
@@ -325,9 +323,7 @@ export class World extends WorldQueryMethods {
     // execution still share the flattened internal helpers.
     /** Returns whether the entity currently has the requested component. */
     hasComponent<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
-        if (type.registry !== this.registry) {
-            assertRegisteredComponent(this.registry, type, "read");
-        }
+        assertRegisteredComponent(this.registry, type, "read");
 
         return (
             this.entities.isAlive(entity) &&
@@ -337,31 +333,21 @@ export class World extends WorldQueryMethods {
 
     /** Returns whether the entity has every component in the provided list. */
     hasAllComponents(entity: Entity, types: readonly AnyComponentType[]): boolean {
-        for (const type of types) {
-            if (type.registry !== this.registry) {
-                assertRegisteredComponent(this.registry, type, "read");
-            }
-        }
+        assertRegisteredComponents(this.registry, types, "read");
 
         return hasAllComponents(this.entities, this.componentStoreContext.stores, entity, types);
     }
 
     /** Returns whether the entity has at least one component in the provided list. */
     hasAnyComponents(entity: Entity, types: readonly AnyComponentType[]): boolean {
-        for (const type of types) {
-            if (type.registry !== this.registry) {
-                assertRegisteredComponent(this.registry, type, "read");
-            }
-        }
+        assertRegisteredComponents(this.registry, types, "read");
 
         return hasAnyComponents(this.entities, this.componentStoreContext.stores, entity, types);
     }
 
     /** Returns the component value for the entity, or `undefined` when absent. */
     getComponent<T extends object>(entity: Entity, type: ComponentType<T>): T | undefined {
-        if (type.registry !== this.registry) {
-            assertRegisteredComponent(this.registry, type, "read");
-        }
+        assertRegisteredComponent(this.registry, type, "read");
 
         if (!this.entities.isAlive(entity)) {
             return undefined;
@@ -386,20 +372,14 @@ export class World extends WorldQueryMethods {
         entity: Entity,
         ...types: TComponents
     ): ComponentTuple<TComponents> | undefined {
-        for (const type of types) {
-            if (type.registry !== this.registry) {
-                assertRegisteredComponent(this.registry, type, "read");
-            }
-        }
+        assertRegisteredComponents(this.registry, types, "read");
 
         return getManyComponents(this.entities, this.componentStoreContext.stores, entity, types);
     }
 
     /** Returns whether the component was added inside the current change-detection window. */
     isComponentAdded<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
-        if (type.registry !== this.registry) {
-            assertRegisteredComponent(this.registry, type, "read");
-        }
+        assertRegisteredComponent(this.registry, type, "read");
 
         return isComponentAdded(
             this.entities,
@@ -412,9 +392,7 @@ export class World extends WorldQueryMethods {
 
     /** Returns whether the component changed inside the current change-detection window. */
     isComponentChanged<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
-        if (type.registry !== this.registry) {
-            assertRegisteredComponent(this.registry, type, "read");
-        }
+        assertRegisteredComponent(this.registry, type, "read");
 
         return isComponentChanged(
             this.entities,
@@ -427,9 +405,7 @@ export class World extends WorldQueryMethods {
 
     /** Removes a single component and records lifecycle hooks plus removed data. */
     removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
-        if (type.registry !== this.registry) {
-            assertRegisteredComponent(this.registry, type, "remove");
-        }
+        assertRegisteredComponent(this.registry, type, "remove");
 
         const componentIds = getEntityComponents(this.entityComponents, entity);
 
@@ -456,9 +432,7 @@ export class World extends WorldQueryMethods {
     drainRemoved<TComponent extends AnyComponentType>(
         type: TComponent
     ): RemovedComponent<TComponent>[] {
-        if (type.registry !== this.registry) {
-            assertRegisteredComponent(this.registry, type, "read removed");
-        }
+        assertRegisteredComponent(this.registry, type, "read removed");
 
         return drainRemovedComponents(this.removedContext, type);
     }
@@ -468,9 +442,7 @@ export class World extends WorldQueryMethods {
         type: TComponent,
         options: RemovedReaderOptions = {}
     ): RemovedReader<TComponent> {
-        if (type.registry !== this.registry) {
-            assertRegisteredComponent(this.registry, type, "create removed reader");
-        }
+        assertRegisteredComponent(this.registry, type, "create removed reader");
 
         return createBoundRemovedReader(this.removedContext, type, options);
     }
@@ -531,6 +503,13 @@ export class World extends WorldQueryMethods {
         return this;
     }
 
+    /** Sets the maximum number of fixed-update steps run per frame before excess time is dropped. */
+    setMaxFixedStepsPerFrame(maxSteps: number): this {
+        setScheduleMaxFixedStepsPerFrame(this.scheduleContext, maxSteps);
+
+        return this;
+    }
+
     /** Advances the world by one frame, running startup once and then update schedules. */
     update(dt: number): void {
         if (this.didShutdown) {
@@ -563,9 +542,7 @@ export class World extends WorldQueryMethods {
 
     /** Registers a message channel so it exists even before the first write. */
     addMessage<T>(type: MessageType<T>): this {
-        if (type.registry !== this.registry) {
-            assertRegisteredMessage(this.registry, type, "add");
-        }
+        assertRegisteredMessage(this.registry, type, "add");
 
         addMessageType(this.messageContext, type);
 
@@ -574,36 +551,28 @@ export class World extends WorldQueryMethods {
 
     /** Writes a message into the current frame's message buffer. */
     writeMessage<T>(type: MessageType<T>, value: T): MessageId<T> {
-        if (type.registry !== this.registry) {
-            assertRegisteredMessage(this.registry, type, "write");
-        }
+        assertRegisteredMessage(this.registry, type, "write");
 
         return writeStoredMessage(this.messageContext, type, value);
     }
 
     /** Reads unread messages for a cursor-based reader. */
     readMessages<T>(reader: MessageReader<T>): readonly T[] {
-        if (reader.type.registry !== this.registry) {
-            assertRegisteredMessage(this.registry, reader.type, "read");
-        }
+        assertRegisteredMessage(this.registry, reader.type, "read");
 
         return readStoredMessages(this.messageContext, reader);
     }
 
     /** Returns every buffered message for the channel and clears them. */
     drainMessages<T>(type: MessageType<T>): T[] {
-        if (type.registry !== this.registry) {
-            assertRegisteredMessage(this.registry, type, "drain");
-        }
+        assertRegisteredMessage(this.registry, type, "drain");
 
         return drainStoredMessages(this.messageContext, type);
     }
 
     /** Clears all buffered messages for the channel. */
     clearMessages<T>(type: MessageType<T>): this {
-        if (type.registry !== this.registry) {
-            assertRegisteredMessage(this.registry, type, "clear");
-        }
+        assertRegisteredMessage(this.registry, type, "clear");
 
         clearStoredMessages(this.messageContext, type);
 
@@ -612,18 +581,14 @@ export class World extends WorldQueryMethods {
 
     /** Registers an immediate event observer and returns an unsubscribe function. */
     observe<T>(type: EventType<T>, observer: EventObserver<T>): () => void {
-        if (type.registry !== this.registry) {
-            assertRegisteredEvent(this.registry, type, "observe");
-        }
+        assertRegisteredEvent(this.registry, type, "observe");
 
         return observeEvent(this.eventContext, type.id, observer);
     }
 
     /** Triggers an event immediately; observers run in subscription order. */
     trigger<T>(type: EventType<T>, value: T): this {
-        if (type.registry !== this.registry) {
-            assertRegisteredEvent(this.registry, type, "trigger");
-        }
+        assertRegisteredEvent(this.registry, type, "trigger");
 
         triggerEvent(this.eventContext, type.id, value, this);
         return this;
@@ -660,18 +625,14 @@ export class World extends WorldQueryMethods {
         stage: ComponentLifecycleStage,
         hook: ComponentHook<T>
     ): () => void {
-        if (type.registry !== this.registry) {
-            assertRegisteredComponent(this.registry, type, "register hook for");
-        }
+        assertRegisteredComponent(this.registry, type, "register hook for");
 
         return registerComponentHook(this.componentHookContext, type, stage, hook);
     }
 
     /** Ensures a state machine exists, using the provided initial value only on first creation. */
     initState<T extends StateValue>(type: StateType<T>, initial = type.initial): this {
-        if (type.registry !== this.registry) {
-            assertRegisteredState(this.registry, type, "initialize");
-        }
+        assertRegisteredState(this.registry, type, "initialize");
 
         initState(this.stateContext, type, initial);
 
@@ -680,18 +641,14 @@ export class World extends WorldQueryMethods {
 
     /** Returns the current value of an initialized state machine. */
     state<T extends StateValue>(type: StateType<T>): T {
-        if (type.registry !== this.registry) {
-            assertRegisteredState(this.registry, type, "read");
-        }
+        assertRegisteredState(this.registry, type, "read");
 
         return currentState(this.stateContext, type);
     }
 
     /** Returns whether the state machine has been initialized. */
     hasState<T extends StateValue>(type: StateType<T>): boolean {
-        if (type.registry !== this.registry) {
-            assertRegisteredState(this.registry, type, "read");
-        }
+        assertRegisteredState(this.registry, type, "read");
 
         return hasState(this.stateContext, type);
     }
@@ -701,18 +658,14 @@ export class World extends WorldQueryMethods {
         type: StateType<T>,
         predicate: (value: T, world: World) => boolean
     ): boolean {
-        if (type.registry !== this.registry) {
-            assertRegisteredState(this.registry, type, "read");
-        }
+        assertRegisteredState(this.registry, type, "read");
 
         return matchesState(this.stateContext, type, predicate, this);
     }
 
     /** Requests a transition that will be applied during the next update cycle. */
     setState<T extends StateValue>(type: StateType<T>, next: T): this {
-        if (type.registry !== this.registry) {
-            assertRegisteredState(this.registry, type, "set");
-        }
+        assertRegisteredState(this.registry, type, "set");
 
         setState(this.stateContext, type, next);
 
@@ -721,9 +674,7 @@ export class World extends WorldQueryMethods {
 
     /** Registers a callback that runs when the state enters the given value. */
     onEnter<T extends StateValue>(type: StateType<T>, value: T, system: SystemCallback): this {
-        if (type.registry !== this.registry) {
-            assertRegisteredState(this.registry, type, "register enter system for");
-        }
+        assertRegisteredState(this.registry, type, "register enter system for");
 
         onEnterState(this.stateContext, type, value, system);
 
@@ -732,9 +683,7 @@ export class World extends WorldQueryMethods {
 
     /** Registers a callback that runs when the state exits the given value. */
     onExit<T extends StateValue>(type: StateType<T>, value: T, system: SystemCallback): this {
-        if (type.registry !== this.registry) {
-            assertRegisteredState(this.registry, type, "register exit system for");
-        }
+        assertRegisteredState(this.registry, type, "register exit system for");
 
         onExitState(this.stateContext, type, value, system);
 
@@ -748,9 +697,7 @@ export class World extends WorldQueryMethods {
         to: T,
         system: SystemCallback
     ): this {
-        if (type.registry !== this.registry) {
-            assertRegisteredState(this.registry, type, "register transition system for");
-        }
+        assertRegisteredState(this.registry, type, "register transition system for");
 
         onTransitionState(this.stateContext, type, from, to, system);
 
@@ -763,9 +710,7 @@ export class World extends WorldQueryMethods {
         value: T,
         system: StateSystem<T>
     ): this {
-        if (type.registry !== this.registry) {
-            assertRegisteredState(this.registry, type, "register state system for");
-        }
+        assertRegisteredState(this.registry, type, "register state system for");
 
         addStateLifecycleSystem(this.stateContext, type, value, system.onEnter, system.onExit);
 
@@ -779,9 +724,7 @@ export class World extends WorldQueryMethods {
         to: T,
         system: TransitionSystem<T>
     ): this {
-        if (type.registry !== this.registry) {
-            assertRegisteredState(this.registry, type, "register transition system for");
-        }
+        assertRegisteredState(this.registry, type, "register transition system for");
 
         addStateTransitionSystem(this.stateContext, type, from, to, system.onTransition);
 
@@ -790,9 +733,7 @@ export class World extends WorldQueryMethods {
 
     /** Inserts or replaces a singleton resource. */
     setResource<T>(type: ResourceType<T>, value: T): this {
-        if (type.registry !== this.registry) {
-            assertRegisteredResource(this.registry, type, "set");
-        }
+        assertRegisteredResource(this.registry, type, "set");
 
         setStoredResource(this.resourceContext, type, value);
 
@@ -801,18 +742,14 @@ export class World extends WorldQueryMethods {
 
     /** Returns whether the resource exists. */
     hasResource<T>(type: ResourceType<T>): boolean {
-        if (type.registry !== this.registry) {
-            assertRegisteredResource(this.registry, type, "read");
-        }
+        assertRegisteredResource(this.registry, type, "read");
 
         return hasStoredResource(this.resourceContext, type);
     }
 
     /** Returns the resource value, or `undefined` when missing. */
     getResource<T>(type: ResourceType<T>): T | undefined {
-        if (type.registry !== this.registry) {
-            assertRegisteredResource(this.registry, type, "read");
-        }
+        assertRegisteredResource(this.registry, type, "read");
 
         return getStoredResource(this.resourceContext, type);
     }
@@ -822,18 +759,14 @@ export class World extends WorldQueryMethods {
         type: ResourceType<T>,
         predicate: (value: T, world: World) => boolean
     ): boolean {
-        if (type.registry !== this.registry) {
-            assertRegisteredResource(this.registry, type, "read");
-        }
+        assertRegisteredResource(this.registry, type, "read");
 
         return matchesStoredResource(this.resourceContext, type, predicate, this);
     }
 
     /** Returns the resource value or throws when it is missing. */
     resource<T>(type: ResourceType<T>): T {
-        if (type.registry !== this.registry) {
-            assertRegisteredResource(this.registry, type, "read");
-        }
+        assertRegisteredResource(this.registry, type, "read");
 
         const resource = getStoredResource(this.resourceContext, type);
 
@@ -846,36 +779,28 @@ export class World extends WorldQueryMethods {
 
     /** Removes a resource and returns the previous value, if any. */
     removeResource<T>(type: ResourceType<T>): T | undefined {
-        if (type.registry !== this.registry) {
-            assertRegisteredResource(this.registry, type, "remove");
-        }
+        assertRegisteredResource(this.registry, type, "remove");
 
         return removeStoredResource(this.resourceContext, type);
     }
 
     /** Marks an existing resource as changed without replacing its value. */
     markResourceChanged<T>(type: ResourceType<T>): boolean {
-        if (type.registry !== this.registry) {
-            assertRegisteredResource(this.registry, type, "mark changed");
-        }
+        assertRegisteredResource(this.registry, type, "mark changed");
 
         return markStoredResourceChanged(this.resourceContext, type);
     }
 
     /** Returns whether the resource was added inside the current change-detection window. */
     isResourceAdded<T>(type: ResourceType<T>): boolean {
-        if (type.registry !== this.registry) {
-            assertRegisteredResource(this.registry, type, "read");
-        }
+        assertRegisteredResource(this.registry, type, "read");
 
         return isStoredResourceAdded(this.resourceContext, type);
     }
 
     /** Returns whether the resource changed inside the current change-detection window. */
     isResourceChanged<T>(type: ResourceType<T>): boolean {
-        if (type.registry !== this.registry) {
-            assertRegisteredResource(this.registry, type, "read");
-        }
+        assertRegisteredResource(this.registry, type, "read");
 
         return isStoredResourceChanged(this.resourceContext, type);
     }
@@ -886,9 +811,7 @@ export class World extends WorldQueryMethods {
                 this.assertEntriesRegistered(entries, action);
             },
             assertComponentRegistered: (type, action) => {
-                if (type.registry !== this.registry) {
-                    assertRegisteredComponent(this.registry, type, action);
-                }
+                assertRegisteredComponent(this.registry, type, action);
             },
             isAlive: (entity) => this.entities.isAlive(entity),
             reserveEntity: this.commandRuntime.reserveEntity,
@@ -921,9 +844,7 @@ export class World extends WorldQueryMethods {
 
     private assertEntriesRegistered(entries: readonly AnyComponentEntry[], action: string): void {
         for (const entry of entries) {
-            if (entry.type.registry !== this.registry) {
-                assertRegisteredComponent(this.registry, entry.type, action);
-            }
+            assertRegisteredComponent(this.registry, entry.type, action);
         }
     }
 
