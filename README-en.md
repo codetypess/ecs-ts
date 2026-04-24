@@ -95,11 +95,15 @@ If you open the docs first, the project is easier to understand as a set of work
 - [Queries](docs/queries.md): how querying, optional components, filters, and `QueryState` fit together.
 - [Scheduler](docs/scheduler.md): how systems are ordered and when they run.
 - [Change Detection](docs/change-detection.md): how `added`, `changed`, removed readers, and message flow behave.
+- [Structural Writes](docs/structural-writes.md): when to use direct world writes, `Commands`, `world.batch(...)`, and `deps`.
 
 If you want code instead of prose, the examples are the next best entry point:
 
 ```sh
 npm run examples:check
+npm run example:commands
+npm run example:batch
+npm run example:deps
 npm run example:lifecycle
 npm run example:scheduler
 npm run example:scheduler-showcase

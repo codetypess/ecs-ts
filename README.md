@@ -98,11 +98,15 @@ if (world.hasComponent(entity, Element)) {
 - [Queries](docs/zh/queries.md)：query、filter、optional component 和 `QueryState`。
 - [Scheduler](docs/zh/scheduler.md)：system 什么时候跑、怎么排序、怎么组合条件。
 - [Change Detection](docs/zh/change-detection.md)：`added`、`changed`、removed readers 和 message 的行为。
+- [结构修改](docs/zh/structural-writes.md)：直接写 world、`Commands`、`world.batch(...)` 和 `deps` 的区别。
 
 如果你更想先看代码而不是说明，examples 是更好的入口：
 
 ```sh
 npm run examples:check
+npm run example:commands
+npm run example:batch
+npm run example:deps
 npm run example:lifecycle
 npm run example:scheduler
 npm run example:scheduler-showcase
