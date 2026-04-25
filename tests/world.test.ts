@@ -219,19 +219,19 @@ test("component lifecycle hooks fire in order and can be unsubscribed", () => {
         onDespawn: (_entity, position) => events.push(`type:despawn:${position.x}`),
     });
     const world = new World(registry);
-    const offAdd = world.onAdd(Position, (_entity, position) =>
+    const offAdd = world.onAddComponent(Position, (_entity, position) =>
         events.push(`world:add:${position.x}`)
     );
-    const offInsert = world.onInsert(Position, (_entity, position) =>
+    const offInsert = world.onInsertComponent(Position, (_entity, position) =>
         events.push(`world:insert:${position.x}`)
     );
-    const offReplace = world.onReplace(Position, (_entity, position) =>
+    const offReplace = world.onReplaceComponent(Position, (_entity, position) =>
         events.push(`world:replace:${position.x}`)
     );
-    const offRemove = world.onRemove(Position, (_entity, position) =>
+    const offRemove = world.onRemoveComponent(Position, (_entity, position) =>
         events.push(`world:remove:${position.x}`)
     );
-    const offDespawn = world.onDespawn(Position, (_entity, position) =>
+    const offDespawn = world.onDespawnComponent(Position, (_entity, position) =>
         events.push(`world:despawn:${position.x}`)
     );
 

@@ -5,7 +5,6 @@ import {
     assertRegisteredComponent,
     assertRegisteredComponents,
     ComponentHook,
-    ComponentLifecycleStage,
     ComponentType,
 } from "./component.js";
 import { Entity, EntityManager, formatEntity, type EntityType } from "./entity.js";
@@ -596,39 +595,50 @@ export class World extends WorldQueryMethods {
     }
 
     /** Registers a component hook that runs after the component is first added. */
-    onAdd<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
-        return this.onComponentHook(type, "onAdd", hook);
+    onAddComponent<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
+        assertRegisteredComponent(this.registry, type, "register hook for");
+
+        return registerComponentHook(this.componentHookContext, type, "onAdd", hook);
     }
 
     /** Registers a component hook that runs after every insert or replace. */
-    onInsert<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
-        return this.onComponentHook(type, "onInsert", hook);
-    }
-
-    /** Registers a component hook that runs with the previous value before replacement/removal. */
-    onReplace<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
-        return this.onComponentHook(type, "onReplace", hook);
-    }
-
-    /** Registers a component hook that runs when the component is removed explicitly. */
-    onRemove<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
-        return this.onComponentHook(type, "onRemove", hook);
-    }
-
-    /** Registers a component hook that runs when the entity despawns. */
-    onDespawn<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
-        return this.onComponentHook(type, "onDespawn", hook);
-    }
-
-    /** Registers a component hook for an arbitrary lifecycle stage. */
-    onComponentHook<T extends object>(
+    onInsertComponent<T extends object>(
         type: ComponentType<T>,
-        stage: ComponentLifecycleStage,
         hook: ComponentHook<T>
     ): () => void {
         assertRegisteredComponent(this.registry, type, "register hook for");
 
-        return registerComponentHook(this.componentHookContext, type, stage, hook);
+        return registerComponentHook(this.componentHookContext, type, "onInsert", hook);
+    }
+
+    /** Registers a component hook that runs with the previous value before replacement/removal. */
+    onReplaceComponent<T extends object>(
+        type: ComponentType<T>,
+        hook: ComponentHook<T>
+    ): () => void {
+        assertRegisteredComponent(this.registry, type, "register hook for");
+
+        return registerComponentHook(this.componentHookContext, type, "onReplace", hook);
+    }
+
+    /** Registers a component hook that runs when the component is removed explicitly. */
+    onRemoveComponent<T extends object>(
+        type: ComponentType<T>,
+        hook: ComponentHook<T>
+    ): () => void {
+        assertRegisteredComponent(this.registry, type, "register hook for");
+
+        return registerComponentHook(this.componentHookContext, type, "onRemove", hook);
+    }
+
+    /** Registers a component hook that runs when the entity despawns. */
+    onDespawnComponent<T extends object>(
+        type: ComponentType<T>,
+        hook: ComponentHook<T>
+    ): () => void {
+        assertRegisteredComponent(this.registry, type, "register hook for");
+
+        return registerComponentHook(this.componentHookContext, type, "onDespawn", hook);
     }
 
     /** Ensures a state machine exists, using the provided initial value only on first creation. */
