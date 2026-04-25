@@ -71,6 +71,30 @@ test("sortSystemRunners keeps stage-specific set ordering scoped to one stage", 
     ]);
 });
 
+test("createSystemRunner snapshots ordering arrays", () => {
+    const before = ["prepare"];
+    const after = ["cleanup"];
+    const system = runner({ label: "render", before, after });
+
+    before.push("mutated-before");
+    after.push("mutated-after");
+
+    assert.deepEqual(system.before, ["prepare"]);
+    assert.deepEqual(system.after, ["cleanup"]);
+});
+
+test("createSystemSetConfig snapshots ordering arrays", () => {
+    const before = ["prepare"];
+    const after = ["render"];
+    const config = createSystemSetConfig({ before, after });
+
+    before.push("mutated-before");
+    after.push("mutated-after");
+
+    assert.deepEqual(config.before, ["prepare"]);
+    assert.deepEqual(config.after, ["render"]);
+});
+
 test("sortSystemRunners rejects duplicate system labels", () => {
     assert.throws(
         () => sort([runner({ label: "duplicate" }), runner({ label: "duplicate" })]),

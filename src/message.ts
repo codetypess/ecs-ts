@@ -138,10 +138,17 @@ export class Messages<T> {
     }
 
     private collectUnread(bufferIndex: 0 | 1, cursor: number, output: T[]): void {
-        for (const entry of this.buffers[bufferIndex]) {
-            if (entry.id >= cursor) {
-                output.push(entry.value);
-            }
+        const buffer = this.buffers[bufferIndex];
+
+        if (buffer.length === 0) {
+            return;
+        }
+
+        const firstId = buffer[0]!.id as number;
+        const startIndex = Math.max(0, cursor - firstId);
+
+        for (let index = startIndex; index < buffer.length; index++) {
+            output.push(buffer[index]!.value);
         }
     }
 

@@ -29,6 +29,9 @@ export type SystemSetLabel = SystemLabel;
 /** Predicate consulted before a system is allowed to run. */
 export type SystemRunCondition = (world: World) => boolean;
 
+const EMPTY_SYSTEM_LABELS = Object.freeze([]) as readonly SystemLabel[];
+const EMPTY_SYSTEM_SET_LABELS = Object.freeze([]) as readonly SystemSetLabel[];
+
 /** Shared ordering and run conditions applied to all systems inside a set. */
 export interface SystemSetOptions {
     readonly before?: readonly SystemLabel[];
@@ -77,8 +80,8 @@ export function createSystemRunner(run: SystemCallback, options: SystemOptions =
         run,
         label: options.label,
         sets: normalizeSystemSets(options.set),
-        before: options.before ?? [],
-        after: options.after ?? [],
+        before: cloneSystemLabels(options.before),
+        after: cloneSystemLabels(options.after),
         runIf: options.runIf,
         lastRunTick: 0,
     };
@@ -88,23 +91,31 @@ function normalizeSystemSets(
     set: SystemSetLabel | readonly SystemSetLabel[] | undefined
 ): readonly SystemSetLabel[] {
     if (set === undefined) {
-        return [];
+        return EMPTY_SYSTEM_SET_LABELS;
     }
 
     if (Array.isArray(set)) {
-        return Object.freeze([...set]);
+        return set.length === 0 ? EMPTY_SYSTEM_SET_LABELS : Object.freeze([...set]);
     }
 
-    return [set as SystemSetLabel];
+    return Object.freeze([set as SystemSetLabel]);
 }
 
 /** Freezes a system-set configuration with default empty ordering arrays. */
 export function createSystemSetConfig(options: SystemSetOptions): SystemSetConfig {
-    return {
-        before: options.before ?? [],
-        after: options.after ?? [],
+    return Object.freeze({
+        before: cloneSystemLabels(options.before),
+        after: cloneSystemLabels(options.after),
         runIf: options.runIf,
-    };
+    });
+}
+
+function cloneSystemLabels(labels: readonly SystemLabel[] | undefined): readonly SystemLabel[] {
+    if (labels === undefined || labels.length === 0) {
+        return EMPTY_SYSTEM_LABELS;
+    }
+
+    return Object.freeze([...labels]);
 }
 
 function createStageRecord<T>(createValue: () => T): Record<ScheduleStage, T> {

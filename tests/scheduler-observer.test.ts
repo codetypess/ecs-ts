@@ -169,6 +169,36 @@ test("scheduler supports stage-specific set ordering", () => {
     ]);
 });
 
+test("scheduler snapshots ordering inputs when systems are registered", () => {
+    const calls: string[] = [];
+
+    class NamedSystem {
+        constructor(private readonly name: string) {}
+
+        onUpdate(): void {
+            calls.push(this.name);
+        }
+    }
+
+    const world = new World(registry);
+    const after: string[] = [];
+
+    world.addSystem(new NamedSystem("late"), { label: "late", after });
+    world.addSystem(new NamedSystem("early"), { label: "early" });
+
+    world.update(0);
+
+    assert.deepEqual(calls, ["late", "early"]);
+
+    after.push("early");
+    world.addSystem(new NamedSystem("tail"), { label: "tail" });
+    calls.length = 0;
+
+    world.update(0);
+
+    assert.deepEqual(calls, ["late", "early", "tail"]);
+});
+
 test("scheduler stage-specific set runIf only affects that stage", () => {
     const calls: string[] = [];
 

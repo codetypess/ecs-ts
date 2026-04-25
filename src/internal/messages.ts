@@ -54,7 +54,12 @@ export function writeMessage<T>(
 export function readMessages<T>(context: MessageContext, reader: MessageReader<T>): readonly T[] {
     const messages = context.messageStores[reader.type.id] as Messages<T> | undefined;
 
-    return messages?.read(reader) ?? [];
+    if (messages === undefined) {
+        reader._readBuffer.length = 0;
+        return reader._readBuffer;
+    }
+
+    return messages.read(reader);
 }
 
 /** Returns and clears all buffered messages for the channel. */

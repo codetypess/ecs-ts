@@ -133,6 +133,28 @@ test("empty reads reuse the buffer without advancing the cursor", () => {
     assert.equal(reader.cursor, 1);
 });
 
+test("empty reads reuse the buffer even before the channel exists", () => {
+    const Cold = registry.defineMessage<{ v: number }>("ColdReadBuffer");
+    const world = new World(registry);
+    const reader = world.messageReader(Cold);
+
+    const result1 = reader.read();
+    const result2 = reader.read();
+
+    assert.equal(result1, result2, "_readBuffer should be reused before the first write");
+    assert.equal(result1.length, 0);
+    assert.equal(reader.cursor, 0);
+
+    world.writeMessage(Cold, { v: 1 });
+
+    const result3 = reader.read();
+
+    assert.equal(result3, result1);
+    assert.equal(result3.length, 1);
+    assert.equal(result3[0]?.v, 1);
+    assert.equal(reader.cursor, 1);
+});
+
 test("reading after message expiry returns empty result", () => {
     const Shot = registry.defineMessage<{ dmg: number }>("ExpiryShot");
     const world = new World(registry);
