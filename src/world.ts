@@ -140,12 +140,14 @@ import { assertRegisteredState, type StateType, type StateValue } from "./state.
 import type { StateSystem, System, TransitionSystem } from "./system.js";
 
 export { Commands } from "./commands.js";
-export { OptionalQueryState, optionalQueryState, QueryState, queryState } from "./query.js";
+export { optionalQueryState, queryState } from "./query.js";
 export type {
     ComponentTuple,
     OptionalComponentTuple,
+    OptionalQueryState,
     OptionalQueryRow,
     QueryFilter,
+    QueryState,
     QueryRow,
 } from "./query.js";
 export { scheduleStages } from "./scheduler.js";

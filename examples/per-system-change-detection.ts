@@ -29,7 +29,7 @@ class MutationSystem {
 
 class WatchingEnterSystem {
     onEnter(world: World): void {
-        world.eachChanged([Position], (entity, position) => {
+        world.each([Position], { changed: [Position] }, (entity, position) => {
             console.log(
                 `watching system saw changed ${formatEntity(entity)} -> (${position.x}, ${position.y})`
             );

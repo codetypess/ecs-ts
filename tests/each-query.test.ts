@@ -70,7 +70,7 @@ test("each supports filter argument", () => {
     world.despawn(a);
 });
 
-test("eachAdded only visits newly added components", () => {
+test("each with added filter only visits newly added components", () => {
     const Health = registry.defineComponent<{ value: number }>("EachAddedHealth");
     const world = new World(registry);
 
@@ -78,7 +78,7 @@ test("eachAdded only visits newly added components", () => {
     const b = world.spawn(withComponent(Health, { value: 20 }));
     const added: number[] = [];
 
-    world.eachAdded([Health], (_entity, hp) => {
+    world.each([Health], { added: [Health] }, (_entity, hp) => {
         added.push(hp.value);
     });
 
@@ -91,7 +91,7 @@ test("eachAdded only visits newly added components", () => {
 
     const addedAfterUpdate: number[] = [];
 
-    world.eachAdded([Health], (_entity, hp) => {
+    world.each([Health], { added: [Health] }, (_entity, hp) => {
         addedAfterUpdate.push(hp.value);
     });
 
@@ -100,7 +100,7 @@ test("eachAdded only visits newly added components", () => {
     const c = world.spawn(withComponent(Health, { value: 30 }));
     const addedNew: number[] = [];
 
-    world.eachAdded([Health], (_entity, hp) => {
+    world.each([Health], { added: [Health] }, (_entity, hp) => {
         addedNew.push(hp.value);
     });
 
@@ -111,7 +111,7 @@ test("eachAdded only visits newly added components", () => {
     world.despawn(c);
 });
 
-test("eachChanged only visits recently changed components", () => {
+test("each with changed filter only visits recently changed components", () => {
     const Score = registry.defineComponent<{ value: number }>("EachChangedScore");
     const world = new World(registry);
 
@@ -125,7 +125,7 @@ test("eachChanged only visits recently changed components", () => {
 
     const changed: number[] = [];
 
-    world.eachChanged([Score], (entity, score) => {
+    world.each([Score], { changed: [Score] }, (entity, score) => {
         changed.push(score.value);
         assert.equal(entity, a);
     });
@@ -162,7 +162,7 @@ test("eachOptional visits all required-matching entities and exposes optional", 
     world.despawn(still);
 });
 
-test("eachWithState uses a cached query state", () => {
+test("queryState.each uses a cached query state", () => {
     const Tag = registry.defineComponent("EachWithStateTag");
     const Level = registry.defineComponent<{ n: number }>("EachWithStateLevel");
     const state = queryState([Level], { with: [Tag] });
@@ -172,7 +172,7 @@ test("eachWithState uses a cached query state", () => {
     const _b = world.spawn(withComponent(Level, { n: 2 }));
     const seen: number[] = [];
 
-    world.eachWithState(state, (_entity, lvl) => {
+    state.each(world, (_entity, lvl) => {
         seen.push(lvl.n);
     });
 
@@ -181,7 +181,30 @@ test("eachWithState uses a cached query state", () => {
     world.despawn(a);
 });
 
-test("eachOptionalWithState uses a cached optional query state", () => {
+test("queryState.each supports change-detection filters", () => {
+    const Score = registry.defineComponent<{ value: number }>("EachStateChangedScore");
+    const state = queryState([Score], { changed: [Score] });
+    const world = new World(registry);
+
+    const entity = world.spawn(withComponent(Score, { value: 0 }));
+
+    world.update(0);
+
+    world.mustGetComponent(entity, Score).value = 5;
+    world.markComponentChanged(entity, Score);
+
+    const changed: number[] = [];
+
+    state.each(world, (_entity, score) => {
+        changed.push(score.value);
+    });
+
+    assert.deepEqual(changed, [5]);
+
+    world.despawn(entity);
+});
+
+test("optionalQueryState.each uses a cached optional query state", () => {
     const Base = registry.defineComponent<{ id: number }>("EachOptStateBase");
     const Extra = registry.defineComponent<{ bonus: number }>("EachOptStateExtra");
     const state = optionalQueryState([Base], [Extra]);
@@ -194,7 +217,7 @@ test("eachOptionalWithState uses a cached optional query state", () => {
     const withoutExtra = world.spawn(withComponent(Base, { id: 2 }));
     const rows: { id: number; bonus: number | undefined }[] = [];
 
-    world.eachOptionalWithState(state, (_entity, base, extra) => {
+    state.each(world, (_entity, base, extra) => {
         rows.push({ id: base.id, bonus: extra?.bonus });
     });
 
@@ -208,7 +231,7 @@ test("eachOptionalWithState uses a cached optional query state", () => {
     world.despawn(withoutExtra);
 });
 
-test("eachWithState produces same results as equivalent queryWithState iteration", () => {
+test("queryState.each produces same results as queryState.iter", () => {
     const Value = registry.defineComponent<{ n: number }>("EachVsQueryValue");
     const state = queryState([Value]);
     const world = new World(registry);
@@ -216,10 +239,10 @@ test("eachWithState produces same results as equivalent queryWithState iteration
     const entities = [1, 2, 3, 4, 5].map((n) => world.spawn(withComponent(Value, { n })));
 
     const fromEach: number[] = [];
-    world.eachWithState(state, (_e, v) => fromEach.push(v.n));
+    state.each(world, (_e, v) => fromEach.push(v.n));
 
     const fromQuery: number[] = [];
-    for (const [, v] of world.queryWithState(state)) {
+    for (const [, v] of state.iter(world)) {
         fromQuery.push(v.n);
     }
 

@@ -34,7 +34,7 @@ test("per-system change detection lets state systems see earlier changes", () =>
 
     class WatchingEnterSystem {
         onEnter(world: World): void {
-            world.eachChanged([Position], (_entity, position) => {
+            world.each([Position], { changed: [Position] }, (_entity, position) => {
                 seen.push(position.x);
             });
         }

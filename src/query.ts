@@ -1,5 +1,16 @@
 import type { AnyComponentType, ComponentData } from "./component.js";
 import type { Entity } from "./entity.js";
+import {
+    eachOptionalWithState as eachOptionalQueryWithState,
+    eachWithState as eachQueryWithState,
+    matchesAnyOptionalWithState as matchesAnyOptionalQueryWithState,
+    matchesAnyWithState as matchesAnyQueryWithState,
+    matchesSingleOptionalWithState as matchesSingleOptionalQueryWithState,
+    matchesSingleWithState as matchesSingleQueryWithState,
+    queryOptionalWithState as runOptionalQueryWithState,
+    queryWithState as runQueryWithState,
+    type QueryExecutorContext,
+} from "./internal/query-executor.js";
 import type { Registry } from "./registry.js";
 import type { SparseSet } from "./sparse-set.js";
 import type { World } from "./world.js";
@@ -46,7 +57,80 @@ export interface ChangeDetectionRange {
 }
 
 /** Cached query definition for repeated required-component queries. */
-export class QueryState<TComponents extends readonly AnyComponentType[]> {
+export interface QueryState<TComponents extends readonly AnyComponentType[]> {
+    readonly registry: Registry;
+    readonly types: TComponents;
+    readonly filter: QueryFilter;
+    /** Iterates matching rows using the world's cached query plan. */
+    iter(world: World): IterableIterator<QueryRow<TComponents>>;
+    /** Visits each matching row without exposing the iterator protocol. */
+    each(
+        world: World,
+        visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
+    ): void;
+    /** Returns `true` when at least one row matches. */
+    matchesAny(world: World): boolean;
+    /** Returns `true` when no rows match. */
+    matchesNone(world: World): boolean;
+    /** Returns `true` when exactly one row matches. */
+    matchesSingle(world: World): boolean;
+}
+
+/** Cached query definition for required components plus trailing optional components. */
+export interface OptionalQueryState<
+    TRequiredComponents extends readonly AnyComponentType[],
+    TOptionalComponents extends readonly AnyComponentType[],
+> {
+    readonly registry: Registry;
+    readonly required: TRequiredComponents;
+    readonly optional: TOptionalComponents;
+    readonly filter: QueryFilter;
+    /** Iterates matching rows using the world's cached optional-query plan. */
+    iter(
+        world: World
+    ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>>;
+    /** Visits each optional-query row without exposing the iterator protocol. */
+    each(
+        world: World,
+        visitor: (
+            entity: Entity,
+            ...components: [
+                ...ComponentTuple<TRequiredComponents>,
+                ...OptionalComponentTuple<TOptionalComponents>,
+            ]
+        ) => void
+    ): void;
+    /** Returns `true` when at least one row matches. */
+    matchesAny(world: World): boolean;
+    /** Returns `true` when no rows match. */
+    matchesNone(world: World): boolean;
+    /** Returns `true` when exactly one row matches. */
+    matchesSingle(world: World): boolean;
+}
+
+/** Preferred public constructor for reusable required-component query definitions. */
+export function queryState<const TComponents extends readonly AnyComponentType[]>(
+    types: TComponents,
+    filter: QueryFilter = {}
+): QueryState<TComponents> {
+    return new CachedQueryState(types, filter);
+}
+
+/** Preferred public constructor for reusable optional-query definitions. */
+export function optionalQueryState<
+    const TRequiredComponents extends readonly AnyComponentType[],
+    const TOptionalComponents extends readonly AnyComponentType[],
+>(
+    required: TRequiredComponents,
+    optional: TOptionalComponents,
+    filter: QueryFilter = {}
+): OptionalQueryState<TRequiredComponents, TOptionalComponents> {
+    return new CachedOptionalQueryState(required, optional, filter);
+}
+
+class CachedQueryState<
+    TComponents extends readonly AnyComponentType[],
+> implements QueryState<TComponents> {
     readonly registry: Registry;
     readonly types: TComponents;
     readonly filter: QueryFilter;
@@ -57,40 +141,46 @@ export class QueryState<TComponents extends readonly AnyComponentType[]> {
         this.filter = cloneQueryFilter(filter);
     }
 
-    /** Iterates matching rows using the world's cached query plan. */
     iter(world: World): IterableIterator<QueryRow<TComponents>> {
-        return world.queryWithState(this);
+        const runtime = worldQueryRuntime(world);
+
+        return runQueryWithState(runtime.queryContext, this, runtime.changeDetectionRange());
     }
 
-    /** Visits each matching row without exposing the iterator protocol. */
     each(
         world: World,
         visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
     ): void {
-        world.eachWithState(this, visitor);
+        const runtime = worldQueryRuntime(world);
+
+        eachQueryWithState(runtime.queryContext, this, runtime.changeDetectionRange(), visitor);
     }
 
-    /** Returns `true` when at least one row matches. */
     matchesAny(world: World): boolean {
-        return world.matchesAnyWithState(this);
+        const runtime = worldQueryRuntime(world);
+
+        return matchesAnyQueryWithState(runtime.queryContext, this, runtime.changeDetectionRange());
     }
 
-    /** Returns `true` when no rows match. */
     matchesNone(world: World): boolean {
-        return world.matchesNoneWithState(this);
+        return !this.matchesAny(world);
     }
 
-    /** Returns `true` when exactly one row matches. */
     matchesSingle(world: World): boolean {
-        return world.matchesSingleWithState(this);
+        const runtime = worldQueryRuntime(world);
+
+        return matchesSingleQueryWithState(
+            runtime.queryContext,
+            this,
+            runtime.changeDetectionRange()
+        );
     }
 }
 
-/** Cached query definition for required components plus trailing optional components. */
-export class OptionalQueryState<
+class CachedOptionalQueryState<
     TRequiredComponents extends readonly AnyComponentType[],
     TOptionalComponents extends readonly AnyComponentType[],
-> {
+> implements OptionalQueryState<TRequiredComponents, TOptionalComponents> {
     readonly registry: Registry;
     readonly required: TRequiredComponents;
     readonly optional: TOptionalComponents;
@@ -107,14 +197,18 @@ export class OptionalQueryState<
         this.filter = cloneQueryFilter(filter);
     }
 
-    /** Iterates matching rows using the world's cached optional-query plan. */
     iter(
         world: World
     ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
-        return world.queryOptionalWithState(this);
+        const runtime = worldQueryRuntime(world);
+
+        return runOptionalQueryWithState(
+            runtime.queryContext,
+            this,
+            runtime.changeDetectionRange()
+        );
     }
 
-    /** Visits each optional-query row without exposing the iterator protocol. */
     each(
         world: World,
         visitor: (
@@ -125,43 +219,39 @@ export class OptionalQueryState<
             ]
         ) => void
     ): void {
-        world.eachOptionalWithState(this, visitor);
+        const runtime = worldQueryRuntime(world);
+
+        eachOptionalQueryWithState(
+            runtime.queryContext,
+            this,
+            runtime.changeDetectionRange(),
+            visitor
+        );
     }
 
-    /** Returns `true` when at least one row matches. */
     matchesAny(world: World): boolean {
-        return world.matchesAnyOptionalWithState(this);
+        const runtime = worldQueryRuntime(world);
+
+        return matchesAnyOptionalQueryWithState(
+            runtime.queryContext,
+            this,
+            runtime.changeDetectionRange()
+        );
     }
 
-    /** Returns `true` when no rows match. */
     matchesNone(world: World): boolean {
-        return world.matchesNoneOptionalWithState(this);
+        return !this.matchesAny(world);
     }
 
-    /** Returns `true` when exactly one row matches. */
     matchesSingle(world: World): boolean {
-        return world.matchesSingleOptionalWithState(this);
+        const runtime = worldQueryRuntime(world);
+
+        return matchesSingleOptionalQueryWithState(
+            runtime.queryContext,
+            this,
+            runtime.changeDetectionRange()
+        );
     }
-}
-
-/** Creates a reusable query definition that can cache store resolution between runs. */
-export function queryState<const TComponents extends readonly AnyComponentType[]>(
-    types: TComponents,
-    filter: QueryFilter = {}
-): QueryState<TComponents> {
-    return new QueryState(types, filter);
-}
-
-/** Creates a reusable query definition with required and optional component sections. */
-export function optionalQueryState<
-    const TRequiredComponents extends readonly AnyComponentType[],
-    const TOptionalComponents extends readonly AnyComponentType[],
->(
-    required: TRequiredComponents,
-    optional: TOptionalComponents,
-    filter: QueryFilter = {}
-): OptionalQueryState<TRequiredComponents, TOptionalComponents> {
-    return new OptionalQueryState(required, optional, filter);
 }
 
 function cloneComponentTypes<TComponents extends readonly AnyComponentType[]>(
@@ -220,6 +310,15 @@ function resolveOptionalQueryRegistry(
     assertAllSameRegistry(registry, allFilterTypes(filter), label);
 
     return registry;
+}
+
+interface QueryStateWorldRuntime {
+    readonly queryContext: QueryExecutorContext;
+    readonly changeDetectionRange: () => ChangeDetectionRange;
+}
+
+function worldQueryRuntime(world: World): QueryStateWorldRuntime {
+    return world as unknown as QueryStateWorldRuntime;
 }
 
 /** Returns a flat list of every component type referenced by a filter. */

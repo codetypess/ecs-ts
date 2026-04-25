@@ -12,7 +12,7 @@ class ChangeDetectionSystem {
     }
 
     onUpdate(world: World, _dt: number, commands: Commands): void {
-        world.eachAdded([Position], (entity, position) => {
+        world.each([Position], { added: [Position] }, (entity, position) => {
             console.log(`added ${formatEntity(entity)} -> (${position.x}, ${position.y})`);
         });
 
@@ -37,7 +37,7 @@ class ChangeDetectionSystem {
     }
 
     onPostUpdate(world: World): void {
-        world.eachChanged([Position], (entity, position) => {
+        world.each([Position], { changed: [Position] }, (entity, position) => {
             console.log(`changed ${formatEntity(entity)} -> (${position.x}, ${position.y})`);
         });
 

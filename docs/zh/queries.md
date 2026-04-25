@@ -74,6 +74,8 @@ const enemyWithVelocity = world.trySingle([Position, Velocity], { with: [Enemy] 
 
 `queryState(...)` 和 `optionalQueryState(...)` 会缓存 component/filter 的 store 解析结果，适合在 system 中反复运行同一个 query。创建新的 component store 时缓存会失效。
 
+它们也是公开的构造入口。拿到 state 对象之后，使用 `state.iter(world)`、`state.each(world)` 和 `state.matches*(world)` 作为 cached query 的调用方式。
+
 ```ts
 const activeBodies = queryState([Transform, Velocity, RigidBody], {
     without: [Sleeping],

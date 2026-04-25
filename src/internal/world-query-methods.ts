@@ -8,21 +8,12 @@ import type {
     QueryFilter,
     QueryRow,
 } from "../query.js";
-import type { OptionalQueryState, QueryState } from "../query.js";
 import type { QueryExecutorContext } from "./query-executor.js";
 import {
     eachOptional as eachOptionalQuery,
-    eachOptionalWithState as eachOptionalQueryWithState,
     each as eachQuery,
-    eachWithState as eachQueryWithState,
-    matchesAnyOptionalWithState as matchesAnyOptionalQueryWithState,
-    matchesAnyWithState as matchesAnyQueryWithState,
-    matchesSingleOptionalWithState as matchesSingleOptionalQueryWithState,
-    matchesSingleWithState as matchesSingleQueryWithState,
     queryOptional as runOptionalQuery,
-    queryOptionalWithState as runOptionalQueryWithState,
     query as runQuery,
-    queryWithState as runQueryWithState,
 } from "./query-executor.js";
 
 /** Shared public query API for world instances. */
@@ -36,20 +27,6 @@ export abstract class WorldQueryMethods {
         filter: QueryFilter = {}
     ): IterableIterator<QueryRow<TComponents>> {
         return runQuery(this.queryContext, types, filter, this.changeDetectionRange());
-    }
-
-    /** Iterates entities where at least one requested component was newly added. */
-    queryAdded<const TComponents extends readonly AnyComponentType[]>(
-        types: TComponents
-    ): IterableIterator<QueryRow<TComponents>> {
-        return runQuery(this.queryContext, types, { added: types }, this.changeDetectionRange());
-    }
-
-    /** Iterates entities where at least one requested component changed recently. */
-    queryChanged<const TComponents extends readonly AnyComponentType[]>(
-        types: TComponents
-    ): IterableIterator<QueryRow<TComponents>> {
-        return runQuery(this.queryContext, types, { changed: types }, this.changeDetectionRange());
     }
 
     /** Iterates queries with required and optional component sections. */
@@ -68,101 +45,6 @@ export abstract class WorldQueryMethods {
             filter,
             this.changeDetectionRange()
         );
-    }
-
-    /** Executes a cached required-component query. */
-    queryWithState<const TComponents extends readonly AnyComponentType[]>(
-        state: QueryState<TComponents>
-    ): IterableIterator<QueryRow<TComponents>> {
-        return runQueryWithState(this.queryContext, state, this.changeDetectionRange());
-    }
-
-    /** Returns `true` when a cached query matches at least one entity. */
-    matchesAnyWithState<const TComponents extends readonly AnyComponentType[]>(
-        state: QueryState<TComponents>
-    ): boolean {
-        return matchesAnyQueryWithState(this.queryContext, state, this.changeDetectionRange());
-    }
-
-    /** Returns `true` when a cached query matches no entities. */
-    matchesNoneWithState<const TComponents extends readonly AnyComponentType[]>(
-        state: QueryState<TComponents>
-    ): boolean {
-        return !this.matchesAnyWithState(state);
-    }
-
-    /** Returns `true` when a cached query matches exactly one entity. */
-    matchesSingleWithState<const TComponents extends readonly AnyComponentType[]>(
-        state: QueryState<TComponents>
-    ): boolean {
-        return matchesSingleQueryWithState(this.queryContext, state, this.changeDetectionRange());
-    }
-
-    /** Executes a cached optional query. */
-    queryOptionalWithState<
-        const TRequiredComponents extends readonly AnyComponentType[],
-        const TOptionalComponents extends readonly AnyComponentType[],
-    >(
-        state: OptionalQueryState<TRequiredComponents, TOptionalComponents>
-    ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
-        return runOptionalQueryWithState(this.queryContext, state, this.changeDetectionRange());
-    }
-
-    /** Returns `true` when a cached optional query matches at least one entity. */
-    matchesAnyOptionalWithState<
-        const TRequiredComponents extends readonly AnyComponentType[],
-        const TOptionalComponents extends readonly AnyComponentType[],
-    >(state: OptionalQueryState<TRequiredComponents, TOptionalComponents>): boolean {
-        return matchesAnyOptionalQueryWithState(
-            this.queryContext,
-            state,
-            this.changeDetectionRange()
-        );
-    }
-
-    /** Returns `true` when a cached optional query matches no entities. */
-    matchesNoneOptionalWithState<
-        const TRequiredComponents extends readonly AnyComponentType[],
-        const TOptionalComponents extends readonly AnyComponentType[],
-    >(state: OptionalQueryState<TRequiredComponents, TOptionalComponents>): boolean {
-        return !this.matchesAnyOptionalWithState(state);
-    }
-
-    /** Returns `true` when a cached optional query matches exactly one entity. */
-    matchesSingleOptionalWithState<
-        const TRequiredComponents extends readonly AnyComponentType[],
-        const TOptionalComponents extends readonly AnyComponentType[],
-    >(state: OptionalQueryState<TRequiredComponents, TOptionalComponents>): boolean {
-        return matchesSingleOptionalQueryWithState(
-            this.queryContext,
-            state,
-            this.changeDetectionRange()
-        );
-    }
-
-    /** Visits each row from a cached required-component query. */
-    eachWithState<const TComponents extends readonly AnyComponentType[]>(
-        state: QueryState<TComponents>,
-        visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
-    ): void {
-        eachQueryWithState(this.queryContext, state, this.changeDetectionRange(), visitor);
-    }
-
-    /** Visits each row from a cached optional query. */
-    eachOptionalWithState<
-        const TRequiredComponents extends readonly AnyComponentType[],
-        const TOptionalComponents extends readonly AnyComponentType[],
-    >(
-        state: OptionalQueryState<TRequiredComponents, TOptionalComponents>,
-        visitor: (
-            entity: Entity,
-            ...components: [
-                ...ComponentTuple<TRequiredComponents>,
-                ...OptionalComponentTuple<TOptionalComponents>,
-            ]
-        ) => void
-    ): void {
-        eachOptionalQueryWithState(this.queryContext, state, this.changeDetectionRange(), visitor);
     }
 
     /** Returns the only matching row, or `undefined` when there are no matches. */
@@ -223,28 +105,6 @@ export abstract class WorldQueryMethods {
                 : [filterOrVisitor, maybeVisitor];
 
         eachQuery(this.queryContext, types, filter, this.changeDetectionRange(), visitor!);
-    }
-
-    /** Visits entities where at least one requested component was added recently. */
-    eachAdded<const TComponents extends readonly AnyComponentType[]>(
-        types: TComponents,
-        visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
-    ): void {
-        eachQuery(this.queryContext, types, { added: types }, this.changeDetectionRange(), visitor);
-    }
-
-    /** Visits entities where at least one requested component changed recently. */
-    eachChanged<const TComponents extends readonly AnyComponentType[]>(
-        types: TComponents,
-        visitor: (entity: Entity, ...components: ComponentTuple<TComponents>) => void
-    ): void {
-        eachQuery(
-            this.queryContext,
-            types,
-            { changed: types },
-            this.changeDetectionRange(),
-            visitor
-        );
     }
 
     /** Visits required-plus-optional query rows without allocating a query state object. */

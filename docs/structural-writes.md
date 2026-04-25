@@ -4,7 +4,7 @@
 
 Structural writes are the operations that change visible world state: spawning and despawning entities, adding or removing components, changing singleton resources and states, and publishing queued messages or events.
 
-`ecs-ts` keeps three write paths because they solve different timing problems.
+`ecs-ts` keeps three write paths because they solve different timing problems, but they do not cover exactly the same surface area. `world.batch(...)` is intentionally limited to entity/component structure edits; resources, states, messages, and events stay on direct `World` writes or `Commands`.
 
 ## Direct World Writes
 
@@ -56,7 +56,7 @@ npm run example:commands
 
 ## `world.batch(...)`
 
-`world.batch(...)` is the transactional write path.
+`world.batch(...)` is the transactional write path for entity/component structure.
 
 It stages structural edits, validates the final component topology, then commits the net diff in one shot.
 
@@ -77,6 +77,8 @@ Important details:
 
 - Nested `world.batch(...)` calls are rejected.
 - The batch writer becomes invalid once the callback returns.
+- Batch writers only support `spawn(...)`, `addComponent(...)`, `removeComponent(...)`, and `despawn(...)`.
+- Resource, state, message, and event writes still go through direct `World` calls or `Commands`.
 - Component hooks observe the committed final diff, not every temporary step inside the callback.
 
 Run the example:

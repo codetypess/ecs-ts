@@ -6,10 +6,10 @@ English: [Change Detection](../change-detection.md).
 
 ## Component
 
-使用 `eachAdded(...)` 和 `eachChanged(...)` 运行受变更状态约束的 component query。在原地修改 component 值之后，使用 `markComponentChanged(...)` 标记变更。
+对受变更状态约束的 component query，统一使用 `query(...)`、`each(...)` 或 `queryState(...)` 的 `added` / `changed` 过滤器。在原地修改 component 值之后，使用 `markComponentChanged(...)` 标记变更。
 
 ```ts
-world.eachChanged([Position], (entity, position) => {
+world.each([Position], { changed: [Position] }, (entity, position) => {
     console.log(entity, position);
 });
 
@@ -17,6 +17,8 @@ const position = world.mustGetComponent(entity, Position);
 position.x += 1;
 world.markComponentChanged(entity, Position);
 ```
+
+如果只想匹配新加入的 component，使用同样形式的 `{ added: [Position] }`。
 
 运行 component 示例：
 

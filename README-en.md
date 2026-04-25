@@ -71,7 +71,7 @@ if (world.hasComponent(entity, Element)) {
 - Deferred command queues through `Commands`.
 - Lifecycle hooks on components: `onAdd`, `onInsert`, `onReplace`, `onRemove`, and `onDespawn`.
 - Hard component dependencies through `deps`.
-- Deferred structural validation with `world.batch(...)`.
+- Deferred entity/component structural validation with `world.batch(...)`.
 - Scheduler support for stages, labels, system sets, ordering, fixed update, and composable `runIf`.
 - State machines, messages, and immediate observer-style events.
 
@@ -79,12 +79,13 @@ if (world.hasComponent(entity, Element)) {
 
 - The supported public entry point is the package root only: `import { ... } from "@codetypess/ecs-ts"`.
 - `dist/internal/*` is bundled because the runtime uses it internally, but those files are implementation details, not public API, and not covered by semver guarantees.
+- Low-level runtime/storage types such as `EntityManager`, `Messages`, `RemovedComponents`, and `SparseSet` are intentionally kept out of the root export surface.
 - Application code, examples, and third-party wrappers should depend on root exports only.
 
 ## Structural Timing Semantics
 
 - `Commands` is a deferred queue. Work runs on `flush()` or after a system/observer completes.
-- `world.batch(...)` validates the final structural state first, then commits the net diff; it is the transactional option.
+- `world.batch(...)` validates the final entity/component structural state first, then commits the net diff; it is the transactional option.
 - `commands.spawn(...)` returns a reserved entity handle and does not publish a live entity before flush.
 - `world.shutdown()` is terminal. Calling `update()` afterward will not run startup or update stages again.
 

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-    SparseSet,
     World,
     createRegistry,
     optionalQueryState,
@@ -9,6 +8,7 @@ import {
     withComponent,
     withMarker,
 } from "../src";
+import { SparseSet } from "../src/sparse-set.js";
 
 const registry = createRegistry("query-test");
 

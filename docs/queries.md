@@ -74,6 +74,8 @@ const enemyWithVelocity = world.trySingle([Position, Velocity], { with: [Enemy] 
 
 `queryState(...)` and `optionalQueryState(...)` cache component/filter store resolution for systems that run the same query repeatedly. Caches invalidate when new component stores are created.
 
+They are the public constructors for cached queries. Once you have a state object, use `state.iter(world)`, `state.each(world)`, and `state.matches*(world)` as the cached-query API.
+
 ```ts
 const activeBodies = queryState([Transform, Velocity, RigidBody], {
     without: [Sleeping],

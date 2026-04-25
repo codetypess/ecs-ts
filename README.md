@@ -74,7 +74,7 @@ if (world.hasComponent(entity, Element)) {
 - 通过 `Commands` 做延迟结构修改。
 - Component lifecycle hooks：`onAdd`、`onInsert`、`onReplace`、`onRemove`、`onDespawn`。
 - 通过 `deps` 表达硬依赖。
-- 通过 `world.batch(...)` 做 deferred structural validation。
+- 通过 `world.batch(...)` 做 entity/component 结构上的 deferred structural validation。
 - Scheduler：stage、label、system set、排序、fixed update、可组合 `runIf`。
 - State machine、message、observer-style immediate event。
 
@@ -82,12 +82,13 @@ if (world.hasComponent(entity, Element)) {
 
 - 对外支持的入口只有包根：`import { ... } from "@codetypess/ecs-ts"`。
 - `dist/internal/*` 会作为运行时实现细节一起打包，但它们不是公开 API，也不承诺 semver 稳定。
+- 包根导出会刻意避开 `EntityManager`、`Messages`、`RemovedComponents`、`SparseSet` 这类底层 runtime/storage 细节。
 - 如果你要写应用代码、示例代码或第三方封装，应该只依赖根导出。
 
 ## 结构修改语义
 
 - `Commands` 是 deferred queue。命令会在 `flush()` 或 system/observer 结束后统一执行。
-- `world.batch(...)` 会先验证最终结构状态，再一次性提交净变化；它更接近一次 transactional commit。
+- `world.batch(...)` 会先验证最终 entity/component 结构状态，再一次性提交净变化；它更接近一次 transactional commit。
 - `commands.spawn(...)` 在 flush 前只返回一个保留的 entity handle，不会立刻变成 live entity。
 - `world.shutdown()` 是终态。shutdown 后再次 `update()` 不会继续跑 startup 或 update。
 

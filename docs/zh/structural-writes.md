@@ -4,7 +4,7 @@ English: [Structural Writes](../structural-writes.md).
 
 结构修改指的是会改变 world 可见状态的操作：spawn / despawn entity、添加或移除 component、修改 singleton resource / state，以及发布排队的 message / event。
 
-`ecs-ts` 保留了三条写路径，因为它们解决的是不同的时序问题。
+`ecs-ts` 保留了三条写路径，因为它们解决的是不同的时序问题，但三条路径并不覆盖完全相同的能力面。`world.batch(...)` 会刻意限制在 entity/component 结构修改上；resource、state、message 和 event 仍然走直接 `World` 写入或 `Commands`。
 
 ## 直接写 World
 
@@ -56,7 +56,7 @@ npm run example:commands
 
 ## `world.batch(...)`
 
-`world.batch(...)` 是 transactional 的写路径。
+`world.batch(...)` 是面向 entity/component 结构的 transactional 写路径。
 
 它会先暂存结构修改，验证最终 component 拓扑，再一次性提交净变化。
 
@@ -77,6 +77,8 @@ world.batch((batch) => {
 
 - 不支持嵌套 `world.batch(...)`。
 - callback 返回后，batch writer 就失效了。
+- batch writer 只支持 `spawn(...)`、`addComponent(...)`、`removeComponent(...)` 和 `despawn(...)`。
+- resource、state、message 和 event 的写入仍然通过直接 `World` 调用或 `Commands` 完成。
 - component hook 看到的是最终提交的净变化，而不是 callback 内部的每个临时步骤。
 
 运行示例：
