@@ -95,6 +95,50 @@ test("single query helpers report none, one, and multiple matches", () => {
     assert.equal(world.mustGetSingle([Position], { with: [Player] })[0], entity);
 });
 
+test("query state single helpers report none, one, and multiple matches", () => {
+    const Position = registry.defineComponent<{ x: number; y: number }>("StateSinglePosition");
+    const Player = registry.defineComponent("StateSinglePlayer");
+    const world = new World(registry);
+    const positions = queryState([Position]);
+    const players = queryState([Position], { with: [Player] });
+
+    assert.equal(positions.getSingle(world), undefined);
+    assert.throws(() => positions.mustGetSingle(world), /Expected exactly one query result/);
+
+    const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }), withMarker(Player));
+
+    assert.equal(positions.mustGetSingle(world)[0], entity);
+
+    world.spawn(withComponent(Position, { x: 3, y: 4 }));
+
+    assert.throws(() => positions.getSingle(world), /Expected at most one query result/);
+    assert.equal(players.mustGetSingle(world)[0], entity);
+});
+
+test("optional query state single helpers return optional rows", () => {
+    const Position = registry.defineComponent<{ x: number; y: number }>(
+        "OptionalStateSinglePosition"
+    );
+    const Name = registry.defineComponent<{ value: string }>("OptionalStateSingleName");
+    const world = new World(registry);
+    const namedPositions = optionalQueryState([Position], [Name]);
+    const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
+
+    assert.deepEqual(namedPositions.mustGetSingle(world), [entity, { x: 1, y: 2 }, undefined]);
+
+    world.addComponent(entity, Name, { value: "player" });
+
+    assert.deepEqual(namedPositions.getSingle(world), [
+        entity,
+        { x: 1, y: 2 },
+        { value: "player" },
+    ]);
+
+    world.spawn(withComponent(Position, { x: 3, y: 4 }));
+
+    assert.throws(() => namedPositions.getSingle(world), /Expected at most one query result/);
+});
+
 test("query state caches resolved stores and invalidates when stores are created", () => {
     const Position = registry.defineComponent<{ x: number; y: number }>("QueryStatePosition");
     const Velocity = registry.defineComponent<{ x: number; y: number }>("QueryStateVelocity");

@@ -17,6 +17,14 @@ Systems are lifecycle objects/classes. `World` discovers these methods when a sy
 
 Startup stages run once before the first update. `onFixedUpdate` runs according to the fixed timestep accumulator. Shutdown runs once through `world.shutdown()`.
 
+For smaller systems, register a callback directly for a stage:
+
+```ts
+world.addSystem("update", (world, dt, commands) => {
+    commands.spawn(withMarker(Dirty));
+});
+```
+
 ## Labels And Ordering
 
 System options can assign labels and ordering edges:

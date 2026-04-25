@@ -64,7 +64,7 @@ if (world.hasComponent(entity, Element)) {
 
 - Sparse-set component storage with dense iteration and swap-remove deletion.
 - Query filters such as `with`, `without`, `or`, `added`, and `changed`.
-- Optional queries plus helpers like `hasAll`, `hasAny`, `mustGetSingle`, and `getSingle`.
+- Optional queries plus helpers like `hasAllComponents`, `hasAnyComponents`, `mustGetSingle`, and `getSingle`.
 - `QueryState` for caching repeated query plans.
 - Per-system change detection for components and resources.
 - Removed-component readers and explicit `drainRemoved`.

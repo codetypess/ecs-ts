@@ -461,8 +461,27 @@ export class World extends WorldQueryMethods {
         return createBoundRemovedReader(this.removedContext, type, options);
     }
 
-    /** Registers every implemented lifecycle method from an object-style system. */
-    addSystem(system: System, options: SystemOptions = {}): this {
+    /** Registers an object-style system or a callback for one schedule stage. */
+    addSystem(system: System, options?: SystemOptions): this;
+    addSystem(stage: ScheduleStage, system: SystemCallback, options?: SystemOptions): this;
+    addSystem(
+        systemOrStage: System | ScheduleStage,
+        optionsOrSystem: SystemOptions | SystemCallback = {},
+        maybeOptions: SystemOptions = {}
+    ): this {
+        if (typeof systemOrStage === "string") {
+            addScheduledSystemRunner(
+                this.scheduleContext,
+                systemOrStage,
+                createSystemRunner(optionsOrSystem as SystemCallback, maybeOptions)
+            );
+
+            return this;
+        }
+
+        const system = systemOrStage;
+        const options = optionsOrSystem as SystemOptions;
+
         for (const { stage, systemMethod } of scheduleStageDefinitions) {
             const method = system[systemMethod];
 

@@ -91,6 +91,13 @@ expectType<
         OptionalQueryRow<readonly [typeof Position], readonly [typeof Velocity, typeof Name]>
     >
 >(named.iter(world));
+expectType<QueryRow<readonly [typeof Position, typeof Velocity]> | undefined>(
+    moving.getSingle(world)
+);
+expectType<QueryRow<readonly [typeof Position, typeof Velocity]>>(moving.mustGetSingle(world));
+expectType<OptionalQueryRow<readonly [typeof Position], readonly [typeof Velocity, typeof Name]>>(
+    named.mustGetSingle(world)
+);
 
 moving.each(world, (entity, position, velocity) => {
     expectType<Entity>(entity);
@@ -104,6 +111,16 @@ named.each(world, (entity, position, velocity, name) => {
     expectType<{ x: number; y: number } | undefined>(velocity);
     expectType<{ value: string } | undefined>(name);
 });
+
+world.addSystem(
+    "update",
+    (currentWorld, dt, commands) => {
+        expectType<World>(currentWorld);
+        expectType<number>(dt);
+        commands.spawn(withMarker(Player));
+    },
+    { runIf: anyMatch(moving) }
+);
 
 world.setResource(Flags, { enabled: true, paused: false });
 expectType<{ enabled: boolean; paused: boolean }>(world.mustGetResource(Flags));

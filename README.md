@@ -67,7 +67,7 @@ if (world.hasComponent(entity, Element)) {
 
 - 基于 SparseSet 的 component 存储，dense iteration，swap-remove 删除。
 - `with`、`without`、`or`、`added`、`changed` 等 query 过滤。
-- Optional query，以及 `hasAll`、`hasAny`、`mustGetSingle`、`getSingle` 这些常用 helper。
+- Optional query，以及 `hasAllComponents`、`hasAnyComponents`、`mustGetSingle`、`getSingle` 这些常用 helper。
 - `QueryState`，用于缓存重复 query 的解析结果。
 - Per-system 语义的 component/resource change detection。
 - Removed reader 和显式 `drainRemoved`。

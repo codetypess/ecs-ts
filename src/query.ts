@@ -74,6 +74,10 @@ export interface QueryState<TComponents extends readonly AnyComponentType[]> {
     matchesNone(world: World): boolean;
     /** Returns `true` when exactly one row matches. */
     matchesSingle(world: World): boolean;
+    /** Returns the only matching row, or `undefined` when there are no matches. */
+    getSingle(world: World): QueryRow<TComponents> | undefined;
+    /** Returns the only matching row and throws unless there is exactly one. */
+    mustGetSingle(world: World): QueryRow<TComponents>;
 }
 
 /** Cached query definition for required components plus trailing optional components. */
@@ -106,6 +110,10 @@ export interface OptionalQueryState<
     matchesNone(world: World): boolean;
     /** Returns `true` when exactly one row matches. */
     matchesSingle(world: World): boolean;
+    /** Returns the only matching row, or `undefined` when there are no matches. */
+    getSingle(world: World): OptionalQueryRow<TRequiredComponents, TOptionalComponents> | undefined;
+    /** Returns the only matching row and throws unless there is exactly one. */
+    mustGetSingle(world: World): OptionalQueryRow<TRequiredComponents, TOptionalComponents>;
 }
 
 /** Preferred public constructor for reusable required-component query definitions. */
@@ -174,6 +182,33 @@ class CachedQueryState<
             this,
             runtime.changeDetectionRange()
         );
+    }
+
+    getSingle(world: World): QueryRow<TComponents> | undefined {
+        const iterator = this.iter(world);
+        const first = iterator.next();
+
+        if (first.done === true) {
+            return undefined;
+        }
+
+        const second = iterator.next();
+
+        if (second.done !== true) {
+            throw new Error("Expected at most one query result");
+        }
+
+        return first.value;
+    }
+
+    mustGetSingle(world: World): QueryRow<TComponents> {
+        const row = this.getSingle(world);
+
+        if (row === undefined) {
+            throw new Error("Expected exactly one query result");
+        }
+
+        return row;
     }
 }
 
@@ -251,6 +286,35 @@ class CachedOptionalQueryState<
             this,
             runtime.changeDetectionRange()
         );
+    }
+
+    getSingle(
+        world: World
+    ): OptionalQueryRow<TRequiredComponents, TOptionalComponents> | undefined {
+        const iterator = this.iter(world);
+        const first = iterator.next();
+
+        if (first.done === true) {
+            return undefined;
+        }
+
+        const second = iterator.next();
+
+        if (second.done !== true) {
+            throw new Error("Expected at most one query result");
+        }
+
+        return first.value;
+    }
+
+    mustGetSingle(world: World): OptionalQueryRow<TRequiredComponents, TOptionalComponents> {
+        const row = this.getSingle(world);
+
+        if (row === undefined) {
+            throw new Error("Expected exactly one query result");
+        }
+
+        return row;
     }
 }
 

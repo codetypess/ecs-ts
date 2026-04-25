@@ -209,6 +209,33 @@ test("shutdown is terminal and later updates stay inert", () => {
     assert.deepEqual(trace, ["shutdown"]);
 });
 
+test("addSystem accepts stage callbacks with scheduling options", () => {
+    const CallbackMarker = registry.defineComponent("CallbackSystemMarker");
+    const world = new World(registry);
+    const trace: string[] = [];
+
+    world.addSystem(
+        "update",
+        () => {
+            trace.push("late");
+        },
+        { label: "late" }
+    );
+    world.addSystem(
+        "update",
+        (_world, _dt, commands) => {
+            trace.push("early");
+            commands.spawn(withMarker(CallbackMarker));
+        },
+        { label: "early", before: ["late"] }
+    );
+
+    world.update(0);
+
+    assert.deepEqual(trace, ["early", "late"]);
+    assert.equal(world.hasAnyComponents(Array.from(world.entities())[0]!, [CallbackMarker]), true);
+});
+
 test("component lifecycle hooks fire in order and can be unsubscribed", () => {
     const events: string[] = [];
     const Position = registry.defineComponent<{ x: number }>("LifecycleHookPosition", {
