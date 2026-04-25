@@ -76,19 +76,11 @@ for (const [entity, position, velocity, name] of world.queryOptional(
 }
 
 const moving = queryState([Position, Velocity], { with: [Player] });
-const movingFromWorld = world.queryState([Position, Velocity], { with: [Player] });
 const named = optionalQueryState([Position], [Velocity, Name], { with: [Player] });
-const namedFromWorld = world.optionalQueryState([Position], [Velocity, Name], {
-    with: [Player],
-});
 
 expectType<QueryState<readonly [typeof Position, typeof Velocity]>>(moving);
-expectType<QueryState<readonly [typeof Position, typeof Velocity]>>(movingFromWorld);
 expectType<OptionalQueryState<readonly [typeof Position], readonly [typeof Velocity, typeof Name]>>(
     named
-);
-expectType<OptionalQueryState<readonly [typeof Position], readonly [typeof Velocity, typeof Name]>>(
-    namedFromWorld
 );
 
 expectType<IterableIterator<QueryRow<readonly [typeof Position, typeof Velocity]>>>(

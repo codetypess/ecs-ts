@@ -86,7 +86,7 @@ test("registry rejects duplicate names within the same type kind", () => {
     );
 });
 
-test("registry seal and finalize prevent new definitions", () => {
+test("registry seal prevents new definitions", () => {
     const sealedRegistry = createRegistry("registry-sealed-test");
 
     assert.equal(sealedRegistry.isSealed, false);
@@ -95,15 +95,6 @@ test("registry seal and finalize prevent new definitions", () => {
     assert.throws(
         () => sealedRegistry.defineComponent("AfterSeal"),
         /Cannot define component AfterSeal in registry-sealed-test: registry is sealed/
-    );
-
-    const finalizedRegistry = createRegistry("registry-finalize-test");
-
-    assert.equal(finalizedRegistry.finalize(), finalizedRegistry);
-    assert.equal(finalizedRegistry.isSealed, true);
-    assert.throws(
-        () => finalizedRegistry.defineResource("AfterFinalize"),
-        /Cannot define resource AfterFinalize in registry-finalize-test: registry is sealed/
     );
 });
 

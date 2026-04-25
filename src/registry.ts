@@ -61,11 +61,6 @@ export class Registry {
         return this;
     }
 
-    /** Alias for {@link seal}. */
-    finalize(): this {
-        return this.seal();
-    }
-
     /** Defines a marker component whose payload is always `{}`. */
     defineComponent(
         name: string,

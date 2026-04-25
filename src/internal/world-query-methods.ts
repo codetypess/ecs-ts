@@ -5,12 +5,10 @@ import type {
     ComponentTuple,
     OptionalComponentTuple,
     OptionalQueryRow,
-    OptionalQueryState,
     QueryFilter,
     QueryRow,
-    QueryState,
 } from "../query.js";
-import { optionalQueryState, queryState } from "../query.js";
+import type { OptionalQueryState, QueryState } from "../query.js";
 import type { QueryExecutorContext } from "./query-executor.js";
 import {
     eachOptional as eachOptionalQuery,
@@ -70,26 +68,6 @@ export abstract class WorldQueryMethods {
             filter,
             this.changeDetectionRange()
         );
-    }
-
-    /** Creates a reusable query definition that can cache store resolution across runs. */
-    queryState<const TComponents extends readonly AnyComponentType[]>(
-        types: TComponents,
-        filter: QueryFilter = {}
-    ): QueryState<TComponents> {
-        return queryState(types, filter);
-    }
-
-    /** Creates a reusable optional-query definition with cached store resolution. */
-    optionalQueryState<
-        const TRequiredComponents extends readonly AnyComponentType[],
-        const TOptionalComponents extends readonly AnyComponentType[],
-    >(
-        required: TRequiredComponents,
-        optional: TOptionalComponents,
-        filter: QueryFilter = {}
-    ): OptionalQueryState<TRequiredComponents, TOptionalComponents> {
-        return optionalQueryState(required, optional, filter);
     }
 
     /** Executes a cached required-component query. */
