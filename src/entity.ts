@@ -140,4 +140,13 @@ export class EntityManager {
 
         return this.entityTypes[entityIndex(entity)];
     }
+
+    /** Iterates every live entity handle in storage-index order. */
+    *entities(): IterableIterator<Entity> {
+        for (let index = 0; index < this.alive.length; index++) {
+            if (this.alive[index] === true) {
+                yield makeEntity(index, this.generations[index]!);
+            }
+        }
+    }
 }

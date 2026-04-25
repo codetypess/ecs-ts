@@ -30,11 +30,11 @@ export class Registry {
     private nextStateId = 0;
     private nextMessageId = 0;
     private nextEventId = 0;
-    private readonly componentTypes: AnyComponentType[] = [];
-    private readonly resourceTypes: AnyResourceType[] = [];
-    private readonly stateTypes: AnyStateType[] = [];
-    private readonly messageTypes: AnyMessageType[] = [];
-    private readonly eventTypes: AnyEventType[] = [];
+    private readonly componentTypeTable: AnyComponentType[] = [];
+    private readonly resourceTypeTable: AnyResourceType[] = [];
+    private readonly stateTypeTable: AnyStateType[] = [];
+    private readonly messageTypeTable: AnyMessageType[] = [];
+    private readonly eventTypeTable: AnyEventType[] = [];
     private readonly componentTypesByName = new Map<string, AnyComponentType>();
     private readonly resourceTypesByName = new Map<string, AnyResourceType>();
     private readonly stateTypesByName = new Map<string, AnyStateType>();
@@ -100,7 +100,7 @@ export class Registry {
             lifecycle,
         }) satisfies ComponentType<T>;
 
-        this.componentTypes[component.id] = component;
+        this.componentTypeTable[component.id] = component;
         this.componentTypesByName.set(component.name, component);
         this.typesByKey.set(component.key, component);
 
@@ -117,7 +117,7 @@ export class Registry {
             registry: this,
         }) satisfies ResourceType<T>;
 
-        this.resourceTypes[resource.id] = resource;
+        this.resourceTypeTable[resource.id] = resource;
         this.resourceTypesByName.set(resource.name, resource);
         this.typesByKey.set(resource.key, resource);
 
@@ -135,7 +135,7 @@ export class Registry {
             initial,
         }) satisfies StateType<T>;
 
-        this.stateTypes[state.id] = state;
+        this.stateTypeTable[state.id] = state;
         this.stateTypesByName.set(state.name, state);
         this.typesByKey.set(state.key, state);
 
@@ -152,7 +152,7 @@ export class Registry {
             registry: this,
         }) satisfies MessageType<T>;
 
-        this.messageTypes[message.id] = message;
+        this.messageTypeTable[message.id] = message;
         this.messageTypesByName.set(message.name, message);
         this.typesByKey.set(message.key, message);
 
@@ -169,7 +169,7 @@ export class Registry {
             registry: this,
         }) satisfies EventType<T>;
 
-        this.eventTypes[event.id] = event;
+        this.eventTypeTable[event.id] = event;
         this.eventTypesByName.set(event.name, event);
         this.typesByKey.set(event.key, event);
 
@@ -189,32 +189,37 @@ export class Registry {
 
     /** Returns whether the component belongs to this registry. */
     isRegisteredComponent(type: AnyComponentType): boolean {
-        return type.registry === this && this.componentTypes[type.id] === type;
+        return type.registry === this && this.componentTypeTable[type.id] === type;
     }
 
     /** Returns whether the resource belongs to this registry. */
     isRegisteredResource(type: AnyResourceType): boolean {
-        return type.registry === this && this.resourceTypes[type.id] === type;
+        return type.registry === this && this.resourceTypeTable[type.id] === type;
     }
 
     /** Returns whether the state machine belongs to this registry. */
     isRegisteredState(type: AnyStateType): boolean {
-        return type.registry === this && this.stateTypes[type.id] === type;
+        return type.registry === this && this.stateTypeTable[type.id] === type;
     }
 
     /** Returns whether the message channel belongs to this registry. */
     isRegisteredMessage(type: AnyMessageType): boolean {
-        return type.registry === this && this.messageTypes[type.id] === type;
+        return type.registry === this && this.messageTypeTable[type.id] === type;
     }
 
     /** Returns whether the event channel belongs to this registry. */
     isRegisteredEvent(type: AnyEventType): boolean {
-        return type.registry === this && this.eventTypes[type.id] === type;
+        return type.registry === this && this.eventTypeTable[type.id] === type;
     }
 
     /** Looks up the component registered for the numeric id. */
     componentType(id: number): AnyComponentType | undefined {
-        return this.componentTypes[id];
+        return this.componentTypeTable[id];
+    }
+
+    /** Returns every registered component in definition order. */
+    componentTypes(): readonly AnyComponentType[] {
+        return [...this.componentTypeTable];
     }
 
     /** Looks up the component registered for the name. */
@@ -224,7 +229,12 @@ export class Registry {
 
     /** Looks up the resource registered for the numeric id. */
     resourceType(id: number): AnyResourceType | undefined {
-        return this.resourceTypes[id];
+        return this.resourceTypeTable[id];
+    }
+
+    /** Returns every registered resource in definition order. */
+    resourceTypes(): readonly AnyResourceType[] {
+        return [...this.resourceTypeTable];
     }
 
     /** Looks up the resource registered for the name. */
@@ -234,7 +244,12 @@ export class Registry {
 
     /** Looks up the state machine registered for the numeric id. */
     stateType(id: number): AnyStateType | undefined {
-        return this.stateTypes[id];
+        return this.stateTypeTable[id];
+    }
+
+    /** Returns every registered state in definition order. */
+    stateTypes(): readonly AnyStateType[] {
+        return [...this.stateTypeTable];
     }
 
     /** Looks up the state machine registered for the name. */
@@ -244,7 +259,12 @@ export class Registry {
 
     /** Looks up the message channel registered for the numeric id. */
     messageType(id: number): AnyMessageType | undefined {
-        return this.messageTypes[id];
+        return this.messageTypeTable[id];
+    }
+
+    /** Returns every registered message in definition order. */
+    messageTypes(): readonly AnyMessageType[] {
+        return [...this.messageTypeTable];
     }
 
     /** Looks up the message channel registered for the name. */
@@ -254,7 +274,12 @@ export class Registry {
 
     /** Looks up the event channel registered for the numeric id. */
     eventType(id: number): AnyEventType | undefined {
-        return this.eventTypes[id];
+        return this.eventTypeTable[id];
+    }
+
+    /** Returns every registered event in definition order. */
+    eventTypes(): readonly AnyEventType[] {
+        return [...this.eventTypeTable];
     }
 
     /** Looks up the event channel registered for the name. */

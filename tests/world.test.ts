@@ -76,6 +76,22 @@ test("spawn inserts multiple component entries", () => {
     assert.equal(world.hasAnyComponents(entity, [Player, Health]), false);
 });
 
+test("entities() iterates only currently live entities in storage-index order", () => {
+    const Marker = registry.defineComponent("WorldEntitiesMarker");
+    const world = new World(registry);
+    const first = world.spawn(withMarker(Marker));
+    const second = world.spawn(withMarker(Marker));
+    const third = world.spawn(withMarker(Marker));
+
+    world.despawn(second);
+
+    assert.deepEqual(Array.from(world.entities()), [first, third]);
+
+    const reused = world.spawn(withMarker(Marker));
+
+    assert.deepEqual(Array.from(world.entities()), [first, reused, third]);
+});
+
 test("commands flush queued structural edits in order", () => {
     const Position = registry.defineComponent<{ x: number; y: number }>("CommandPosition");
     const Velocity = registry.defineComponent<{ x: number; y: number }>("CommandVelocity");

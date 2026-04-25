@@ -176,7 +176,7 @@ export interface WorldBatch {
  */
 export class World extends WorldQueryMethods {
     readonly registry: Registry;
-    protected readonly entities: EntityManager;
+    protected readonly entityManager: EntityManager;
     protected readonly queryContext: QueryExecutorContext;
     private readonly componentStoreContext: ComponentStoreContext;
     private readonly resourceContext: ResourceContext;
@@ -198,12 +198,12 @@ export class World extends WorldQueryMethods {
     constructor(registry: Registry) {
         super();
         this.registry = registry;
-        this.entities = new EntityManager();
+        this.entityManager = new EntityManager();
         this.commandRuntime = {
-            reserveEntity: (etype) => this.entities.reserve(etype),
-            releaseReservedEntity: (entity) => this.entities.releaseReserved(entity),
+            reserveEntity: (etype) => this.entityManager.reserve(etype),
+            releaseReservedEntity: (entity) => this.entityManager.releaseReserved(entity),
             commitReservedEntity: (entity) => {
-                this.entities.commitReserved(entity);
+                this.entityManager.commitReserved(entity);
             },
         };
         this.componentStoreContext = createComponentStoreContext(registry);
@@ -217,7 +217,7 @@ export class World extends WorldQueryMethods {
             getChangeDetectionRange: () => this.changeDetectionRange(),
         });
         this.componentContext = createComponentOpsContext({
-            entities: this.entities,
+            entities: this.entityManager,
             componentStores: this.componentStoreContext,
             entityComponents: this.entityComponents,
             getChangeTick: () => this.changeTick,
@@ -267,12 +267,17 @@ export class World extends WorldQueryMethods {
 
     /** Returns whether the entity handle still points at a live entity. */
     isAlive(entity: Entity): boolean {
-        return this.entities.isAlive(entity);
+        return this.entityManager.isAlive(entity);
     }
 
     /** Returns the type assigned when the entity was created, or `undefined` for stale handles. */
     entityType(entity: Entity): EntityType | undefined {
-        return this.entities.entityType(entity);
+        return this.entityManager.entityType(entity);
+    }
+
+    /** Iterates every currently live entity handle in storage-index order. */
+    entities(): IterableIterator<Entity> {
+        return this.entityManager.entities();
     }
 
     /** Stages structural edits and commits their final diff after validation succeeds. */
@@ -294,7 +299,7 @@ export class World extends WorldQueryMethods {
     addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this {
         assertRegisteredComponent(this.registry, type, "add");
 
-        if (type.deps.length > 0 && this.entities.isAlive(entity)) {
+        if (type.deps.length > 0 && this.entityManager.isAlive(entity)) {
             assertComponentDepsPresent(
                 entity,
                 type,
@@ -327,7 +332,7 @@ export class World extends WorldQueryMethods {
         assertRegisteredComponent(this.registry, type, "read");
 
         return (
-            this.entities.isAlive(entity) &&
+            this.entityManager.isAlive(entity) &&
             (this.componentStoreContext.stores[type.id]?.has(entity) ?? false)
         );
     }
@@ -336,21 +341,31 @@ export class World extends WorldQueryMethods {
     hasAllComponents(entity: Entity, types: readonly AnyComponentType[]): boolean {
         assertRegisteredComponents(this.registry, types, "read");
 
-        return hasAllComponents(this.entities, this.componentStoreContext.stores, entity, types);
+        return hasAllComponents(
+            this.entityManager,
+            this.componentStoreContext.stores,
+            entity,
+            types
+        );
     }
 
     /** Returns whether the entity has at least one component in the provided list. */
     hasAnyComponents(entity: Entity, types: readonly AnyComponentType[]): boolean {
         assertRegisteredComponents(this.registry, types, "read");
 
-        return hasAnyComponents(this.entities, this.componentStoreContext.stores, entity, types);
+        return hasAnyComponents(
+            this.entityManager,
+            this.componentStoreContext.stores,
+            entity,
+            types
+        );
     }
 
     /** Returns the component value for the entity, or `undefined` when absent. */
     getComponent<T extends object>(entity: Entity, type: ComponentType<T>): T | undefined {
         assertRegisteredComponent(this.registry, type, "read");
 
-        if (!this.entities.isAlive(entity)) {
+        if (!this.entityManager.isAlive(entity)) {
             return undefined;
         }
 
@@ -375,7 +390,12 @@ export class World extends WorldQueryMethods {
     ): ComponentTuple<TComponents> | undefined {
         assertRegisteredComponents(this.registry, types, "read");
 
-        return getManyComponents(this.entities, this.componentStoreContext.stores, entity, types);
+        return getManyComponents(
+            this.entityManager,
+            this.componentStoreContext.stores,
+            entity,
+            types
+        );
     }
 
     /** Returns whether the component was added inside the current change-detection window. */
@@ -383,7 +403,7 @@ export class World extends WorldQueryMethods {
         assertRegisteredComponent(this.registry, type, "read");
 
         return isComponentAdded(
-            this.entities,
+            this.entityManager,
             this.componentStoreContext.stores,
             entity,
             type,
@@ -396,7 +416,7 @@ export class World extends WorldQueryMethods {
         assertRegisteredComponent(this.registry, type, "read");
 
         return isComponentChanged(
-            this.entities,
+            this.entityManager,
             this.componentStoreContext.stores,
             entity,
             type,
@@ -410,7 +430,7 @@ export class World extends WorldQueryMethods {
 
         const componentIds = getEntityComponents(this.entityComponents, entity);
 
-        if (this.entities.isAlive(entity) && componentIds.length > 1) {
+        if (this.entityManager.isAlive(entity) && componentIds.length > 1) {
             assertComponentHasNoDependents(
                 entity,
                 type,
@@ -800,7 +820,7 @@ export class World extends WorldQueryMethods {
             assertComponentRegistered: (type, action) => {
                 assertRegisteredComponent(this.registry, type, action);
             },
-            isAlive: (entity) => this.entities.isAlive(entity),
+            isAlive: (entity) => this.entityManager.isAlive(entity),
             reserveEntity: this.commandRuntime.reserveEntity,
             releaseReservedEntity: this.commandRuntime.releaseReservedEntity,
             commitReservedEntity: this.commandRuntime.commitReservedEntity,
@@ -820,7 +840,7 @@ export class World extends WorldQueryMethods {
         const orderedEntries = entriesHaveDependencyChecks(entries)
             ? (assertSpawnEntriesSatisfied(entries), sortEntriesByDependencies(entries))
             : entries;
-        const entity = this.entities.create(etype);
+        const entity = this.entityManager.create(etype);
 
         for (const entry of orderedEntries) {
             insertComponent(this.componentContext, entity, entry.type, entry.value);

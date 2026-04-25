@@ -29,6 +29,32 @@ test("registry assigns stable keys and supports name and key lookups", () => {
     assert.equal(registry.typeByKey(DamageEvent.key), DamageEvent);
 });
 
+test("registry exposes definition-order enumeration snapshots", () => {
+    const registry = createRegistry("registry-enumeration-test");
+    const Position = registry.defineComponent<{ x: number; y: number }>("Position");
+    const Velocity = registry.defineComponent<{ x: number; y: number }>("Velocity");
+    const SharedResource = registry.defineResource<{ enabled: boolean }>("Shared");
+    const Mode = registry.defineState("Mode", "idle" as "idle" | "running");
+    const DamageMessage = registry.defineMessage<{ amount: number }>("Damage");
+    const DamageEvent = registry.defineEvent<{ amount: number }>("Damage");
+
+    const components = registry.componentTypes();
+    const resources = registry.resourceTypes();
+    const states = registry.stateTypes();
+    const messages = registry.messageTypes();
+    const events = registry.eventTypes();
+
+    assert.deepEqual(components, [Position, Velocity]);
+    assert.deepEqual(resources, [SharedResource]);
+    assert.deepEqual(states, [Mode]);
+    assert.deepEqual(messages, [DamageMessage]);
+    assert.deepEqual(events, [DamageEvent]);
+
+    (components as unknown as unknown[]).length = 0;
+
+    assert.deepEqual(registry.componentTypes(), [Position, Velocity]);
+});
+
 test("registry rejects duplicate names within the same type kind", () => {
     const registry = createRegistry("registry-duplicate-test");
 
