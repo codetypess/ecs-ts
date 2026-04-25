@@ -58,9 +58,9 @@ import {
 import {
     addMessageType,
     clearMessages as clearStoredMessages,
+    createMessageReader as createBoundMessageReader,
     createMessageContext,
     drainMessages as drainStoredMessages,
-    readMessages as readStoredMessages,
     updateMessages as updateStoredMessages,
     writeMessage as writeStoredMessage,
     type MessageContext,
@@ -120,6 +120,7 @@ import {
     assertRegisteredMessage,
     type MessageId,
     type MessageReader,
+    type MessageReaderOptions,
     type MessageType,
 } from "./message.js";
 import type { ChangeDetectionRange, ComponentTuple } from "./query.js";
@@ -447,20 +448,6 @@ export class World extends WorldQueryMethods {
         return createBoundRemovedReader(this.removedContext, type, options);
     }
 
-    /** Reads removed components with an independent cursor-based reader. */
-    readRemoved<TComponent extends AnyComponentType>(
-        reader: RemovedReader<TComponent>
-    ): readonly RemovedComponent<TComponent>[] {
-        return reader.read();
-    }
-
-    /** Releases a removed reader so its cursor no longer retains buffered history. */
-    releaseRemovedReader<TComponent extends AnyComponentType>(
-        reader: RemovedReader<TComponent>
-    ): void {
-        reader.close();
-    }
-
     /** Registers every implemented lifecycle method from an object-style system. */
     addSystem(system: System, options: SystemOptions = {}): this {
         for (const { stage, systemMethod } of scheduleStageDefinitions) {
@@ -556,11 +543,11 @@ export class World extends WorldQueryMethods {
         return writeStoredMessage(this.messageContext, type, value);
     }
 
-    /** Reads unread messages for a cursor-based reader. */
-    readMessages<T>(reader: MessageReader<T>): readonly T[] {
-        assertRegisteredMessage(this.registry, reader.type, "read");
+    /** Creates a message reader bound to this world. */
+    messageReader<T>(type: MessageType<T>, options: MessageReaderOptions = {}): MessageReader<T> {
+        assertRegisteredMessage(this.registry, type, "create message reader");
 
-        return readStoredMessages(this.messageContext, reader);
+        return createBoundMessageReader(this.messageContext, type, options);
     }
 
     /** Returns every buffered message for the channel and clears them. */

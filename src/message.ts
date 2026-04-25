@@ -27,14 +27,13 @@ export interface MessageEntry<T> {
     readonly value: T;
 }
 
-/** Minimal world surface needed by message readers. */
-export interface MessageWorld {
-    readMessages<T>(reader: MessageReader<T>): readonly T[];
-}
-
 /** Options for constructing a reader that starts from a custom cursor. */
 export interface MessageReaderOptions {
     readonly startAt?: number;
+}
+
+interface MessageReaderBinding<T> {
+    readonly read: (reader: MessageReader<T>) => readonly T[];
 }
 
 /** Cursor-based reader that lets multiple consumers independently read the same messages. */
@@ -45,6 +44,7 @@ export class MessageReader<T> {
 
     constructor(
         readonly type: MessageType<T>,
+        private readonly binding: MessageReaderBinding<T>,
         options: MessageReaderOptions = {}
     ) {
         this.nextMessageId = options.startAt ?? 0;
@@ -56,8 +56,8 @@ export class MessageReader<T> {
     }
 
     /** Reads all unread messages and advances the cursor to the latest id. */
-    read(world: MessageWorld): readonly T[] {
-        return world.readMessages(this);
+    read(): readonly T[] {
+        return this.binding.read(this);
     }
 
     /** Manually rewinds or fast-forwards the reader cursor. */
@@ -145,11 +145,6 @@ export class Messages<T> {
     private previousBuffer(): 0 | 1 {
         return this.currentBuffer === 0 ? 1 : 0;
     }
-}
-
-/** Creates a cursor-based reader that starts at the current channel origin. */
-export function messageReader<T>(type: MessageType<T>): MessageReader<T> {
-    return new MessageReader(type);
 }
 
 /** Throws unless the message channel belongs to the expected registry. */

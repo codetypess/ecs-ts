@@ -5,7 +5,6 @@ import {
     World,
     anyMatch,
     createRegistry,
-    messageReader,
     queryState,
     resourceMatches,
     runIfAll,
@@ -712,9 +711,9 @@ pushPreparedBenchmark(results, "message write+read", {
     setup: () => {
         const world = new World(registry);
         const target = world.spawn(withComponent(Health, { value: 100 }));
-        const reader = messageReader(DamageMessage);
 
         world.addMessage(DamageMessage);
+        const reader = world.messageReader(DamageMessage);
 
         return { world, target, reader };
     },
@@ -723,7 +722,7 @@ pushPreparedBenchmark(results, "message write+read", {
             world.writeMessage(DamageMessage, { target, amount: 1 });
         }
 
-        checksum += reader.read(world).length;
+        checksum += reader.read().length;
 
         return EVENT_COUNT;
     },

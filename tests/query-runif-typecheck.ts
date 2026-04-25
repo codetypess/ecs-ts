@@ -2,7 +2,6 @@ import {
     World,
     anyMatch,
     createRegistry,
-    messageReader,
     noMatch,
     optionalQueryState,
     queryState,
@@ -140,11 +139,10 @@ expectType<boolean>(
 world.addMessage(Damage);
 world.writeMessage(Damage, { target: player, amount: 10 });
 
-const damageReader = messageReader(Damage);
+const damageReader = world.messageReader(Damage);
 
 expectType<MessageReader<{ target: Entity; amount: number }>>(damageReader);
-expectType<readonly { target: Entity; amount: number }[]>(damageReader.read(world));
-expectType<readonly { target: Entity; amount: number }[]>(world.readMessages(damageReader));
+expectType<readonly { target: Entity; amount: number }[]>(damageReader.read());
 expectType<{ target: Entity; amount: number }[]>(world.drainMessages(Damage));
 
 expectType<SystemRunCondition>(resourceExists(Flags));
@@ -186,7 +184,7 @@ named.each(world, (_entity, _position, velocity, _name) => {
     expectType<{ x: number; y: number }>(velocity);
 });
 
-const firstDamage = damageReader.read(world)[0];
+const firstDamage = damageReader.read()[0];
 
 if (firstDamage !== undefined) {
     // @ts-expect-error messages only expose declared fields

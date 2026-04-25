@@ -1,11 +1,4 @@
-import {
-    type Entity,
-    World,
-    createRegistry,
-    formatEntity,
-    messageReader,
-    withComponent,
-} from "../src";
+import { type Entity, World, createRegistry, formatEntity, withComponent } from "../src";
 
 const registry = createRegistry("example-commands");
 const Position = registry.defineComponent<{ x: number; y: number }>("Position");
@@ -30,8 +23,8 @@ console.log(
 
 commands.flush();
 
-const damageReader = messageReader(Damage);
-const damageMessages = damageReader.read(world);
+const damageReader = world.messageReader(Damage);
+const damageMessages = damageReader.read();
 
 console.log(
     `after flush ${formatEntity(entity)} alive=${world.isAlive(entity)} state=${world.state(Mode)}`

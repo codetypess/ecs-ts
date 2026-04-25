@@ -1,5 +1,5 @@
-import { Messages } from "../message.js";
-import type { MessageId, MessageReader, MessageType } from "../message.js";
+import { MessageReader, Messages } from "../message.js";
+import type { MessageId, MessageReaderOptions, MessageType } from "../message.js";
 
 /** Indexed storage for every registered message channel. */
 export interface MessageContext {
@@ -18,6 +18,21 @@ export function createMessageContext(): MessageContext {
 /** Ensures a message channel exists before the first write. */
 export function addMessageType<T>(context: MessageContext, type: MessageType<T>): void {
     ensureMessageStore(context, type);
+}
+
+/** Creates a world-bound message reader for the channel. */
+export function createMessageReader<T>(
+    context: MessageContext,
+    type: MessageType<T>,
+    options: MessageReaderOptions = {}
+): MessageReader<T> {
+    return new MessageReader(
+        type,
+        {
+            read: (reader) => readMessages(context, reader),
+        },
+        options
+    );
 }
 
 /** Writes a message into the current-frame buffer for the given channel. */

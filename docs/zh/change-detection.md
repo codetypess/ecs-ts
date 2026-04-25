@@ -60,9 +60,9 @@ npm run example:resources
 Message 是短生命周期、多 reader 的事件队列。Writer 可以直接调用 `writeMessage(...)`，也可以通过 `Commands` 排队写入。Reader 会维护独立 cursor。
 
 ```ts
-const damageReader = messageReader(Damage);
+const damageReader = world.messageReader(Damage);
 
-for (const damage of damageReader.read(world)) {
+for (const damage of damageReader.read()) {
     applyDamage(damage);
 }
 ```

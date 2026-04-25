@@ -60,9 +60,9 @@ npm run example:resources
 Messages are short-lived, multi-reader event queues. Writers can call `writeMessage(...)` directly or queue writes through `Commands`. Readers keep independent cursors.
 
 ```ts
-const damageReader = messageReader(Damage);
+const damageReader = world.messageReader(Damage);
 
-for (const damage of damageReader.read(world)) {
+for (const damage of damageReader.read()) {
     applyDamage(damage);
 }
 ```

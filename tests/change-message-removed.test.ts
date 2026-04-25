@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Commands, Entity, World, createRegistry, messageReader, withComponent } from "../src";
+import { Commands, Entity, World, createRegistry, withComponent } from "../src";
 
 const registry = createRegistry("change-message-removed-test");
 
@@ -57,19 +57,19 @@ test("message readers keep independent cursors", () => {
     const Damage = registry.defineMessage<{ target: Entity; amount: number }>("MessageDamage");
     const world = new World(registry);
     const target = world.spawn(withComponent(Health, { value: 100 }));
-    const readerA = messageReader(Damage);
-    const readerB = messageReader(Damage);
 
     world.addMessage(Damage);
+    const readerA = world.messageReader(Damage);
+    const readerB = world.messageReader(Damage);
     world.writeMessage(Damage, { target, amount: 10 });
 
-    assert.equal(readerA.read(world).length, 1);
-    assert.equal(readerB.read(world).length, 1);
-    assert.equal(readerA.read(world).length, 0);
+    assert.equal(readerA.read().length, 1);
+    assert.equal(readerB.read().length, 1);
+    assert.equal(readerA.read().length, 0);
 
     world.writeMessage(Damage, { target, amount: 5 });
 
-    const unread = readerA.read(world);
+    const unread = readerA.read();
 
     assert.equal(unread.length, 1);
     assert.equal(unread[0]?.amount, 5);
@@ -78,18 +78,18 @@ test("message readers keep independent cursors", () => {
 test("messages expire after the next message update window", () => {
     const Damage = registry.defineMessage<{ amount: number }>("ExpiringDamage");
     const world = new World(registry);
-    const timelyReader = messageReader(Damage);
-    const lateReader = messageReader(Damage);
 
     world.addMessage(Damage);
+    const timelyReader = world.messageReader(Damage);
+    const lateReader = world.messageReader(Damage);
     world.writeMessage(Damage, { amount: 1 });
     world.update(0);
 
-    assert.deepEqual(timelyReader.read(world), [{ amount: 1 }]);
+    assert.deepEqual(timelyReader.read(), [{ amount: 1 }]);
 
     world.update(0);
 
-    assert.deepEqual(lateReader.read(world), []);
+    assert.deepEqual(lateReader.read(), []);
 });
 
 test("removed readers can inspect records without draining them", () => {

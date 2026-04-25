@@ -1,10 +1,10 @@
 import {
     Commands,
     Entity,
+    MessageReader,
     World,
     createRegistry,
     formatEntity,
-    messageReader,
     withComponent,
     withMarker,
 } from "../src";
@@ -27,10 +27,10 @@ class AttackSystem {
 }
 
 class DamageSystem {
-    private readonly damageReader = messageReader(Damage);
+    constructor(private readonly damageReader: MessageReader<{ target: Entity; amount: number }>) {}
 
     onUpdate(world: World): void {
-        for (const damage of this.damageReader.read(world)) {
+        for (const damage of this.damageReader.read()) {
             const health = world.getComponent(damage.target, Health);
 
             if (health === undefined) {
@@ -49,7 +49,7 @@ class DamageSystem {
 const world = new World(registry);
 world.addMessage(Damage);
 world.addSystem(new AttackSystem());
-world.addSystem(new DamageSystem());
+world.addSystem(new DamageSystem(world.messageReader(Damage)));
 
 world.update(0);
 world.update(0);
