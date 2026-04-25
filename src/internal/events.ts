@@ -2,9 +2,14 @@ import type { EventObserver } from "../event.js";
 import type { World } from "../world.js";
 import { runEventObserverWithCommands } from "./command-execution.js";
 
+interface EventObserverList {
+    observers: EventObserver<unknown>[];
+    dispatchDepth: number;
+}
+
 /** Observer registry keyed by event type id. */
 export interface EventContext {
-    readonly observers: Map<number, EventObserver<unknown>[]>;
+    readonly observers: Map<number, EventObserverList>;
 }
 
 /** Creates the event context used by a world. */
@@ -20,16 +25,21 @@ export function observeEvent<T>(
     typeId: number,
     observer: EventObserver<T>
 ): () => void {
-    const observers = context.observers.get(typeId) ?? [];
+    const list = ensureEventObserverList(context, typeId);
+    const observers = mutableEventObservers(list);
 
     observers.push(observer as EventObserver<unknown>);
-    context.observers.set(typeId, observers);
 
     return () => {
-        const index = observers.indexOf(observer as EventObserver<unknown>);
+        const currentObservers = mutableEventObservers(list);
+        const index = currentObservers.indexOf(observer as EventObserver<unknown>);
 
         if (index !== -1) {
-            observers.splice(index, 1);
+            currentObservers.splice(index, 1);
+        }
+
+        if (currentObservers.length === 0 && context.observers.get(typeId) === list) {
+            context.observers.delete(typeId);
         }
     };
 }
@@ -41,18 +51,45 @@ export function triggerEvent<T>(
     value: T,
     world: World
 ): void {
-    const observers = getEventObservers<T>(context, typeId);
+    const list = context.observers.get(typeId);
 
-    if (observers.length === 0) {
+    if (list === undefined || list.observers.length === 0) {
         return;
     }
 
-    // Snapshot the observer list so observers can safely unsubscribe during dispatch.
-    for (const observer of [...observers]) {
-        runEventObserverWithCommands(world, observer, value);
+    const observers = list.observers as EventObserver<T>[];
+    list.dispatchDepth++;
+
+    try {
+        for (const observer of observers) {
+            runEventObserverWithCommands(world, observer, value);
+        }
+    } finally {
+        list.dispatchDepth--;
     }
 }
 
-function getEventObservers<T>(context: EventContext, typeId: number): readonly EventObserver<T>[] {
-    return (context.observers.get(typeId) ?? []) as readonly EventObserver<T>[];
+function ensureEventObserverList(context: EventContext, typeId: number): EventObserverList {
+    const existing = context.observers.get(typeId);
+
+    if (existing !== undefined) {
+        return existing;
+    }
+
+    const created: EventObserverList = {
+        observers: [],
+        dispatchDepth: 0,
+    };
+
+    context.observers.set(typeId, created);
+
+    return created;
+}
+
+function mutableEventObservers(list: EventObserverList): EventObserver<unknown>[] {
+    if (list.dispatchDepth > 0) {
+        list.observers = [...list.observers];
+    }
+
+    return list.observers;
 }

@@ -83,6 +83,49 @@ test("multiple unsubscribes do not throw", () => {
     assert.doesNotThrow(() => unsub());
 });
 
+test("observer unsubscribe during dispatch affects the next trigger only", () => {
+    const Ping = registry.defineEvent<void>("UnsubscribeDuringDispatch");
+    const world = new World(registry);
+    const log: string[] = [];
+    let unsubscribeSecond: () => void = () => undefined;
+
+    world.observe(Ping, () => {
+        log.push("first");
+        unsubscribeSecond();
+    });
+    unsubscribeSecond = world.observe(Ping, () => {
+        log.push("second");
+    });
+
+    world.trigger(Ping, undefined);
+    world.trigger(Ping, undefined);
+
+    assert.deepEqual(log, ["first", "second", "first"]);
+});
+
+test("observer added during dispatch starts on the next trigger", () => {
+    const Ping = registry.defineEvent<void>("SubscribeDuringDispatch");
+    const world = new World(registry);
+    const log: string[] = [];
+    let subscribedLate = false;
+
+    world.observe(Ping, () => {
+        log.push("first");
+
+        if (!subscribedLate) {
+            subscribedLate = true;
+            world.observe(Ping, () => {
+                log.push("late");
+            });
+        }
+    });
+
+    world.trigger(Ping, undefined);
+    world.trigger(Ping, undefined);
+
+    assert.deepEqual(log, ["first", "first", "late"]);
+});
+
 test("observer can spawn entities via commands and they are visible after flush", () => {
     const SpawnCmd = registry.defineEvent<void>("SpawnCmdEvent");
     const Tag = registry.defineComponent("SpawnCmdTag");
