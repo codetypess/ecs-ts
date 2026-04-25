@@ -1,5 +1,4 @@
 import type { Registry } from "./registry.js";
-import { assertRegisteredType } from "./registry.js";
 
 declare const MessageTypeBrand: unique symbol;
 declare const MessageIdBrand: unique symbol;
@@ -157,5 +156,17 @@ export function assertRegisteredMessage(
     type: AnyMessageType,
     action: string
 ): void {
-    assertRegisteredType(registry, type, "message", action);
+    if (registry.isRegisteredMessage(type)) {
+        return;
+    }
+
+    if (type.registry === registry) {
+        throw new Error(
+            `Cannot ${action} message ${type.name}: it is not registered in ${registry.name}`
+        );
+    }
+
+    throw new Error(
+        `Cannot ${action} message ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
+    );
 }

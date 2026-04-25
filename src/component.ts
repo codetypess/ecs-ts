@@ -1,6 +1,5 @@
 import type { Entity } from "./entity.js";
 import type { Registry } from "./registry.js";
-import { assertRegisteredType } from "./registry.js";
 import type { World } from "./world.js";
 
 export { createRegistry, Registry } from "./registry.js";
@@ -94,7 +93,19 @@ export function assertRegisteredComponent(
     type: AnyComponentType,
     action: string
 ): void {
-    assertRegisteredType(registry, type, "component", action);
+    if (registry.isRegisteredComponent(type)) {
+        return;
+    }
+
+    if (type.registry === registry) {
+        throw new Error(
+            `Cannot ${action} component ${type.name}: it is not registered in ${registry.name}`
+        );
+    }
+
+    throw new Error(
+        `Cannot ${action} component ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
+    );
 }
 
 /** Throws unless every component belongs to the expected registry. */

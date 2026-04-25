@@ -356,22 +356,6 @@ export function createRegistry(name: string): Registry {
     return new Registry(name);
 }
 
-/** Shared helper: throws unless the type belongs to the expected registry. */
-export function assertRegisteredType(
-    registry: Registry,
-    type: { readonly name: string; readonly registry: Registry },
-    kindName: string,
-    action: string
-): void {
-    if (type.registry === registry) {
-        return;
-    }
-
-    throw new Error(
-        `Cannot ${action} ${kindName} ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
-    );
-}
-
 function assertRegistryName(name: string): void {
     if (name.trim().length === 0) {
         throw new Error("Registry name must be a non-empty string");

@@ -432,8 +432,14 @@ function createOptionalQueryPlan(
     };
 }
 function assertRegisteredQueryComponent(registry: Registry, type: AnyComponentType): void {
-    if (type.registry === registry) {
+    if (registry.isRegisteredComponent(type)) {
         return;
+    }
+
+    if (type.registry === registry) {
+        throw new Error(
+            `Cannot query component ${type.name}: it is not registered in ${registry.name}`
+        );
     }
 
     throw new Error(

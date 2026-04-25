@@ -366,6 +366,43 @@ test("world rejects components from a different registry", () => {
     assert.throws(() => Array.from(world.query([foreign])), /other-world-test, not world-test/);
 });
 
+test("world rejects forged types with the same registry reference", () => {
+    const Position = registry.defineComponent<{ x: number; y: number }>("ForgedPosition");
+    const Settings = registry.defineResource<{ value: number }>("ForgedSettings");
+    const Mode = registry.defineState("ForgedMode", "idle" as "idle" | "running");
+    const Notice = registry.defineMessage<{ value: number }>("ForgedNotice");
+    const Ping = registry.defineEvent<{ value: number }>("ForgedPing");
+    const forgedPosition = { ...Position } as typeof Position;
+    const forgedSettings = { ...Settings } as typeof Settings;
+    const forgedMode = { ...Mode } as typeof Mode;
+    const forgedNotice = { ...Notice } as typeof Notice;
+    const forgedPing = { ...Ping } as typeof Ping;
+    const world = new World(registry);
+    const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
+
+    assert.throws(
+        () => world.hasComponent(entity, forgedPosition),
+        /ForgedPosition.*not registered in world-test/
+    );
+    assert.throws(
+        () => Array.from(world.query([forgedPosition])),
+        /ForgedPosition.*not registered in world-test/
+    );
+    assert.throws(
+        () => world.setResource(forgedSettings, { value: 1 }),
+        /ForgedSettings.*not registered in world-test/
+    );
+    assert.throws(() => world.initState(forgedMode), /ForgedMode.*not registered in world-test/);
+    assert.throws(
+        () => world.writeMessage(forgedNotice, { value: 1 }),
+        /ForgedNotice.*not registered in world-test/
+    );
+    assert.throws(
+        () => world.observe(forgedPing, () => undefined),
+        /ForgedPing.*not registered in world-test/
+    );
+});
+
 test("world rejects registry-owned non-component types from a different registry", () => {
     const otherRegistry = createRegistry("other-world-owned-types-test");
     const foreignResource = otherRegistry.defineResource<{ value: number }>("ForeignResource");
