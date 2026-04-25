@@ -114,7 +114,7 @@ import {
     setState,
     type StateMachineContext,
 } from "./internal/state-machine.js";
-import { runWorldBatch, type WorldBatchRuntime } from "./internal/world-batch.js";
+import { runWorldBatch, type WorldBatch, type WorldBatchRuntime } from "./internal/world-batch.js";
 import { WorldQueryMethods } from "./internal/world-query-methods.js";
 import {
     assertRegisteredMessage,
@@ -158,15 +158,7 @@ export type {
     SystemSetOptions,
 } from "./scheduler.js";
 export type { StateSystem, System, TransitionSystem } from "./system.js";
-
-/** Batched structural edits that are committed together after validation succeeds. */
-export interface WorldBatch {
-    spawn(...entries: AnyComponentEntry[]): Entity;
-    spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
-    addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this;
-    removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): this;
-    despawn(entity: Entity): this;
-}
+export type { WorldBatch } from "./internal/world-batch.js";
 
 /**
  * Central ECS runtime.

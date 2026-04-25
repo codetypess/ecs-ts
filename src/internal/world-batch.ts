@@ -29,6 +29,15 @@ interface BatchContext {
     closed: boolean;
 }
 
+/** Batched structural edits that are committed together after validation succeeds. */
+export interface WorldBatch {
+    spawn(...entries: AnyComponentEntry[]): Entity;
+    spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
+    addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this;
+    removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): this;
+    despawn(entity: Entity): this;
+}
+
 export interface WorldBatchRuntime {
     readonly assertEntriesRegistered: (
         entries: readonly AnyComponentEntry[],
@@ -50,18 +59,7 @@ export interface WorldBatchRuntime {
     readonly despawnEntity: (entity: Entity) => boolean;
 }
 
-export interface WorldBatchWriter {
-    spawn(...entries: AnyComponentEntry[]): Entity;
-    spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
-    addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this;
-    removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): this;
-    despawn(entity: Entity): this;
-}
-
-export function runWorldBatch<T>(
-    runtime: WorldBatchRuntime,
-    run: (batch: WorldBatchWriter) => T
-): T {
+export function runWorldBatch<T>(runtime: WorldBatchRuntime, run: (batch: WorldBatch) => T): T {
     const context: BatchContext = {
         entityStates: new Map(),
         closed: false,
@@ -110,7 +108,7 @@ function createBatchWriter(runtime: WorldBatchRuntime, context: BatchContext) {
         return stageBatchSpawn(runtime, context, etype, entries);
     }
 
-    const batch: WorldBatchWriter = {
+    const batch: WorldBatch = {
         spawn,
         addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T) {
             ensureBatchContextOpen(context);
