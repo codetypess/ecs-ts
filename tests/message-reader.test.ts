@@ -110,6 +110,29 @@ test("_readBuffer is reused across successive reads", () => {
     assert.equal(result2[0]?.v, 1);
 });
 
+test("empty reads reuse the buffer without advancing the cursor", () => {
+    const Empty = registry.defineMessage<{ v: number }>("EmptyReadBuffer");
+    const world = new World(registry);
+
+    world.addMessage(Empty);
+    const reader = world.messageReader(Empty);
+
+    const result1 = reader.read();
+    const result2 = reader.read();
+
+    assert.equal(result1, result2, "_readBuffer should be reused for empty reads");
+    assert.equal(result1.length, 0);
+    assert.equal(reader.cursor, 0);
+
+    world.writeMessage(Empty, { v: 1 });
+
+    const result3 = reader.read();
+
+    assert.equal(result3, result1);
+    assert.equal(result3.length, 1);
+    assert.equal(reader.cursor, 1);
+});
+
 test("reading after message expiry returns empty result", () => {
     const Shot = registry.defineMessage<{ dmg: number }>("ExpiryShot");
     const world = new World(registry);

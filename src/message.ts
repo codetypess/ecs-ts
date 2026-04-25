@@ -97,6 +97,10 @@ export class Messages<T> {
         values.length = 0;
         const cursor = reader.cursor;
 
+        if (cursor === this.nextMessageId) {
+            return values;
+        }
+
         this.collectUnread(this.previousBuffer(), cursor, values);
         this.collectUnread(this.currentBuffer, cursor, values);
         reader.advanceTo(this.nextMessageId);

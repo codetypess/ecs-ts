@@ -594,8 +594,11 @@ function countRequiredQueryMatches(
 ): number {
     let matches = 0;
     const baseStore = currentRequiredBaseStore(plan);
+    const baseEntities = baseStore.entities;
 
-    for (const entity of baseStore.entities) {
+    for (let index = 0; index < baseEntities.length; index++) {
+        const entity = baseEntities[index]!;
+
         if (!hasComponents(entity, plan.stores, baseStore)) {
             continue;
         }
@@ -617,8 +620,11 @@ function countRequiredQueryMatchesFiltered(
 ): number {
     let matches = 0;
     const baseStore = currentRequiredBaseStore(plan);
+    const baseEntities = baseStore.entities;
 
-    for (const entity of baseStore.entities) {
+    for (let index = 0; index < baseEntities.length; index++) {
+        const entity = baseEntities[index]!;
+
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
@@ -882,8 +888,11 @@ function countOptionalQueryMatches(
 ): number {
     let matches = 0;
     const baseStore = currentOptionalBaseStore(plan);
+    const baseEntities = baseStore.entities;
 
-    for (const entity of baseStore.entities) {
+    for (let index = 0; index < baseEntities.length; index++) {
+        const entity = baseEntities[index]!;
+
         if (!hasComponents(entity, plan.requiredStores, baseStore)) {
             continue;
         }
@@ -905,8 +914,11 @@ function countOptionalQueryMatchesFiltered(
 ): number {
     let matches = 0;
     const baseStore = currentOptionalBaseStore(plan);
+    const baseEntities = baseStore.entities;
 
-    for (const entity of baseStore.entities) {
+    for (let index = 0; index < baseEntities.length; index++) {
+        const entity = baseEntities[index]!;
+
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
