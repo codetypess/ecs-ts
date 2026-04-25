@@ -148,7 +148,7 @@ test("eachOptional visits all required-matching entities and exposes optional", 
     const still = world.spawn(withComponent(Position, { x: 5 }));
     const rows: { x: number; vx: number | undefined }[] = [];
 
-    world.eachOptional([Position], [Velocity], {}, (entity, pos, vel) => {
+    world.eachOptional([Position], [Velocity], (entity, pos, vel) => {
         rows.push({ x: pos.x, vx: vel?.vx });
     });
 

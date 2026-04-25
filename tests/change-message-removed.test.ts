@@ -134,6 +134,32 @@ test("removed readers only see removals still buffered after drain", () => {
     assert.deepEqual(removed[0]?.component, { x: 3, y: 4 });
 });
 
+test("removed readers reuse the same output buffer across successive reads", () => {
+    const Position = registry.defineComponent<{ x: number; y: number }>(
+        "RemovedReadBufferPosition"
+    );
+    const world = new World(registry);
+    const reader = world.removedReader(Position);
+    const first = world.spawn(withComponent(Position, { x: 1, y: 2 }));
+
+    world.removeComponent(first, Position);
+
+    const result1 = reader.read();
+
+    assert.equal(result1.length, 1);
+
+    const second = world.spawn(withComponent(Position, { x: 3, y: 4 }));
+
+    world.removeComponent(second, Position);
+
+    const result2 = reader.read();
+
+    assert.equal(result1, result2, "RemovedReader should reuse the same array reference");
+    assert.equal(result2.length, 1);
+    assert.equal(result2[0]?.entity, second);
+    assert.deepEqual(result2[0]?.component, { x: 3, y: 4 });
+});
+
 test("removed readers hide fully consumed history from drainRemoved immediately", () => {
     const Position = registry.defineComponent<{ x: number; y: number }>("RemovedConsumedPosition");
     const world = new World(registry);

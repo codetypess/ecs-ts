@@ -55,7 +55,7 @@ export class MessageReader<T> {
         return this.nextMessageId;
     }
 
-    /** Reads all unread messages and advances the cursor to the latest id. */
+    /** Reads all unread messages into a reused output buffer and advances the cursor. */
     read(): readonly T[] {
         return this.binding.read(this);
     }

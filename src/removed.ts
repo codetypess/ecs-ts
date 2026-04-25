@@ -34,6 +34,8 @@ const REMOVED_PHYSICAL_COMPACTION_THRESHOLD = 64;
 export class RemovedReader<TComponent extends AnyComponentType> {
     private nextRemovedId: number;
     private closed = false;
+    /** @internal Reused output buffer; never hold a reference to the returned array across reads. */
+    readonly _readBuffer: RemovedComponent<TComponent>[] = [];
 
     constructor(
         readonly type: TComponent,
@@ -48,7 +50,7 @@ export class RemovedReader<TComponent extends AnyComponentType> {
         return this.nextRemovedId;
     }
 
-    /** Reads unread removals and advances the cursor. */
+    /** Reads unread removals into a reused output buffer and advances the cursor. */
     read(): readonly RemovedComponent<TComponent>[] {
         this.assertOpen();
 
@@ -125,14 +127,21 @@ export class RemovedComponents<TComponent extends AnyComponentType> {
 
     /** Reads unread removals and advances the reader cursor. */
     read(reader: RemovedReader<TComponent>): readonly RemovedComponent<TComponent>[] {
+        const unread = reader._readBuffer;
+
+        unread.length = 0;
+
         if (reader.cursor === this.nextRemovedId) {
-            return [];
+            return unread;
         }
 
         // Removed ids are contiguous, so the unread slice can be computed directly
         // instead of scanning the entire append-only buffer every read.
         const startIndex = this.startIndex + Math.max(0, reader.cursor - this.firstRemovedId);
-        const unread = startIndex >= this.removed.length ? [] : this.removed.slice(startIndex);
+
+        for (let index = startIndex; index < this.removed.length; index++) {
+            unread.push(this.removed[index]!);
+        }
 
         reader.advanceTo(this.nextRemovedId);
 

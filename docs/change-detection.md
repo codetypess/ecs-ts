@@ -36,6 +36,7 @@ const records = reader.read();
 ```
 
 Use `RemovedReader` when multiple systems need to inspect the same removal stream without consuming each other's records. Call `reader.close()` when you no longer need it so fully consumed history can compact promptly.
+`reader.read()` reuses the same output array on each call, so do not hold a reference to a previous result across reads.
 
 ```sh
 npm run example:removed
@@ -58,6 +59,7 @@ npm run example:resources
 ## Messages
 
 Messages are short-lived, multi-reader event queues. Writers can call `writeMessage(...)` directly or queue writes through `Commands`. Readers keep independent cursors.
+`reader.read()` reuses the same output array on each call, so do not hold a reference to a previous result across reads.
 
 ```ts
 const damageReader = world.messageReader(Damage);

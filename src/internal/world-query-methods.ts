@@ -276,7 +276,6 @@ export abstract class WorldQueryMethods {
     >(
         required: TRequiredComponents,
         optional: TOptionalComponents,
-        filter: QueryFilter,
         visitor: (
             entity: Entity,
             ...components: [
@@ -284,14 +283,42 @@ export abstract class WorldQueryMethods {
                 ...OptionalComponentTuple<TOptionalComponents>,
             ]
         ) => void
+    ): void;
+    eachOptional<
+        const TRequiredComponents extends readonly AnyComponentType[],
+        const TOptionalComponents extends readonly AnyComponentType[],
+    >(
+        required: TRequiredComponents,
+        optional: TOptionalComponents,
+        filterOrVisitor:
+            | QueryFilter
+            | ((
+                  entity: Entity,
+                  ...components: [
+                      ...ComponentTuple<TRequiredComponents>,
+                      ...OptionalComponentTuple<TOptionalComponents>,
+                  ]
+              ) => void),
+        maybeVisitor?: (
+            entity: Entity,
+            ...components: [
+                ...ComponentTuple<TRequiredComponents>,
+                ...OptionalComponentTuple<TOptionalComponents>,
+            ]
+        ) => void
     ): void {
+        const [filter, visitor] =
+            typeof filterOrVisitor === "function"
+                ? [{}, filterOrVisitor]
+                : [filterOrVisitor, maybeVisitor];
+
         eachOptionalQuery(
             this.queryContext,
             required,
             optional,
             filter,
             this.changeDetectionRange(),
-            visitor
+            visitor!
         );
     }
 }
