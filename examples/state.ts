@@ -35,7 +35,7 @@ class StateDriverSystem {
     private frame = 0;
 
     onUpdate(world: World, _dt: number, commands: Commands): void {
-        console.log(`Update: state=${world.state(GameState)} frame=${this.frame}`);
+        console.log(`Update: state=${world.mustGetState(GameState)} frame=${this.frame}`);
 
         if (this.frame === 0) {
             commands.setState(GameState, "playing");

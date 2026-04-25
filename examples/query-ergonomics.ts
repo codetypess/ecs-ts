@@ -18,7 +18,7 @@ world.spawn(withComponent(Position, { x: 10, y: 0 }), withMarker(Enemy));
 console.log(`player has movement=${world.hasAllComponents(player, [Position, Velocity])}`);
 console.log(`player has role=${world.hasAnyComponents(player, [Player, Enemy])}`);
 
-const [playerEntity, position, velocity] = world.single([Position, Velocity], {
+const [playerEntity, position, velocity] = world.mustGetSingle([Position, Velocity], {
     with: [Player],
 });
 
@@ -26,6 +26,6 @@ console.log(
     `single player ${formatEntity(playerEntity)} -> position=(${position.x}, ${position.y}) velocity=(${velocity.x}, ${velocity.y})`
 );
 
-const enemyWithVelocity = world.trySingle([Position, Velocity], { with: [Enemy] });
+const enemyWithVelocity = world.getSingle([Position, Velocity], { with: [Enemy] });
 
 console.log(`enemy with velocity=${enemyWithVelocity === undefined ? "none" : "found"}`);

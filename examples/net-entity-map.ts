@@ -39,13 +39,13 @@ const Log = registry.defineResource<string[]>("NetLog");
 
 class NetSyncSystem {
     onUpdate(world: World, _dt: number, commands: Commands): void {
-        const snapshots = world.resource(SnapshotFrames).shift();
+        const snapshots = world.mustGetResource(SnapshotFrames).shift();
 
         if (snapshots === undefined) {
             return;
         }
 
-        const map = world.resource(NetEntities);
+        const map = world.mustGetResource(NetEntities);
         const visible = new Set<number>();
 
         for (const snapshot of snapshots) {
@@ -60,7 +60,9 @@ class NetSyncSystem {
                     withComponent(Health, { value: snapshot.hp })
                 );
                 map.set(snapshot.id, entity);
-                world.resource(Log).push(`spawn server#${snapshot.id} -> ${formatEntity(entity)}`);
+                world
+                    .mustGetResource(Log)
+                    .push(`spawn server#${snapshot.id} -> ${formatEntity(entity)}`);
                 continue;
             }
 
@@ -70,7 +72,7 @@ class NetSyncSystem {
             position.x = snapshot.x;
             position.y = snapshot.y;
             health.value = snapshot.hp;
-            world.resource(Log).push(`update server#${snapshot.id} -> hp=${snapshot.hp}`);
+            world.mustGetResource(Log).push(`update server#${snapshot.id} -> hp=${snapshot.hp}`);
         }
 
         for (const [serverId, entity] of Array.from(map.entries())) {
@@ -80,14 +82,14 @@ class NetSyncSystem {
 
             commands.despawn(entity);
             map.delete(serverId);
-            world.resource(Log).push(`despawn server#${serverId}`);
+            world.mustGetResource(Log).push(`despawn server#${serverId}`);
         }
     }
 }
 
 class PrintLogSystem {
     onPostUpdate(world: World): void {
-        const log = world.resource(Log);
+        const log = world.mustGetResource(Log);
 
         while (log.length > 0) {
             console.log(log.shift());

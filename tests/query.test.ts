@@ -82,17 +82,17 @@ test("single query helpers report none, one, and multiple matches", () => {
     const Player = registry.defineComponent("SinglePlayer");
     const world = new World(registry);
 
-    assert.equal(world.trySingle([Position]), undefined);
-    assert.throws(() => world.single([Position]), /Expected exactly one query result/);
+    assert.equal(world.getSingle([Position]), undefined);
+    assert.throws(() => world.mustGetSingle([Position]), /Expected exactly one query result/);
 
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }), withMarker(Player));
 
-    assert.equal(world.single([Position])[0], entity);
+    assert.equal(world.mustGetSingle([Position])[0], entity);
 
     world.spawn(withComponent(Position, { x: 3, y: 4 }));
 
-    assert.throws(() => world.trySingle([Position]), /Expected at most one query result/);
-    assert.equal(world.single([Position], { with: [Player] })[0], entity);
+    assert.throws(() => world.getSingle([Position]), /Expected at most one query result/);
+    assert.equal(world.mustGetSingle([Position], { with: [Player] })[0], entity);
 });
 
 test("query state caches resolved stores and invalidates when stores are created", () => {

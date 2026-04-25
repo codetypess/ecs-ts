@@ -270,6 +270,24 @@ test("component lifecycle hooks fire in order and can be unsubscribed", () => {
     ]);
 });
 
+test("resource and state getters expose optional and required variants", () => {
+    const Settings = registry.defineResource<{ volume: number }>("GetterSettings");
+    const Mode = registry.defineState<"boot" | "running">("GetterMode", "boot");
+    const world = new World(registry);
+
+    assert.equal(world.getResource(Settings), undefined);
+    assert.throws(() => world.mustGetResource(Settings), /Resource not found: GetterSettings/);
+    assert.equal(world.getState(Mode), undefined);
+    assert.throws(() => world.mustGetState(Mode), /State is not initialized: GetterMode/);
+
+    world.setResource(Settings, { volume: 1 });
+    world.initState(Mode);
+
+    assert.deepEqual(world.mustGetResource(Settings), { volume: 1 });
+    assert.equal(world.getState(Mode), "boot");
+    assert.equal(world.mustGetState(Mode), "boot");
+});
+
 test("entity type rejects invalid runtime values", () => {
     const world = new World(registry);
 

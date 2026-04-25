@@ -10,19 +10,19 @@ class SetupSystem {
         world.setResource(Log, []);
         world.setResource(FeatureEnabled, { value: true });
         world.initState(GameMode);
-        world.resource(Log).push("startup:setup");
+        world.mustGetResource(Log).push("startup:setup");
     }
 }
 
 class GameplayStartupSystem {
     onStartup(world: World): void {
-        world.resource(Log).push("startup:gameplay");
+        world.mustGetResource(Log).push("startup:gameplay");
     }
 }
 
 class FixedStepSystem {
     onFixedUpdate(world: World, dt: number): void {
-        world.resource(Log).push(`fixed:${dt.toFixed(2)}`);
+        world.mustGetResource(Log).push(`fixed:${dt.toFixed(2)}`);
     }
 }
 
@@ -30,13 +30,13 @@ class NamedUpdateSystem {
     constructor(private readonly name: string) {}
 
     onUpdate(world: World): void {
-        world.resource(Log).push(`update:${this.name}`);
+        world.mustGetResource(Log).push(`update:${this.name}`);
     }
 }
 
 class PrintSystem {
     onLast(world: World): void {
-        console.log(world.resource(Log).join(" -> "));
+        console.log(world.mustGetResource(Log).join(" -> "));
     }
 }
 

@@ -174,7 +174,7 @@ test("resourceChanged is true when marked changed and false after update", () =>
 
     assert.equal(resourceChanged(Speed)(world), false);
 
-    world.resource(Speed).v = 10;
+    world.mustGetResource(Speed).v = 10;
     world.markResourceChanged(Speed);
 
     assert.equal(resourceChanged(Speed)(world), true);

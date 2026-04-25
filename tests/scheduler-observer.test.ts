@@ -268,7 +268,7 @@ test("scheduler combines multiple sets for ordering and runIf", () => {
     world.configureSet("gameplay", { after: ["input"] });
     world.configureSet("network", {
         before: ["render"],
-        runIf: (currentWorld) => currentWorld.resource(Gate).enabled,
+        runIf: (currentWorld) => currentWorld.mustGetResource(Gate).enabled,
     });
     world.addSystem(new NamedSystem("input"), { label: "input" });
     world.addSystem(new NamedSystem("sync"), {
@@ -280,7 +280,7 @@ test("scheduler combines multiple sets for ordering and runIf", () => {
     assert.deepEqual(calls, ["input", "render"]);
 
     calls.length = 0;
-    world.resource(Gate).enabled = true;
+    world.mustGetResource(Gate).enabled = true;
     world.update(0);
 
     assert.deepEqual(calls, ["input", "sync", "render"]);
@@ -430,11 +430,11 @@ test("scheduler composes runIf helpers for resources and state", () => {
     world.update(0);
     world.setState(Mode, "running");
     world.update(0);
-    world.resource(Flags).paused = true;
+    world.mustGetResource(Flags).paused = true;
     world.markResourceChanged(Flags);
     world.update(0);
-    world.resource(Flags).paused = false;
-    world.resource(Flags).enabled = false;
+    world.mustGetResource(Flags).paused = false;
+    world.mustGetResource(Flags).enabled = false;
     world.markResourceChanged(Flags);
     world.update(0);
 
@@ -453,8 +453,8 @@ test("scheduler runIf resource helpers respect per-system change detection", () 
                 return;
             }
 
-            if (world.resource(Tick).value === 1) {
-                world.resource(Tick).value = 2;
+            if (world.mustGetResource(Tick).value === 1) {
+                world.mustGetResource(Tick).value = 2;
                 world.markResourceChanged(Tick);
                 calls.push("mutate");
             }

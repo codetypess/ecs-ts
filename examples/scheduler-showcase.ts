@@ -31,7 +31,7 @@ const activeBodies = queryState([Transform, Velocity, RigidBody], {
 });
 
 function appendLog(world: World, message: string): void {
-    world.resource(Log).push(message);
+    world.mustGetResource(Log).push(message);
 }
 
 class SetupSystem {
@@ -60,14 +60,17 @@ class SpawnSceneSystem {
             withMarker(Sleeping)
         );
 
-        world.resource(ControlledEntity).value = controlled;
+        world.mustGetResource(ControlledEntity).value = controlled;
         appendLog(world, "startup:spawn-scene");
     }
 }
 
 class FixedPrepareSystem {
     onFixedUpdate(world: World, dt: number): void {
-        appendLog(world, `fixed:prepare:frame=${world.resource(Frame).value}:dt=${dt.toFixed(1)}`);
+        appendLog(
+            world,
+            `fixed:prepare:frame=${world.mustGetResource(Frame).value}:dt=${dt.toFixed(1)}`
+        );
     }
 }
 
@@ -81,27 +84,27 @@ class PhysicsSystem {
             bodies++;
         });
 
-        const controlled = world.resource(ControlledEntity).value;
+        const controlled = world.mustGetResource(ControlledEntity).value;
         const position =
             controlled === undefined ? undefined : world.mustGetComponent(controlled, Transform).x;
 
         appendLog(
             world,
-            `fixed:physics:frame=${world.resource(Frame).value}:bodies=${bodies}:player=${position}`
+            `fixed:physics:frame=${world.mustGetResource(Frame).value}:bodies=${bodies}:player=${position}`
         );
     }
 }
 
 class FixedReportSystem {
     onFixedUpdate(world: World): void {
-        appendLog(world, `fixed:report:frame=${world.resource(Frame).value}`);
+        appendLog(world, `fixed:report:frame=${world.mustGetResource(Frame).value}`);
     }
 }
 
 class InputSystem {
     onUpdate(world: World, _dt: number, commands: Commands): void {
-        const frame = world.resource(Frame).value;
-        const controlled = world.resource(ControlledEntity).value;
+        const frame = world.mustGetResource(Frame).value;
+        const controlled = world.mustGetResource(ControlledEntity).value;
 
         if (controlled === undefined) {
             return;
@@ -127,23 +130,26 @@ class InputSystem {
 
 class GameplaySystem {
     onUpdate(world: World): void {
-        appendLog(world, `update:gameplay:frame=${world.resource(Frame).value}`);
+        appendLog(world, `update:gameplay:frame=${world.mustGetResource(Frame).value}`);
     }
 }
 
 class RenderSystem {
     onUpdate(world: World): void {
-        const controlled = world.resource(ControlledEntity).value;
+        const controlled = world.mustGetResource(ControlledEntity).value;
         const position =
             controlled === undefined ? undefined : world.mustGetComponent(controlled, Transform).x;
 
-        appendLog(world, `update:render:frame=${world.resource(Frame).value}:player=${position}`);
+        appendLog(
+            world,
+            `update:render:frame=${world.mustGetResource(Frame).value}:player=${position}`
+        );
     }
 }
 
 class FrameEndSystem {
     onLast(world: World): void {
-        const frame = world.resource(Frame);
+        const frame = world.mustGetResource(Frame);
 
         appendLog(world, `last:frame=${frame.value}`);
         frame.value++;
@@ -207,4 +213,4 @@ for (let frame = 0; frame < 5; frame++) {
 }
 
 world.shutdown();
-console.log(world.resource(Log).join("\n"));
+console.log(world.mustGetResource(Log).join("\n"));

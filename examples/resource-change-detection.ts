@@ -11,7 +11,7 @@ class SettingsMutationSystem {
     }
 
     onUpdate(world: World, _dt: number, commands: Commands): void {
-        const settings = world.resource(Settings);
+        const settings = world.mustGetResource(Settings);
 
         if (this.frame === 0) {
             settings.volume = 0.5;
@@ -27,11 +27,11 @@ class SettingsMutationSystem {
 class SettingsSyncSystem {
     onPostUpdate(world: World): void {
         if (world.isResourceAdded(Settings)) {
-            console.log(`settings added: volume=${world.resource(Settings).volume}`);
+            console.log(`settings added: volume=${world.mustGetResource(Settings).volume}`);
         }
 
         if (world.isResourceChanged(Settings)) {
-            console.log(`settings changed: volume=${world.resource(Settings).volume}`);
+            console.log(`settings changed: volume=${world.mustGetResource(Settings).volume}`);
         }
     }
 }

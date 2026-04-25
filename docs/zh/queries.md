@@ -61,14 +61,14 @@ for (const [entity, position, velocity, name] of world.queryOptional([Position],
 
 ## 单 Entity 辅助方法
 
-允许零个匹配结果时使用 `trySingle(...)`；要求恰好一个匹配结果时使用 `single(...)`。
+允许零个匹配结果时使用 `getSingle(...)`；要求恰好一个匹配结果时使用 `mustGetSingle(...)`。
 
 ```ts
-const player = world.single([Position, Velocity], { with: [Player] });
-const enemyWithVelocity = world.trySingle([Position, Velocity], { with: [Enemy] });
+const player = world.mustGetSingle([Position, Velocity], { with: [Player] });
+const enemyWithVelocity = world.getSingle([Position, Velocity], { with: [Enemy] });
 ```
 
-`trySingle(...)` 会在存在多个匹配结果时抛错。`single(...)` 会在没有匹配结果或存在多个匹配结果时抛错。
+`getSingle(...)` 会在存在多个匹配结果时抛错。`mustGetSingle(...)` 会在没有匹配结果或存在多个匹配结果时抛错。
 
 ## Query State
 

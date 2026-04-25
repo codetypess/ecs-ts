@@ -92,11 +92,11 @@ test("observer can spawn entities via commands and they are visible after flush"
         commands.spawn(withMarker(Tag));
     });
 
-    assert.equal(world.trySingle([Tag]), undefined);
+    assert.equal(world.getSingle([Tag]), undefined);
 
     world.trigger(SpawnCmd, undefined);
 
-    assert.notEqual(world.trySingle([Tag]), undefined);
+    assert.notEqual(world.getSingle([Tag]), undefined);
 });
 
 test("observer receives both the event value and a usable world reference", () => {
@@ -107,11 +107,11 @@ test("observer receives both the event value and a usable world reference", () =
     world.setResource(Resource, { counter: 0 });
 
     world.observe(Bump, (_v, currentWorld) => {
-        currentWorld.resource(Resource).counter++;
+        currentWorld.mustGetResource(Resource).counter++;
     });
 
     world.trigger(Bump, undefined);
     world.trigger(Bump, undefined);
 
-    assert.equal(world.resource(Resource).counter, 2);
+    assert.equal(world.mustGetResource(Resource).counter, 2);
 });

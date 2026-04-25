@@ -27,9 +27,9 @@ const damageReader = world.messageReader(Damage);
 const damageMessages = damageReader.read();
 
 console.log(
-    `after flush ${formatEntity(entity)} alive=${world.isAlive(entity)} state=${world.state(Mode)}`
+    `after flush ${formatEntity(entity)} alive=${world.isAlive(entity)} state=${world.mustGetState(Mode)}`
 );
 console.log(`position=${JSON.stringify(world.mustGetComponent(entity, Position))}`);
 console.log(
-    `log=${world.resource(Log).join(", ")} damageMessages=${JSON.stringify(damageMessages)}`
+    `log=${world.mustGetResource(Log).join(", ")} damageMessages=${JSON.stringify(damageMessages)}`
 );

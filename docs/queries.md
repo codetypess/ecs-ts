@@ -61,14 +61,14 @@ for (const [entity, position, velocity, name] of world.queryOptional([Position],
 
 ## Single-Entity Helpers
 
-Use `trySingle(...)` when zero matches are allowed, and `single(...)` when exactly one match is required.
+Use `getSingle(...)` when zero matches are allowed, and `mustGetSingle(...)` when exactly one match is required.
 
 ```ts
-const player = world.single([Position, Velocity], { with: [Player] });
-const enemyWithVelocity = world.trySingle([Position, Velocity], { with: [Enemy] });
+const player = world.mustGetSingle([Position, Velocity], { with: [Player] });
+const enemyWithVelocity = world.getSingle([Position, Velocity], { with: [Enemy] });
 ```
 
-`trySingle(...)` throws when more than one match exists. `single(...)` throws when zero or multiple matches exist.
+`getSingle(...)` throws when more than one match exists. `mustGetSingle(...)` throws when zero or multiple matches exist.
 
 ## Query State
 

@@ -95,7 +95,7 @@ const UiLoading = registry.defineComponent<UiLoadingData>("UiLoading", {
 });
 const UiInstance = registry.defineComponent<UiInstanceData>("UiInstance", {
     onRemove(_entity, instance, world) {
-        world.resource(UiRuntimeResource).destroy(instance.handle);
+        world.mustGetResource(UiRuntimeResource).destroy(instance.handle);
     },
 });
 
@@ -105,7 +105,7 @@ class UiSystem {
     }
 
     onUpdate(world: World, _dt: number, commands: Commands): void {
-        const ui = world.resource(UiRuntimeResource);
+        const ui = world.mustGetResource(UiRuntimeResource);
 
         world.each([UiSource], { without: [UiLoading, UiInstance] }, (entity, source) => {
             const abort = new AbortController();
@@ -129,7 +129,7 @@ class UiSystem {
     }
 
     onPostUpdate(world: World, _dt: number, commands: Commands): void {
-        const ui = world.resource(UiRuntimeResource);
+        const ui = world.mustGetResource(UiRuntimeResource);
 
         for (const result of drain(ui.completed)) {
             const loading = world.getComponent(result.entity, UiLoading);

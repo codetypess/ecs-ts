@@ -650,8 +650,17 @@ export class World extends WorldQueryMethods {
         return this;
     }
 
+    /** Returns the current value when the state machine has been initialized. */
+    getState<T extends StateValue>(type: StateType<T>): T | undefined {
+        assertRegisteredState(this.registry, type, "read");
+
+        return hasState(this.stateContext, type)
+            ? currentState(this.stateContext, type)
+            : undefined;
+    }
+
     /** Returns the current value of an initialized state machine. */
-    state<T extends StateValue>(type: StateType<T>): T {
+    mustGetState<T extends StateValue>(type: StateType<T>): T {
         assertRegisteredState(this.registry, type, "read");
 
         return currentState(this.stateContext, type);
@@ -776,7 +785,7 @@ export class World extends WorldQueryMethods {
     }
 
     /** Returns the resource value or throws when it is missing. */
-    resource<T>(type: ResourceType<T>): T {
+    mustGetResource<T>(type: ResourceType<T>): T {
         assertRegisteredResource(this.registry, type, "read");
 
         const resource = getStoredResource(this.resourceContext, type);

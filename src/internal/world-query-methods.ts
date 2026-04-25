@@ -48,7 +48,7 @@ export abstract class WorldQueryMethods {
     }
 
     /** Returns the only matching row, or `undefined` when there are no matches. */
-    trySingle<const TComponents extends readonly AnyComponentType[]>(
+    getSingle<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents,
         filter: QueryFilter = {}
     ): QueryRow<TComponents> | undefined {
@@ -69,11 +69,11 @@ export abstract class WorldQueryMethods {
     }
 
     /** Returns the only matching row and throws unless there is exactly one. */
-    single<const TComponents extends readonly AnyComponentType[]>(
+    mustGetSingle<const TComponents extends readonly AnyComponentType[]>(
         types: TComponents,
         filter: QueryFilter = {}
     ): QueryRow<TComponents> {
-        const row = this.trySingle(types, filter);
+        const row = this.getSingle(types, filter);
 
         if (row === undefined) {
             throw new Error("Expected exactly one query result");

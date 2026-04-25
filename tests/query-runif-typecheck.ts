@@ -106,7 +106,7 @@ named.each(world, (entity, position, velocity, name) => {
 });
 
 world.setResource(Flags, { enabled: true, paused: false });
-expectType<{ enabled: boolean; paused: boolean }>(world.resource(Flags));
+expectType<{ enabled: boolean; paused: boolean }>(world.mustGetResource(Flags));
 expectType<{ enabled: boolean; paused: boolean } | undefined>(world.getResource(Flags));
 expectType<boolean>(
     world.resourceMatches(Flags, (flags, currentWorld) => {
@@ -118,7 +118,8 @@ expectType<boolean>(
 );
 
 world.setState(Mode, "running");
-expectType<"boot" | "running" | "paused">(world.state(Mode));
+expectType<"boot" | "running" | "paused">(world.mustGetState(Mode));
+expectType<"boot" | "running" | "paused" | undefined>(world.getState(Mode));
 expectType<boolean>(
     world.stateMatches(Mode, (mode, currentWorld) => {
         expectType<"boot" | "running" | "paused">(mode);
@@ -166,10 +167,10 @@ expectType<SystemRunCondition>(
 );
 
 // @ts-expect-error resources only expose declared fields
-const _missingResourceField = world.resource(Flags).missing;
+const _missingResourceField = world.mustGetResource(Flags).missing;
 
 // @ts-expect-error state values keep their declared union
-expectType<"stopped">(world.state(Mode));
+expectType<"stopped">(world.mustGetState(Mode));
 
 named.each(world, (_entity, _position, velocity, _name) => {
     // @ts-expect-error optional query rows keep optional components as possibly undefined

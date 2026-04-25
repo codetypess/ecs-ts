@@ -50,7 +50,7 @@ Resource 支持 added/changed 检测，也支持显式调用 `markResourceChange
 
 ```ts
 if (world.isResourceChanged(Settings)) {
-    reloadSettings(world.resource(Settings));
+    reloadSettings(world.mustGetResource(Settings));
 }
 ```
 

@@ -50,7 +50,7 @@ Resources have added/changed detection and explicit `markResourceChanged(...)` s
 
 ```ts
 if (world.isResourceChanged(Settings)) {
-    reloadSettings(world.resource(Settings));
+    reloadSettings(world.mustGetResource(Settings));
 }
 ```
 

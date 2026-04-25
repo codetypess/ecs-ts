@@ -11,7 +11,7 @@ test("world can register systems, resources, states, and drive updates together"
 
     class BootstrapSystem {
         onStartup(world: World, _dt: number, commands: Commands): void {
-            world.resource(Log).push("startup");
+            world.mustGetResource(Log).push("startup");
             commands.spawn(withComponent(Position, { x: 0, y: 0 }));
             commands.setState(Mode, "running");
         }
@@ -22,13 +22,13 @@ test("world can register systems, resources, states, and drive updates together"
             world.each([Position], (_entity, position) => {
                 position.x += 1;
             });
-            world.resource(Log).push("update");
+            world.mustGetResource(Log).push("update");
         }
     }
 
     class RunningEnterSystem {
         onEnter(world: World): void {
-            world.resource(Log).push(`enter:${world.state(Mode)}`);
+            world.mustGetResource(Log).push(`enter:${world.mustGetState(Mode)}`);
         }
     }
 
@@ -44,9 +44,9 @@ test("world can register systems, resources, states, and drive updates together"
     world.addStateSystem(Mode, "running", new RunningEnterSystem());
     world.update(0);
 
-    assert.deepEqual(world.resource(Log), ["startup", "enter:running", "update"]);
-    assert.deepEqual(world.single([Position])[1], { x: 1, y: 0 });
-    assert.equal(world.state(Mode), "running");
+    assert.deepEqual(world.mustGetResource(Log), ["startup", "enter:running", "update"]);
+    assert.deepEqual(world.mustGetSingle([Position])[1], { x: 1, y: 0 });
+    assert.equal(world.mustGetState(Mode), "running");
 });
 
 test("state registration lazily initializes and initState becomes a no-op afterward", () => {
@@ -60,6 +60,6 @@ test("state registration lazily initializes and initState becomes a no-op afterw
     world.initState(Mode, "running");
     world.update(0);
 
-    assert.equal(world.state(Mode), "boot");
+    assert.equal(world.mustGetState(Mode), "boot");
     assert.deepEqual(log, ["enter:boot"]);
 });
