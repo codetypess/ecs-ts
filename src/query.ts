@@ -11,6 +11,7 @@ import {
     queryWithState as runQueryWithState,
     type QueryExecutorContext,
 } from "./internal/query-executor.js";
+import { getSingleResult, mustGetSingleResult } from "./internal/query-single.js";
 import type { Registry } from "./registry.js";
 import type { SparseSet } from "./sparse-set.js";
 import type { World } from "./world.js";
@@ -185,30 +186,11 @@ class CachedQueryState<
     }
 
     getSingle(world: World): QueryRow<TComponents> | undefined {
-        const iterator = this.iter(world);
-        const first = iterator.next();
-
-        if (first.done === true) {
-            return undefined;
-        }
-
-        const second = iterator.next();
-
-        if (second.done !== true) {
-            throw new Error("Expected at most one query result");
-        }
-
-        return first.value;
+        return getSingleResult(this.iter(world));
     }
 
     mustGetSingle(world: World): QueryRow<TComponents> {
-        const row = this.getSingle(world);
-
-        if (row === undefined) {
-            throw new Error("Expected exactly one query result");
-        }
-
-        return row;
+        return mustGetSingleResult(this.getSingle(world));
     }
 }
 
@@ -291,30 +273,11 @@ class CachedOptionalQueryState<
     getSingle(
         world: World
     ): OptionalQueryRow<TRequiredComponents, TOptionalComponents> | undefined {
-        const iterator = this.iter(world);
-        const first = iterator.next();
-
-        if (first.done === true) {
-            return undefined;
-        }
-
-        const second = iterator.next();
-
-        if (second.done !== true) {
-            throw new Error("Expected at most one query result");
-        }
-
-        return first.value;
+        return getSingleResult(this.iter(world));
     }
 
     mustGetSingle(world: World): OptionalQueryRow<TRequiredComponents, TOptionalComponents> {
-        const row = this.getSingle(world);
-
-        if (row === undefined) {
-            throw new Error("Expected exactly one query result");
-        }
-
-        return row;
+        return mustGetSingleResult(this.getSingle(world));
     }
 }
 

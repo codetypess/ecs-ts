@@ -74,7 +74,7 @@ Run conditions are composable with `runIfAll(...)`, `runIfAny(...)`, and `runIfN
 const activeBodies = queryState([RigidBody, Transform]);
 
 world.addSystem(new PhysicsSystem(), {
-    runIf: anyMatch(activeBodies),
+    runIf: matchesAny(activeBodies),
 });
 ```
 

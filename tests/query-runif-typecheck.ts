@@ -1,8 +1,9 @@
 import {
     World,
-    anyMatch,
     createRegistry,
-    noMatch,
+    matchesAny,
+    matchesNone,
+    matchesSingle,
     optionalQueryState,
     queryState,
     resourceAdded,
@@ -12,7 +13,6 @@ import {
     runIfAll,
     runIfAny,
     runIfNot,
-    singleMatch,
     stateIs,
     stateMatches,
     withComponent,
@@ -119,7 +119,7 @@ world.addSystem(
         expectType<number>(dt);
         commands.spawn(withMarker(Player));
     },
-    { runIf: anyMatch(moving) }
+    { runIf: matchesAny(moving) }
 );
 
 world.setResource(Flags, { enabled: true, paused: false });
@@ -168,18 +168,18 @@ expectType<SystemRunCondition>(stateIs(Mode, "running"));
 expectType<SystemRunCondition>(
     stateMatches(Mode, (mode, currentWorld) => mode !== "paused" && currentWorld.isAlive(player))
 );
-expectType<SystemRunCondition>(anyMatch(moving));
-expectType<SystemRunCondition>(noMatch(named));
-expectType<SystemRunCondition>(singleMatch(named));
-expectType<SystemRunCondition>(runIfNot(noMatch(moving)));
+expectType<SystemRunCondition>(matchesAny(moving));
+expectType<SystemRunCondition>(matchesNone(named));
+expectType<SystemRunCondition>(matchesSingle(named));
+expectType<SystemRunCondition>(runIfNot(matchesNone(moving)));
 expectType<SystemRunCondition>(
-    runIfAny(resourceExists(Flags), stateIs(Mode, "paused"), anyMatch(moving))
+    runIfAny(resourceExists(Flags), stateIs(Mode, "paused"), matchesAny(moving))
 );
 expectType<SystemRunCondition>(
     runIfAll(
         resourceMatches(Flags, (flags) => flags.enabled),
         stateMatches(Mode, (mode) => mode === "running"),
-        runIfNot(noMatch(moving))
+        runIfNot(matchesNone(moving))
     )
 );
 

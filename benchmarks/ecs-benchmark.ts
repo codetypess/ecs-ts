@@ -3,8 +3,8 @@ import {
     QueryState,
     RemovedReader,
     World,
-    anyMatch,
     createRegistry,
+    matchesAny,
     queryState,
     resourceMatches,
     runIfAll,
@@ -362,7 +362,7 @@ function createQueryRunIfSchedulerWorld(matching: boolean): World {
 
     for (let index = 0; index < SCHEDULER_SYSTEMS; index++) {
         world.addSystem(new NoopSystem(), {
-            runIf: anyMatch(QueryRunIf),
+            runIf: matchesAny(QueryRunIf),
         });
     }
 
@@ -805,7 +805,7 @@ pushPreparedBenchmark(results, "scheduler runIf composed (skip)", {
     },
 });
 
-pushPreparedBenchmark(results, "scheduler runIf anyMatch query (pass)", {
+pushPreparedBenchmark(results, "scheduler runIf matchesAny query (pass)", {
     setup: () => createQueryRunIfSchedulerWorld(true),
     run: (world) => {
         for (let index = 0; index < SCHEDULER_UPDATES; index++) {
@@ -816,7 +816,7 @@ pushPreparedBenchmark(results, "scheduler runIf anyMatch query (pass)", {
     },
 });
 
-pushPreparedBenchmark(results, "scheduler runIf anyMatch query (skip)", {
+pushPreparedBenchmark(results, "scheduler runIf matchesAny query (skip)", {
     setup: () => createQueryRunIfSchedulerWorld(false),
     run: (world) => {
         for (let index = 0; index < SCHEDULER_UPDATES; index++) {

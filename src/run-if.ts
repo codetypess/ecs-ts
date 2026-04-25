@@ -46,17 +46,17 @@ export function runIfNot(condition: SystemRunCondition): SystemRunCondition {
 }
 
 /** Runs when the source matches at least one entity. */
-export function anyMatch(source: QueryRunIfSource): SystemRunCondition {
+export function matchesAny(source: QueryRunIfSource): SystemRunCondition {
     return (world) => source.matchesAny?.(world) ?? source.iter(world).next().done !== true;
 }
 
 /** Runs when the source matches no entities. */
-export function noMatch(source: QueryRunIfSource): SystemRunCondition {
+export function matchesNone(source: QueryRunIfSource): SystemRunCondition {
     return (world) => source.matchesNone?.(world) ?? source.iter(world).next().done === true;
 }
 
 /** Runs when the source matches exactly one entity. */
-export function singleMatch(source: QueryRunIfSource): SystemRunCondition {
+export function matchesSingle(source: QueryRunIfSource): SystemRunCondition {
     return (world) => {
         if (source.matchesSingle !== undefined) {
             return source.matchesSingle(world);

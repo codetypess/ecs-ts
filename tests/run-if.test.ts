@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
     World,
-    anyMatch,
     createRegistry,
-    noMatch,
+    matchesAny,
+    matchesNone,
+    matchesSingle,
     queryState,
     resourceAdded,
     resourceChanged,
@@ -13,7 +14,6 @@ import {
     runIfAll,
     runIfAny,
     runIfNot,
-    singleMatch,
     stateIs,
     stateMatches,
     withComponent,
@@ -83,53 +83,53 @@ test("runIfNot inverts the underlying condition", () => {
 });
 
 // ---------------------------------------------------------------------------
-// anyMatch / noMatch / singleMatch with a plain query state
+// matchesAny / matchesNone / matchesSingle with a plain query state
 // ---------------------------------------------------------------------------
 
-test("anyMatch returns true when the query has at least one result", () => {
+test("matchesAny returns true when the query has at least one result", () => {
     const Flag = registry.defineComponent("RunIfAnyFlag");
     const state = queryState([Flag]);
     const world = new World(registry);
 
-    assert.equal(anyMatch(state)(world), false);
+    assert.equal(matchesAny(state)(world), false);
 
     const entity = world.spawn(withMarker(Flag));
     const entity2 = world.spawn(withMarker(Flag));
 
-    assert.equal(anyMatch(state)(world), true);
+    assert.equal(matchesAny(state)(world), true);
 
     world.despawn(entity);
     world.despawn(entity2);
 });
 
-test("noMatch returns true when the query has no results", () => {
+test("matchesNone returns true when the query has no results", () => {
     const Marker = registry.defineComponent("RunIfNoMarker");
     const state = queryState([Marker]);
     const world = new World(registry);
 
-    assert.equal(noMatch(state)(world), true);
+    assert.equal(matchesNone(state)(world), true);
 
     const entity = world.spawn(withMarker(Marker));
 
-    assert.equal(noMatch(state)(world), false);
+    assert.equal(matchesNone(state)(world), false);
 
     world.despawn(entity);
 });
 
-test("singleMatch returns true only when exactly one entity matches", () => {
+test("matchesSingle returns true only when exactly one entity matches", () => {
     const Boss = registry.defineComponent("RunIfSingleBoss");
     const state = queryState([Boss]);
     const world = new World(registry);
 
-    assert.equal(singleMatch(state)(world), false);
+    assert.equal(matchesSingle(state)(world), false);
 
     const a = world.spawn(withMarker(Boss));
 
-    assert.equal(singleMatch(state)(world), true);
+    assert.equal(matchesSingle(state)(world), true);
 
     const b = world.spawn(withMarker(Boss));
 
-    assert.equal(singleMatch(state)(world), false);
+    assert.equal(matchesSingle(state)(world), false);
 
     world.despawn(a);
     world.despawn(b);
@@ -241,22 +241,22 @@ test("stateMatches evaluates a predicate over the current state", () => {
 });
 
 // ---------------------------------------------------------------------------
-// anyMatch on withComponent (marker) spawned directly
+// matchesAny on withComponent (marker) spawned directly
 // ---------------------------------------------------------------------------
 
-test("anyMatch works correctly on a query with filter", () => {
+test("matchesAny works correctly on a query with filter", () => {
     const Item = registry.defineComponent<{ tag: string }>("RunIfItem");
     const Active = registry.defineComponent("RunIfActive");
     const activeItems = queryState([Item], { with: [Active] });
     const world = new World(registry);
 
-    assert.equal(anyMatch(activeItems)(world), false);
+    assert.equal(matchesAny(activeItems)(world), false);
 
     const e = world.spawn(withComponent(Item, { tag: "sword" }), withMarker(Active));
 
-    assert.equal(anyMatch(activeItems)(world), true);
+    assert.equal(matchesAny(activeItems)(world), true);
 
     world.despawn(e);
 
-    assert.equal(anyMatch(activeItems)(world), false);
+    assert.equal(matchesAny(activeItems)(world), false);
 });

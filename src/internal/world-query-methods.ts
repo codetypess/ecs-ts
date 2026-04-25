@@ -9,6 +9,7 @@ import type {
     QueryRow,
 } from "../query.js";
 import type { QueryExecutorContext } from "./query-executor.js";
+import { getSingleResult, mustGetSingleResult } from "./query-single.js";
 import {
     eachOptional as eachOptionalQuery,
     each as eachQuery,
@@ -52,20 +53,7 @@ export abstract class WorldQueryMethods {
         types: TComponents,
         filter: QueryFilter = {}
     ): QueryRow<TComponents> | undefined {
-        const iterator = this.query(types, filter);
-        const first = iterator.next();
-
-        if (first.done === true) {
-            return undefined;
-        }
-
-        const second = iterator.next();
-
-        if (second.done !== true) {
-            throw new Error("Expected at most one query result");
-        }
-
-        return first.value;
+        return getSingleResult(this.query(types, filter));
     }
 
     /** Returns the only matching row and throws unless there is exactly one. */
@@ -73,13 +61,7 @@ export abstract class WorldQueryMethods {
         types: TComponents,
         filter: QueryFilter = {}
     ): QueryRow<TComponents> {
-        const row = this.getSingle(types, filter);
-
-        if (row === undefined) {
-            throw new Error("Expected exactly one query result");
-        }
-
-        return row;
+        return mustGetSingleResult(this.getSingle(types, filter));
     }
 
     /** Visits every entity for explicit component tuples with optional filter. */

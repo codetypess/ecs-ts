@@ -3,9 +3,10 @@ import { test } from "node:test";
 import {
     Entity,
     World,
-    anyMatch,
     createRegistry,
-    noMatch,
+    matchesAny,
+    matchesNone,
+    matchesSingle,
     queryState,
     resourceAdded,
     resourceChanged,
@@ -14,7 +15,6 @@ import {
     runIfAll,
     runIfAny,
     runIfNot,
-    singleMatch,
     stateIs,
     stateMatches,
     withComponent,
@@ -336,13 +336,13 @@ test("scheduler supports query-backed runIf helpers", () => {
     const world = new World(registry);
 
     world.addSystem(new NamedSystem("move"), {
-        runIf: anyMatch(moving),
+        runIf: matchesAny(moving),
     });
     world.addSystem(new NamedSystem("idle"), {
-        runIf: noMatch(moving),
+        runIf: matchesNone(moving),
     });
     world.addSystem(new NamedSystem("single-player"), {
-        runIf: singleMatch(players),
+        runIf: matchesSingle(players),
     });
 
     world.update(0);

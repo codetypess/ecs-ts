@@ -2,8 +2,8 @@ import {
     type Commands,
     type Entity,
     World,
-    anyMatch,
     createRegistry,
+    matchesAny,
     queryState,
     resourceMatches,
     runIfAll,
@@ -185,7 +185,7 @@ world.configureSet("physics", {
     runIf: runIfAll(
         stateIs(GameMode, "running"),
         resourceMatches(FeatureFlags, (flags) => flags.physicsEnabled),
-        anyMatch(activeBodies)
+        matchesAny(activeBodies)
     ),
 });
 world.configureSetForStage("fixedUpdate", "physics", {
