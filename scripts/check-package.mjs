@@ -22,7 +22,7 @@ assert.equal(rows[0]?.[0], entity);
 assert.deepEqual(rows[0]?.[1], { x: 1, y: 2 });
 assert.deepEqual(rows[0]?.[2], { x: 3, y: 4 });
 
-world.eachWhere([Position], { with: [Selected] }, (_entity, position) => {
+world.each([Position], { with: [Selected] }, (_entity, position) => {
     position.x += 10;
 });
 
