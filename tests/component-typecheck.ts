@@ -30,6 +30,22 @@ const SlgTransformWithLifecycle = registry.defineComponent<
         expectType<number>(transform.start);
         expectType<number>(transform.speed);
     },
+    onUnset(_entity, transform) {
+        expectType<number>(transform.x);
+        expectType<number>(transform.y);
+        expectType<number>(transform.start);
+        expectType<number>(transform.speed);
+    },
+    onReplace(_entity, previous, next) {
+        expectType<number>(previous.x);
+        expectType<number>(previous.y);
+        expectType<number>(previous.start);
+        expectType<number>(previous.speed);
+        expectType<number>(next.x);
+        expectType<number>(next.y);
+        expectType<number>(next.start);
+        expectType<number>(next.speed);
+    },
 });
 
 expectType<Record<string, never>>({} satisfies ComponentData<typeof Marker>);

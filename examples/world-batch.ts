@@ -6,8 +6,11 @@ const Value = registry.defineComponent<{ value: number }>("Value", {
     onAdd(_entity, value) {
         history.push(`onAdd:${value.value}`);
     },
-    onReplace(_entity, value) {
-        history.push(`onReplace:${value.value}`);
+    onUnset(_entity, value) {
+        history.push(`onUnset:${value.value}`);
+    },
+    onReplace(_entity, previous, next) {
+        history.push(`onReplace:${previous.value}->${next.value}`);
     },
     onInsert(_entity, value) {
         history.push(`onInsert:${value.value}`);

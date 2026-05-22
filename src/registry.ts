@@ -344,6 +344,7 @@ export class Registry {
         return Object.freeze({
             onAdd: options.onAdd,
             onInsert: options.onInsert,
+            onUnset: options.onUnset,
             onReplace: options.onReplace,
             onRemove: options.onRemove,
             onDespawn: options.onDespawn,

@@ -1,14 +1,9 @@
 import type { AnyComponentType, ComponentLifecycleStage, ComponentType } from "../component.js";
 import { assertComponentValue } from "../component.js";
-import { EntityManager, formatEntity } from "../entity.js";
 import type { Entity } from "../entity.js";
+import { EntityManager, formatEntity } from "../entity.js";
 import type { ChangeDetectionRange, ComponentTuple } from "../query.js";
-import {
-    ensureComponentStore,
-    getComponentStore,
-    getComponentType,
-    type ComponentStoreContext,
-} from "./component-store.js";
+import { sortComponentTypesByDependencies } from "./component-dependencies.js";
 import {
     getManyComponents,
     hasAllComponents,
@@ -17,12 +12,17 @@ import {
     isComponentChanged,
 } from "./component-read.js";
 import {
+    ensureComponentStore,
+    getComponentStore,
+    getComponentType,
+    type ComponentStoreContext,
+} from "./component-store.js";
+import {
     takeEntityComponents,
     trackEntityComponent,
     untrackEntityComponent,
     type EntityComponentIndexContext,
 } from "./entity-component-index.js";
-import { sortComponentTypesByDependencies } from "./component-dependencies.js";
 
 interface ComponentOpsContextOptions {
     readonly entities: EntityManager;
@@ -30,12 +30,21 @@ interface ComponentOpsContextOptions {
     readonly entityComponents: EntityComponentIndexContext;
     readonly getChangeTick: () => number;
     readonly getChangeDetectionRange: () => ChangeDetectionRange;
-    readonly runComponentHooks: <T extends object>(
-        type: ComponentType<T>,
-        stage: ComponentLifecycleStage,
-        entity: Entity,
-        component: T
-    ) => void;
+    readonly runComponentHooks: {
+        <T extends object>(
+            type: ComponentType<T>,
+            stage: Exclude<ComponentLifecycleStage, "onReplace">,
+            entity: Entity,
+            component: T
+        ): void;
+        <T extends object>(
+            type: ComponentType<T>,
+            stage: "onReplace",
+            entity: Entity,
+            previous: T,
+            next: T
+        ): void;
+    };
     readonly recordRemoved: <T extends object>(
         type: ComponentType<T>,
         entity: Entity,
@@ -190,7 +199,7 @@ export function isChanged<T extends object>(
     );
 }
 
-/** Removes a component and runs replacement/removal lifecycle hooks before deleting it. */
+/** Removes a component and runs unset/removal lifecycle hooks before deleting it. */
 export function remove<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
@@ -203,7 +212,7 @@ export function remove<T extends object>(
         return false;
     }
 
-    context.runComponentHooks(type, "onReplace", entity, component);
+    context.runComponentHooks(type, "onUnset", entity, component);
     context.runComponentHooks(type, "onRemove", entity, component);
     context.recordRemoved(type, entity, component);
     untrackEntityComponent(context.entityComponents, entity, type.id);
@@ -229,7 +238,7 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
             const component = store?.get(entity) as object | undefined;
 
             if (type !== undefined && component !== undefined) {
-                context.runComponentHooks(type, "onReplace", entity, component);
+                context.runComponentHooks(type, "onUnset", entity, component);
                 context.runComponentHooks(type, "onRemove", entity, component);
                 context.runComponentHooks(type, "onDespawn", entity, component);
                 context.recordRemoved(type, entity, component);
@@ -253,7 +262,7 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
         const component = store?.get(entity) as object | undefined;
 
         if (component !== undefined) {
-            context.runComponentHooks(type, "onReplace", entity, component);
+            context.runComponentHooks(type, "onUnset", entity, component);
             context.runComponentHooks(type, "onRemove", entity, component);
             context.runComponentHooks(type, "onDespawn", entity, component);
             context.recordRemoved(type, entity, component);
@@ -276,10 +285,9 @@ function insertComponentOnly<T extends object>(
     const previous = store.set(entity, value, context.getChangeTick());
 
     if (previous !== undefined) {
-        context.runComponentHooks(type, "onReplace", entity, previous);
-    }
-
-    if (previous === undefined) {
+        context.runComponentHooks(type, "onUnset", entity, previous);
+        context.runComponentHooks(type, "onReplace", entity, previous, value);
+    } else {
         trackEntityComponent(context.entityComponents, entity, type.id);
         context.runComponentHooks(type, "onAdd", entity, value);
     }

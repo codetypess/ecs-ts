@@ -72,7 +72,7 @@ if (world.hasComponent(entity, Element)) {
 - Per-system 语义的 component/resource change detection。
 - Removed reader 和显式 `drainRemoved`。
 - 通过 `Commands` 做延迟结构修改。
-- Component lifecycle hooks：`onAdd`、`onInsert`、`onReplace`、`onRemove`、`onDespawn`。
+- Component lifecycle hooks：`onAdd`、`onInsert`、`onUnset`、`onReplace`、`onRemove`、`onDespawn`。
 - 通过 `deps` 表达硬依赖。
 - 通过 `world.batch(...)` 做 entity/component 结构上的 deferred structural validation。
 - Scheduler：stage、label、system set、排序、fixed update、可组合 `runIf`。
@@ -99,6 +99,7 @@ if (world.hasComponent(entity, Element)) {
 - [Queries](docs/zh/queries.md)：query、filter、optional component 和 `QueryState`。
 - [Scheduler](docs/zh/scheduler.md)：system 什么时候跑、怎么排序、怎么组合条件。
 - [Change Detection](docs/zh/change-detection.md)：`added`、`changed`、removed readers 和 message 的行为。
+- [组件生命周期](docs/zh/lifecycle.md)：add、unset、replace、remove 和 despawn 分别会触发哪些 hook。
 - [结构修改](docs/zh/structural-writes.md)：直接写 world、`Commands`、`world.batch(...)` 和 `deps` 的区别。
 
 如果你更想先看代码而不是说明，examples 是更好的入口：

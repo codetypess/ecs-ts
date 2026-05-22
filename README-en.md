@@ -69,7 +69,7 @@ if (world.hasComponent(entity, Element)) {
 - Per-system change detection for components and resources.
 - Removed-component readers and explicit `drainRemoved`.
 - Deferred command queues through `Commands`.
-- Lifecycle hooks on components: `onAdd`, `onInsert`, `onReplace`, `onRemove`, and `onDespawn`.
+- Lifecycle hooks on components: `onAdd`, `onInsert`, `onUnset`, `onReplace`, `onRemove`, and `onDespawn`.
 - Hard component dependencies through `deps`.
 - Deferred entity/component structural validation with `world.batch(...)`.
 - Scheduler support for stages, labels, system sets, ordering, fixed update, and composable `runIf`.
@@ -96,6 +96,7 @@ If you open the docs first, the project is easier to understand as a set of work
 - [Queries](docs/queries.md): how querying, optional components, filters, and `QueryState` fit together.
 - [Scheduler](docs/scheduler.md): how systems are ordered and when they run.
 - [Change Detection](docs/change-detection.md): how `added`, `changed`, removed readers, and message flow behave.
+- [Component Lifecycle](docs/lifecycle.md): which hooks run for add, unset, replace, remove, and despawn.
 - [Structural Writes](docs/structural-writes.md): when to use direct world writes, `Commands`, `world.batch(...)`, and `deps`.
 
 If you want code instead of prose, the examples are the next best entry point:

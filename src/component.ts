@@ -10,12 +10,19 @@ export type ComponentHook<T> = {
     bivarianceHack(entity: Entity, component: T, world: World): void;
 }["bivarianceHack"];
 
-/** Lifecycle callbacks that run around component insertion, replacement, and removal. */
+/** Callback used by component replacement hooks. */
+export type ComponentReplaceHook<T> = {
+    bivarianceHack(entity: Entity, previous: T, next: T, world: World): void;
+}["bivarianceHack"];
+
+/** Lifecycle callbacks that run around component insertion, unsetting, replacement, and removal. */
 export interface ComponentLifecycle<T> {
     readonly onAdd?: ComponentHook<T>;
     readonly onInsert?: ComponentHook<T>;
     // Runs with the previous value before replacement, removal, or despawn.
-    readonly onReplace?: ComponentHook<T>;
+    readonly onUnset?: ComponentHook<T>;
+    // Runs with the previous and next values during replacement only.
+    readonly onReplace?: ComponentReplaceHook<T>;
     readonly onRemove?: ComponentHook<T>;
     readonly onDespawn?: ComponentHook<T>;
 }

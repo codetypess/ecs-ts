@@ -171,8 +171,11 @@ test("batch commits only the final diff for component hooks", () => {
         onInsert(_entity, value) {
             events.push(`insert:${value.value}`);
         },
-        onReplace(_entity, value) {
-            events.push(`replace:${value.value}`);
+        onUnset(_entity, value) {
+            events.push(`unset:${value.value}`);
+        },
+        onReplace(_entity, previous, next) {
+            events.push(`replace:${previous.value}->${next.value}`);
         },
         onRemove(_entity, value) {
             events.push(`remove:${value.value}`);
@@ -196,7 +199,7 @@ test("batch commits only the final diff for component hooks", () => {
         batch.addComponent(existing, Value, { value: 2 });
     });
 
-    assert.deepEqual(events, ["replace:1", "insert:2"]);
+    assert.deepEqual(events, ["unset:1", "replace:1->2", "insert:2"]);
     assert.deepEqual(world.mustGetComponent(existing, Value), { value: 2 });
 });
 

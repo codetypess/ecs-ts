@@ -5,6 +5,7 @@ import {
     assertRegisteredComponent,
     assertRegisteredComponents,
     ComponentHook,
+    ComponentReplaceHook,
     ComponentType,
 } from "./component.js";
 import { Entity, EntityManager, formatEntity, type EntityType } from "./entity.js";
@@ -139,15 +140,16 @@ import { assertRegisteredState, type StateType, type StateValue } from "./state.
 import type { StateSystem, System, TransitionSystem } from "./system.js";
 
 export { Commands } from "./commands.js";
+export type { WorldBatch } from "./internal/world-batch.js";
 export { optionalQueryState, queryState } from "./query.js";
 export type {
     ComponentTuple,
     OptionalComponentTuple,
-    OptionalQueryState,
     OptionalQueryRow,
+    OptionalQueryState,
     QueryFilter,
-    QueryState,
     QueryRow,
+    QueryState,
 } from "./query.js";
 export { scheduleStages } from "./scheduler.js";
 export type {
@@ -159,7 +161,6 @@ export type {
     SystemSetOptions,
 } from "./scheduler.js";
 export type { StateSystem, System, TransitionSystem } from "./system.js";
-export type { WorldBatch } from "./internal/world-batch.js";
 
 /**
  * Central ECS runtime.
@@ -209,22 +210,37 @@ export class World extends WorldQueryMethods {
             getChangeTick: () => this.changeTick,
             getChangeDetectionRange: () => this.changeDetectionRange(),
         });
+        const runComponentHooks = ((type, stage, entity, componentOrPrevious, next) => {
+            if (stage === "onReplace") {
+                dispatchComponentHooks(
+                    this.componentHookContext,
+                    type,
+                    stage,
+                    entity,
+                    componentOrPrevious,
+                    next as object,
+                    this
+                );
+
+                return;
+            }
+
+            dispatchComponentHooks(
+                this.componentHookContext,
+                type,
+                stage,
+                entity,
+                componentOrPrevious,
+                this
+            );
+        }) as ComponentOpsContext["runComponentHooks"];
         this.componentContext = createComponentOpsContext({
             entities: this.entityManager,
             componentStores: this.componentStoreContext,
             entityComponents: this.entityComponents,
             getChangeTick: () => this.changeTick,
             getChangeDetectionRange: () => this.changeDetectionRange(),
-            runComponentHooks: (type, stage, entity, component) => {
-                dispatchComponentHooks(
-                    this.componentHookContext,
-                    type,
-                    stage,
-                    entity,
-                    component,
-                    this
-                );
-            },
+            runComponentHooks,
             recordRemoved: (type, entity, component) => {
                 recordRemovedComponent(this.removedContext, type, entity, component);
             },
@@ -630,10 +646,17 @@ export class World extends WorldQueryMethods {
         return registerComponentHook(this.componentHookContext, type, "onInsert", hook);
     }
 
-    /** Registers a component hook that runs with the previous value before replacement/removal. */
+    /** Registers a component hook that runs with the previous value before replacement, removal, or despawn. */
+    onUnsetComponent<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
+        assertRegisteredComponent(this.registry, type, "register hook for");
+
+        return registerComponentHook(this.componentHookContext, type, "onUnset", hook);
+    }
+
+    /** Registers a component hook that runs with the previous and next values during replacement. */
     onReplaceComponent<T extends object>(
         type: ComponentType<T>,
-        hook: ComponentHook<T>
+        hook: ComponentReplaceHook<T>
     ): () => void {
         assertRegisteredComponent(this.registry, type, "register hook for");
 

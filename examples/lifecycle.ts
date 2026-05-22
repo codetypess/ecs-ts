@@ -8,8 +8,13 @@ const Health = registry.defineComponent<{ value: number }>("Health", {
     onInsert(entity, health) {
         console.log(`component onInsert Health(${health.value}) -> ${formatEntity(entity)}`);
     },
-    onReplace(entity, health) {
-        console.log(`component onReplace Health(${health.value}) -> ${formatEntity(entity)}`);
+    onUnset(entity, health) {
+        console.log(`component onUnset Health(${health.value}) -> ${formatEntity(entity)}`);
+    },
+    onReplace(entity, previous, next) {
+        console.log(
+            `component onReplace Health(${previous.value} -> ${next.value}) -> ${formatEntity(entity)}`
+        );
     },
     onRemove(entity, health) {
         console.log(`component onRemove Health(${health.value}) -> ${formatEntity(entity)}`);
