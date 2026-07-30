@@ -25,14 +25,9 @@ The same dispatch rules apply whether the change came from direct `World` writes
 
 That split keeps the names literal: `onReplace` is replace-only, while `onUnset` carries the broader "old value is leaving the slot" semantics that also apply to `removeComponent(...)` and `despawn(...)`.
 
-## Defining And Registering Hooks
+## Defining Hooks
 
-You can attach lifecycle hooks in two places:
-
-- component metadata passed to `defineComponent(...)`
-- runtime registration on `World`, such as `world.onAddComponent(...)` or `world.onUnsetComponent(...)`
-
-Built-in component lifecycle callbacks run first. Runtime-registered hooks run after them.
+Lifecycle hooks are part of the component metadata passed to `defineComponent(...)`.
 
 ```ts
 const Health = registry.defineComponent<{ value: number }>("Health", {
@@ -45,10 +40,6 @@ const Health = registry.defineComponent<{ value: number }>("Health", {
     onRemove(entity, health, _world, reason) {
         console.log(reason, entity, health.value);
     },
-});
-
-world.onReplaceComponent(Health, (entity, previous, next) => {
-    console.log("replaced", entity, previous.value, next.value);
 });
 ```
 

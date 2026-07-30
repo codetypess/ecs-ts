@@ -236,7 +236,7 @@ test("addSystem accepts stage callbacks with scheduling options", () => {
     assert.equal(world.hasAnyComponents(Array.from(world.entities())[0]!, [CallbackMarker]), true);
 });
 
-test("component lifecycle hooks fire in order and can be unsubscribed", () => {
+test("component lifecycle hooks report operation order and reasons", () => {
     const events: string[] = [];
     const Position = registry.defineComponent<{ x: number }>("LifecycleHookPosition", {
         onAdd: (_entity, position, _world, reason) =>
@@ -249,51 +249,23 @@ test("component lifecycle hooks fire in order and can be unsubscribed", () => {
             events.push(`type:remove:${reason}:${position.x}`),
     });
     const world = new World(registry);
-    const offAdd = world.onAddComponent(Position, (_entity, position, _world, reason) =>
-        events.push(`world:add:${reason}:${position.x}`)
-    );
-    const offInsert = world.onInsertComponent(Position, (_entity, position) =>
-        events.push(`world:insert:${position.x}`)
-    );
-    const offUnset = world.onUnsetComponent(Position, (_entity, position) =>
-        events.push(`world:unset:${position.x}`)
-    );
-    const offReplace = world.onReplaceComponent(Position, (_entity, previous, next) =>
-        events.push(`world:replace:${previous.x}->${next.x}`)
-    );
-    const offRemove = world.onRemoveComponent(Position, (_entity, position, _world, reason) =>
-        events.push(`world:remove:${reason}:${position.x}`)
-    );
 
     const entity = world.spawn(withComponent(Position, { x: 1 }));
 
     world.addComponent(entity, Position, { x: 2 });
     world.removeComponent(entity, Position);
 
-    offAdd();
-    offInsert();
-    offUnset();
-    offReplace();
-    offRemove();
-
     world.addComponent(entity, Position, { x: 3 });
     world.despawn(entity);
 
     assert.deepEqual(events, [
         "type:add:spawned:1",
-        "world:add:spawned:1",
         "type:insert:1",
-        "world:insert:1",
         "type:unset:1",
-        "world:unset:1",
         "type:replace:1->2",
-        "world:replace:1->2",
         "type:insert:2",
-        "world:insert:2",
         "type:unset:2",
-        "world:unset:2",
         "type:remove:removed:2",
-        "world:remove:removed:2",
         "type:add:added:3",
         "type:insert:3",
         "type:unset:3",

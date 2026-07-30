@@ -4,12 +4,8 @@ import {
     AnyComponentType,
     assertRegisteredComponent,
     assertRegisteredComponents,
-    ComponentAddHook,
     ComponentAddReason,
-    ComponentHook,
-    ComponentRemoveHook,
     ComponentRemoveReason,
-    ComponentReplaceHook,
     ComponentType,
 } from "./component.js";
 import { Entity, EntityManager, formatEntity, type EntityType } from "./entity.js";
@@ -23,12 +19,6 @@ import {
     entriesHaveDependencyChecks,
     sortEntriesByDependencies,
 } from "./internal/component-dependencies.js";
-import {
-    createComponentHookContext,
-    runComponentHooks as dispatchComponentHooks,
-    addComponentHook as registerComponentHook,
-    type ComponentHookContext,
-} from "./internal/component-hooks.js";
 import {
     createComponentOpsContext,
     remove as deleteComponent,
@@ -176,7 +166,6 @@ export class World extends WorldQueryMethods {
     private readonly componentStoreContext: ComponentStoreContext;
     private readonly resourceContext: ResourceContext;
     private readonly removedContext: RemovedStoreContext;
-    private readonly componentHookContext: ComponentHookContext;
     private readonly componentContext: ComponentOpsContext;
     private readonly entityComponents = createEntityComponentIndexContext();
     private readonly commandRuntime: CommandRuntime;
@@ -209,20 +198,16 @@ export class World extends WorldQueryMethods {
         this.removedContext = createRemovedStoreContext({
             getChangeTick: () => this.changeTick,
         });
-        this.componentHookContext = createComponentHookContext();
         this.resourceContext = createResourceContext({
             getChangeTick: () => this.changeTick,
             getChangeDetectionRange: () => this.changeDetectionRange(),
         });
         const runComponentHooks = ((type, stage, entity, componentOrPrevious, next) => {
             if (stage === "onReplace") {
-                dispatchComponentHooks(
-                    this.componentHookContext,
-                    type,
-                    stage,
+                type.lifecycle.onReplace?.(
                     entity,
                     componentOrPrevious,
-                    next as object,
+                    next as typeof componentOrPrevious,
                     this
                 );
 
@@ -230,10 +215,7 @@ export class World extends WorldQueryMethods {
             }
 
             if (stage === "onAdd") {
-                dispatchComponentHooks(
-                    this.componentHookContext,
-                    type,
-                    "onAdd",
+                type.lifecycle.onAdd?.(
                     entity,
                     componentOrPrevious,
                     this,
@@ -244,10 +226,7 @@ export class World extends WorldQueryMethods {
             }
 
             if (stage === "onRemove") {
-                dispatchComponentHooks(
-                    this.componentHookContext,
-                    type,
-                    "onRemove",
+                type.lifecycle.onRemove?.(
                     entity,
                     componentOrPrevious,
                     this,
@@ -257,14 +236,13 @@ export class World extends WorldQueryMethods {
                 return;
             }
 
-            dispatchComponentHooks(
-                this.componentHookContext,
-                type,
-                stage,
-                entity,
-                componentOrPrevious,
-                this
-            );
+            if (stage === "onInsert") {
+                type.lifecycle.onInsert?.(entity, componentOrPrevious, this);
+
+                return;
+            }
+
+            type.lifecycle.onUnset?.(entity, componentOrPrevious, this);
         }) as ComponentOpsContext["runComponentHooks"];
         this.componentContext = createComponentOpsContext({
             entities: this.entityManager,
@@ -645,53 +623,6 @@ export class World extends WorldQueryMethods {
 
         triggerEvent(this.eventContext, type.id, value, this);
         return this;
-    }
-
-    /** Registers a hook that reports whether the component was added or spawned. */
-    onAddComponent<T extends object>(
-        type: ComponentType<T>,
-        hook: ComponentAddHook<T>
-    ): () => void {
-        assertRegisteredComponent(this.registry, type, "register hook for");
-
-        return registerComponentHook(this.componentHookContext, type, "onAdd", hook);
-    }
-
-    /** Registers a component hook that runs after every insert or replace. */
-    onInsertComponent<T extends object>(
-        type: ComponentType<T>,
-        hook: ComponentHook<T>
-    ): () => void {
-        assertRegisteredComponent(this.registry, type, "register hook for");
-
-        return registerComponentHook(this.componentHookContext, type, "onInsert", hook);
-    }
-
-    /** Registers a component hook that runs with the previous value before replacement, removal, or despawn. */
-    onUnsetComponent<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
-        assertRegisteredComponent(this.registry, type, "register hook for");
-
-        return registerComponentHook(this.componentHookContext, type, "onUnset", hook);
-    }
-
-    /** Registers a component hook that runs with the previous and next values during replacement. */
-    onReplaceComponent<T extends object>(
-        type: ComponentType<T>,
-        hook: ComponentReplaceHook<T>
-    ): () => void {
-        assertRegisteredComponent(this.registry, type, "register hook for");
-
-        return registerComponentHook(this.componentHookContext, type, "onReplace", hook);
-    }
-
-    /** Registers a hook that reports whether the component was removed or despawned. */
-    onRemoveComponent<T extends object>(
-        type: ComponentType<T>,
-        hook: ComponentRemoveHook<T>
-    ): () => void {
-        assertRegisteredComponent(this.registry, type, "register hook for");
-
-        return registerComponentHook(this.componentHookContext, type, "onRemove", hook);
     }
 
     /** Ensures a state machine exists, using the provided initial value only on first creation. */

@@ -25,14 +25,9 @@ component lifecycle hook 是可选的，而且是按操作路径触发的。一�
 
 这样命名就更字面：`onReplace` 只表示真正的替换；更宽泛的“旧值退出 slot”语义则交给 `onUnset`，它也会在 `removeComponent(...)` 和 `despawn(...)` 之前运行。
 
-## 定义与注册方式
+## 定义方式
 
-生命周期 hook 可以来自两处：
-
-- `defineComponent(...)` 里的 component 元数据
-- `World` 上的运行时注册方法，比如 `world.onAddComponent(...)` 或 `world.onUnsetComponent(...)`
-
-内置的 component lifecycle 回调会先执行，然后才是运行时注册的 hook。
+生命周期 hook 是传给 `defineComponent(...)` 的 component 元数据的一部分。
 
 ```ts
 const Health = registry.defineComponent<{ value: number }>("Health", {
@@ -45,10 +40,6 @@ const Health = registry.defineComponent<{ value: number }>("Health", {
     onRemove(entity, health, _world, reason) {
         console.log(reason, entity, health.value);
     },
-});
-
-world.onReplaceComponent(Health, (entity, previous, next) => {
-    console.log("replaced", entity, previous.value, next.value);
 });
 ```
 
