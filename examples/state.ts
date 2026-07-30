@@ -25,9 +25,15 @@ class PausedStateSystem {
     }
 }
 
-class StartGameTransitionSystem {
-    onTransition(): void {
-        console.log("OnTransition(menu -> playing): start new game");
+class GameTransitionSystem {
+    onTransition(
+        _world: World,
+        _dt: number,
+        _commands: Commands,
+        from: "menu" | "playing" | "paused",
+        to: "menu" | "playing" | "paused"
+    ): void {
+        console.log(`OnTransition(${from} -> ${to})`);
     }
 }
 
@@ -52,7 +58,7 @@ const world = new World(registry);
 world
     .initState(GameState)
     .addStateSystem(GameState, "menu", new MenuStateSystem())
-    .addTransitionSystem(GameState, "menu", "playing", new StartGameTransitionSystem())
+    .addTransitionSystem(GameState, new GameTransitionSystem())
     .addStateSystem(GameState, "playing", new PlayingStateSystem())
     .addStateSystem(GameState, "paused", new PausedStateSystem())
     .addSystem(new StateDriverSystem());

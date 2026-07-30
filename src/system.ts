@@ -22,7 +22,7 @@ export interface StateSystem<T extends StateValue> {
     onExit?(world: World, dt: number, commands: Commands, value: T): void;
 }
 
-/** Optional callback fired when a state transitions between two concrete values. */
+/** Optional callback fired for every change of one state type. */
 export interface TransitionSystem<T extends StateValue> {
     onTransition?(world: World, dt: number, commands: Commands, from: T, to: T): void;
 }

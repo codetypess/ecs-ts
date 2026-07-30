@@ -689,16 +689,14 @@ export class World extends WorldQueryMethods {
         return this;
     }
 
-    /** Registers an object-style transition callback for a concrete state pair. */
+    /** Registers an object-style callback that observes every transition for a state type. */
     addTransitionSystem<T extends StateValue>(
         type: StateType<T>,
-        from: T,
-        to: T,
         system: TransitionSystem<T>
     ): this {
         assertRegisteredState(this.registry, type, "register transition system for");
 
-        addStateTransitionSystem(this.stateContext, type, from, to, system);
+        addStateTransitionSystem(this.stateContext, type, system);
 
         return this;
     }

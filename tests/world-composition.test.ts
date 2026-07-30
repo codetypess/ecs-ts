@@ -67,7 +67,7 @@ test("world can register systems, resources, states, and drive updates together"
     world.addSystem(new RunningSystem(), { set: "gameplay" });
     world.addStateSystem(Mode, "boot", new BootExitSystem());
     world.addStateSystem(Mode, "running", new RunningEnterSystem());
-    world.addTransitionSystem(Mode, "boot", "running", new ModeTransitionSystem());
+    world.addTransitionSystem(Mode, new ModeTransitionSystem());
     world.update(0);
 
     assert.deepEqual(world.mustGetResource(Log), [
@@ -96,4 +96,26 @@ test("state registration lazily initializes and initState becomes a no-op afterw
 
     assert.equal(world.mustGetState(Mode), "boot");
     assert.deepEqual(log, ["enter:boot"]);
+});
+
+test("transition systems observe every state change", () => {
+    const transitionRegistry = createRegistry("world-transition-system-test");
+    const Mode = transitionRegistry.defineState<"a" | "b" | "c">("Mode", "a");
+    const transitions: string[] = [];
+    const world = new World(transitionRegistry);
+
+    world.initState(Mode);
+    world.addTransitionSystem(Mode, {
+        onTransition(_world, _dt, _commands, from, to) {
+            transitions.push(`${from}->${to}`);
+        },
+    });
+
+    world.update(0);
+    world.setState(Mode, "b");
+    world.update(0);
+    world.setState(Mode, "c");
+    world.update(0);
+
+    assert.deepEqual(transitions, ["a->b", "b->c"]);
 });

@@ -1,5 +1,5 @@
 import { createSystemRunner } from "../scheduler.js";
-import type { SystemCallback, SystemRunner } from "../scheduler.js";
+import type { SystemRunner } from "../scheduler.js";
 import type { StateType, StateValue } from "../state.js";
 import type { StateSystem, TransitionSystem } from "../system.js";
 import type { World } from "../world.js";
@@ -10,10 +10,11 @@ export interface StateRecord<T extends StateValue> {
     readonly type: StateType<T>;
     current: T;
     pending: T | undefined;
+    activeTransition: { readonly from: T; readonly to: T } | undefined;
     didEnterInitial: boolean;
     readonly onEnter: Map<T, SystemRunner[]>;
     readonly onExit: Map<T, SystemRunner[]>;
-    readonly onTransition: Map<T, Map<T, SystemRunner[]>>;
+    readonly onTransition: SystemRunner[];
 }
 
 /** Collection of all registered state machines for a world. */
@@ -105,17 +106,21 @@ export function addStateSystem<T extends StateValue>(
 export function addTransitionSystem<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>,
-    from: T,
-    to: T,
     system: TransitionSystem<T>
 ): void {
     if (system.onTransition === undefined) {
         return;
     }
 
-    addTransitionRunner(context, type, from, to, (world, dt, commands) => {
-        system.onTransition?.(world, dt, commands, from, to);
-    });
+    const state = ensureState(context, type);
+
+    state.onTransition.push(
+        createSystemRunner((world, dt, commands) => {
+            const transition = state.activeTransition!;
+
+            system.onTransition?.(world, dt, commands, transition.from, transition.to);
+        })
+    );
 }
 
 /** Runs initial enter callbacks exactly once per initialized state machine. */
@@ -156,27 +161,17 @@ export function applyStateTransitions(
 
         state.didEnterInitial = true;
         runSystems(state.onExit.get(from) ?? [], dt);
-        runSystems(state.onTransition.get(from)?.get(to) ?? [], dt);
+
+        state.activeTransition = { from, to };
+        try {
+            runSystems(state.onTransition, dt);
+        } finally {
+            state.activeTransition = undefined;
+        }
+
         state.current = to;
         runSystems(state.onEnter.get(to) ?? [], dt);
     }
-}
-
-function addTransitionRunner<T extends StateValue>(
-    context: StateMachineContext,
-    type: StateType<T>,
-    from: T,
-    to: T,
-    system: SystemCallback
-): void {
-    const state = ensureState(context, type);
-    const transitionsFrom = ensureMapEntry(
-        state.onTransition,
-        from,
-        () => new Map<T, SystemRunner[]>()
-    );
-
-    getStateSystems(transitionsFrom, to).push(createSystemRunner(system));
 }
 
 function ensureState<T extends StateValue>(
@@ -207,10 +202,11 @@ function createStateRecord<T extends StateValue>(type: StateType<T>, initial: T)
         type,
         current: initial,
         pending: undefined,
+        activeTransition: undefined,
         didEnterInitial: false,
         onEnter: new Map(),
         onExit: new Map(),
-        onTransition: new Map(),
+        onTransition: [],
     };
 }
 
