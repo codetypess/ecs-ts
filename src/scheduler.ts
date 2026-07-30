@@ -119,9 +119,11 @@ function cloneSystemLabels(labels: readonly SystemLabel[] | undefined): readonly
 }
 
 function createStageRecord<T>(createValue: () => T): Record<ScheduleStage, T> {
-    return Object.fromEntries(
-        scheduleStages.map((stage) => [stage, createValue()] as const)
-    ) as Record<ScheduleStage, T>;
+    const record = {} as Record<ScheduleStage, T>;
+    for (const stage of scheduleStages) {
+        record[stage] = createValue();
+    }
+    return record;
 }
 
 /** Creates the stage-local system-set configuration maps. */
