@@ -27,8 +27,32 @@ test("world can register systems, resources, states, and drive updates together"
     }
 
     class RunningEnterSystem {
-        onEnter(world: World): void {
-            world.mustGetResource(Log).push(`enter:${world.mustGetState(Mode)}`);
+        private readonly prefix = "enter";
+
+        onEnter(world: World, _dt: number, _commands: Commands, value: "boot" | "running"): void {
+            world.mustGetResource(Log).push(`${this.prefix}:${value}`);
+        }
+    }
+
+    class BootExitSystem {
+        private readonly prefix = "exit";
+
+        onExit(world: World, _dt: number, _commands: Commands, value: "boot" | "running"): void {
+            world.mustGetResource(Log).push(`${this.prefix}:${value}`);
+        }
+    }
+
+    class ModeTransitionSystem {
+        private readonly prefix = "transition";
+
+        onTransition(
+            world: World,
+            _dt: number,
+            _commands: Commands,
+            from: "boot" | "running",
+            to: "boot" | "running"
+        ): void {
+            world.mustGetResource(Log).push(`${this.prefix}:${from}->${to}`);
         }
     }
 
@@ -41,10 +65,18 @@ test("world can register systems, resources, states, and drive updates together"
     world.configureSetForStage("update", "gameplay", { runIf: () => true });
     world.addSystem(new BootstrapSystem());
     world.addSystem(new RunningSystem(), { set: "gameplay" });
+    world.addStateSystem(Mode, "boot", new BootExitSystem());
     world.addStateSystem(Mode, "running", new RunningEnterSystem());
+    world.addTransitionSystem(Mode, "boot", "running", new ModeTransitionSystem());
     world.update(0);
 
-    assert.deepEqual(world.mustGetResource(Log), ["startup", "enter:running", "update"]);
+    assert.deepEqual(world.mustGetResource(Log), [
+        "startup",
+        "exit:boot",
+        "transition:boot->running",
+        "enter:running",
+        "update",
+    ]);
     assert.deepEqual(world.mustGetSingle([Position])[1], { x: 1, y: 0 });
     assert.equal(world.mustGetState(Mode), "running");
 });
@@ -54,8 +86,10 @@ test("state registration lazily initializes and initState becomes a no-op afterw
     const log: string[] = [];
     const world = new World(registry);
 
-    world.onEnter(Mode, "boot", () => {
-        log.push("enter:boot");
+    world.addStateSystem(Mode, "boot", {
+        onEnter() {
+            log.push("enter:boot");
+        },
     });
     world.initState(Mode, "running");
     world.update(0);

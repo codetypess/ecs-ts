@@ -111,9 +111,6 @@ import {
     hasState,
     initState,
     matchesState,
-    onEnterState,
-    onExitState,
-    onTransitionState,
     runInitialEnters,
     setState,
     type StateMachineContext,
@@ -748,38 +745,6 @@ export class World extends WorldQueryMethods {
         return this;
     }
 
-    /** Registers a callback that runs when the state enters the given value. */
-    onEnter<T extends StateValue>(type: StateType<T>, value: T, system: SystemCallback): this {
-        assertRegisteredState(this.registry, type, "register enter system for");
-
-        onEnterState(this.stateContext, type, value, system);
-
-        return this;
-    }
-
-    /** Registers a callback that runs when the state exits the given value. */
-    onExit<T extends StateValue>(type: StateType<T>, value: T, system: SystemCallback): this {
-        assertRegisteredState(this.registry, type, "register exit system for");
-
-        onExitState(this.stateContext, type, value, system);
-
-        return this;
-    }
-
-    /** Registers a callback that runs when the state transitions between two values. */
-    onTransition<T extends StateValue>(
-        type: StateType<T>,
-        from: T,
-        to: T,
-        system: SystemCallback
-    ): this {
-        assertRegisteredState(this.registry, type, "register transition system for");
-
-        onTransitionState(this.stateContext, type, from, to, system);
-
-        return this;
-    }
-
     /** Registers object-style enter/exit callbacks for a concrete state value. */
     addStateSystem<T extends StateValue>(
         type: StateType<T>,
@@ -788,7 +753,7 @@ export class World extends WorldQueryMethods {
     ): this {
         assertRegisteredState(this.registry, type, "register state system for");
 
-        addStateLifecycleSystem(this.stateContext, type, value, system.onEnter, system.onExit);
+        addStateLifecycleSystem(this.stateContext, type, value, system);
 
         return this;
     }
@@ -802,7 +767,7 @@ export class World extends WorldQueryMethods {
     ): this {
         assertRegisteredState(this.registry, type, "register transition system for");
 
-        addStateTransitionSystem(this.stateContext, type, from, to, system.onTransition);
+        addStateTransitionSystem(this.stateContext, type, from, to, system);
 
         return this;
     }

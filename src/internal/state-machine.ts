@@ -1,7 +1,7 @@
 import { createSystemRunner } from "../scheduler.js";
 import type { SystemCallback, SystemRunner } from "../scheduler.js";
-import type { Commands } from "../commands.js";
 import type { StateType, StateValue } from "../state.js";
+import type { StateSystem, TransitionSystem } from "../system.js";
 import type { World } from "../world.js";
 import { ensureMapEntry } from "./collection-utils.js";
 
@@ -75,59 +75,27 @@ export function setState<T extends StateValue>(
     state.pending = next;
 }
 
-/** Registers a callback that runs when the state enters a concrete value. */
-export function onEnterState<T extends StateValue>(
-    context: StateMachineContext,
-    type: StateType<T>,
-    value: T,
-    system: SystemCallback
-): void {
-    getStateSystems(ensureState(context, type).onEnter, value).push(createSystemRunner(system));
-}
-
-/** Registers a callback that runs when the state exits a concrete value. */
-export function onExitState<T extends StateValue>(
-    context: StateMachineContext,
-    type: StateType<T>,
-    value: T,
-    system: SystemCallback
-): void {
-    getStateSystems(ensureState(context, type).onExit, value).push(createSystemRunner(system));
-}
-
-/** Registers a callback that runs for one specific transition pair. */
-export function onTransitionState<T extends StateValue>(
-    context: StateMachineContext,
-    type: StateType<T>,
-    from: T,
-    to: T,
-    system: SystemCallback
-): void {
-    addTransitionRunner(context, type, from, to, system);
-}
-
 /** Adapts object-style enter/exit handlers into scheduler runners. */
 export function addStateSystem<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>,
     value: T,
-    onEnter: ((world: World, dt: number, commands: Commands, value: T) => void) | undefined,
-    onExit: ((world: World, dt: number, commands: Commands, value: T) => void) | undefined
+    system: StateSystem<T>
 ): void {
     const state = ensureState(context, type);
 
-    if (onEnter !== undefined) {
+    if (system.onEnter !== undefined) {
         getStateSystems(state.onEnter, value).push(
             createSystemRunner((world, dt, commands) => {
-                onEnter(world, dt, commands, value);
+                system.onEnter?.(world, dt, commands, value);
             })
         );
     }
 
-    if (onExit !== undefined) {
+    if (system.onExit !== undefined) {
         getStateSystems(state.onExit, value).push(
             createSystemRunner((world, dt, commands) => {
-                onExit(world, dt, commands, value);
+                system.onExit?.(world, dt, commands, value);
             })
         );
     }
@@ -139,16 +107,14 @@ export function addTransitionSystem<T extends StateValue>(
     type: StateType<T>,
     from: T,
     to: T,
-    onTransition:
-        | ((world: World, dt: number, commands: Commands, from: T, to: T) => void)
-        | undefined
+    system: TransitionSystem<T>
 ): void {
-    if (onTransition === undefined) {
+    if (system.onTransition === undefined) {
         return;
     }
 
     addTransitionRunner(context, type, from, to, (world, dt, commands) => {
-        onTransition(world, dt, commands, from, to);
+        system.onTransition?.(world, dt, commands, from, to);
     });
 }
 
