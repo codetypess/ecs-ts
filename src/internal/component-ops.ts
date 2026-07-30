@@ -1,4 +1,10 @@
-import type { AnyComponentType, ComponentLifecycleStage, ComponentType } from "../component.js";
+import type {
+    AnyComponentType,
+    ComponentAddReason,
+    ComponentLifecycleStage,
+    ComponentRemoveReason,
+    ComponentType,
+} from "../component.js";
 import { assertComponentValue } from "../component.js";
 import type { Entity } from "../entity.js";
 import { EntityManager, formatEntity } from "../entity.js";
@@ -33,7 +39,21 @@ interface ComponentOpsContextOptions {
     readonly runComponentHooks: {
         <T extends object>(
             type: ComponentType<T>,
-            stage: Exclude<ComponentLifecycleStage, "onReplace">,
+            stage: "onAdd",
+            entity: Entity,
+            component: T,
+            reason: ComponentAddReason
+        ): void;
+        <T extends object>(
+            type: ComponentType<T>,
+            stage: "onRemove",
+            entity: Entity,
+            component: T,
+            reason: ComponentRemoveReason
+        ): void;
+        <T extends object>(
+            type: ComponentType<T>,
+            stage: Exclude<ComponentLifecycleStage, "onAdd" | "onRemove" | "onReplace">,
             entity: Entity,
             component: T
         ): void;
@@ -67,11 +87,12 @@ export function add<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>,
-    value: T
+    value: T,
+    reason: ComponentAddReason = "added"
 ): void {
     assertAlive(context, entity);
     assertComponentValue(type, value);
-    insertComponentOnly(context, entity, type, value);
+    insertComponentOnly(context, entity, type, value, reason);
 }
 
 /** Inserts or replaces a component after the caller has already validated liveness and payload. */
@@ -79,9 +100,10 @@ export function addValidated<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>,
-    value: T
+    value: T,
+    reason: ComponentAddReason = "added"
 ): void {
-    insertComponentOnly(context, entity, type, value);
+    insertComponentOnly(context, entity, type, value, reason);
 }
 
 /** Updates the changed tick for an existing component. */
@@ -213,7 +235,7 @@ export function remove<T extends object>(
     }
 
     context.runComponentHooks(type, "onUnset", entity, component);
-    context.runComponentHooks(type, "onRemove", entity, component);
+    context.runComponentHooks(type, "onRemove", entity, component, "removed");
     context.recordRemoved(type, entity, component);
     untrackEntityComponent(context.entityComponents, entity, type.id);
     store.delete(entity);
@@ -239,8 +261,7 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
 
             if (type !== undefined && component !== undefined) {
                 context.runComponentHooks(type, "onUnset", entity, component);
-                context.runComponentHooks(type, "onRemove", entity, component);
-                context.runComponentHooks(type, "onDespawn", entity, component);
+                context.runComponentHooks(type, "onRemove", entity, component, "despawned");
                 context.recordRemoved(type, entity, component);
             }
 
@@ -263,8 +284,7 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
 
         if (component !== undefined) {
             context.runComponentHooks(type, "onUnset", entity, component);
-            context.runComponentHooks(type, "onRemove", entity, component);
-            context.runComponentHooks(type, "onDespawn", entity, component);
+            context.runComponentHooks(type, "onRemove", entity, component, "despawned");
             context.recordRemoved(type, entity, component);
         }
 
@@ -279,7 +299,8 @@ function insertComponentOnly<T extends object>(
     context: ComponentOpsContext,
     entity: Entity,
     type: ComponentType<T>,
-    value: T
+    value: T,
+    reason: ComponentAddReason
 ): void {
     const store = ensureComponentStore(context.componentStores, type);
     const previous = store.set(entity, value, context.getChangeTick());
@@ -289,7 +310,7 @@ function insertComponentOnly<T extends object>(
         context.runComponentHooks(type, "onReplace", entity, previous, value);
     } else {
         trackEntityComponent(context.entityComponents, entity, type.id);
-        context.runComponentHooks(type, "onAdd", entity, value);
+        context.runComponentHooks(type, "onAdd", entity, value, reason);
     }
 
     context.runComponentHooks(type, "onInsert", entity, value);

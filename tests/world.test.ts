@@ -239,17 +239,18 @@ test("addSystem accepts stage callbacks with scheduling options", () => {
 test("component lifecycle hooks fire in order and can be unsubscribed", () => {
     const events: string[] = [];
     const Position = registry.defineComponent<{ x: number }>("LifecycleHookPosition", {
-        onAdd: (_entity, position) => events.push(`type:add:${position.x}`),
+        onAdd: (_entity, position, _world, reason) =>
+            events.push(`type:add:${reason}:${position.x}`),
         onInsert: (_entity, position) => events.push(`type:insert:${position.x}`),
         onUnset: (_entity, position) => events.push(`type:unset:${position.x}`),
         onReplace: (_entity, previous, next) =>
             events.push(`type:replace:${previous.x}->${next.x}`),
-        onRemove: (_entity, position) => events.push(`type:remove:${position.x}`),
-        onDespawn: (_entity, position) => events.push(`type:despawn:${position.x}`),
+        onRemove: (_entity, position, _world, reason) =>
+            events.push(`type:remove:${reason}:${position.x}`),
     });
     const world = new World(registry);
-    const offAdd = world.onAddComponent(Position, (_entity, position) =>
-        events.push(`world:add:${position.x}`)
+    const offAdd = world.onAddComponent(Position, (_entity, position, _world, reason) =>
+        events.push(`world:add:${reason}:${position.x}`)
     );
     const offInsert = world.onInsertComponent(Position, (_entity, position) =>
         events.push(`world:insert:${position.x}`)
@@ -260,11 +261,8 @@ test("component lifecycle hooks fire in order and can be unsubscribed", () => {
     const offReplace = world.onReplaceComponent(Position, (_entity, previous, next) =>
         events.push(`world:replace:${previous.x}->${next.x}`)
     );
-    const offRemove = world.onRemoveComponent(Position, (_entity, position) =>
-        events.push(`world:remove:${position.x}`)
-    );
-    const offDespawn = world.onDespawnComponent(Position, (_entity, position) =>
-        events.push(`world:despawn:${position.x}`)
+    const offRemove = world.onRemoveComponent(Position, (_entity, position, _world, reason) =>
+        events.push(`world:remove:${reason}:${position.x}`)
     );
 
     const entity = world.spawn(withComponent(Position, { x: 1 }));
@@ -277,14 +275,13 @@ test("component lifecycle hooks fire in order and can be unsubscribed", () => {
     offUnset();
     offReplace();
     offRemove();
-    offDespawn();
 
     world.addComponent(entity, Position, { x: 3 });
     world.despawn(entity);
 
     assert.deepEqual(events, [
-        "type:add:1",
-        "world:add:1",
+        "type:add:spawned:1",
+        "world:add:spawned:1",
         "type:insert:1",
         "world:insert:1",
         "type:unset:1",
@@ -295,13 +292,56 @@ test("component lifecycle hooks fire in order and can be unsubscribed", () => {
         "world:insert:2",
         "type:unset:2",
         "world:unset:2",
-        "type:remove:2",
-        "world:remove:2",
-        "type:add:3",
+        "type:remove:removed:2",
+        "world:remove:removed:2",
+        "type:add:added:3",
         "type:insert:3",
         "type:unset:3",
-        "type:remove:3",
-        "type:despawn:3",
+        "type:remove:despawned:3",
+    ]);
+});
+
+test("component lifecycle reasons cover command and batch writes", () => {
+    const reasonRegistry = createRegistry("component-lifecycle-reason-test");
+    const events: string[] = [];
+    const Marker = reasonRegistry.defineComponent("ReasonMarker", {
+        onAdd(_entity, _marker, _world, reason) {
+            events.push(`add:${reason}`);
+        },
+        onRemove(_entity, _marker, _world, reason) {
+            events.push(`remove:${reason}`);
+        },
+    });
+    const world = new World(reasonRegistry);
+    const commands = world.commands();
+    const commandEntity = commands.spawn(withMarker(Marker));
+
+    commands.flush();
+    commands.despawn(commandEntity);
+    commands.flush();
+
+    const batchEntity = world.batch((batch) => batch.spawn(withMarker(Marker)));
+
+    world.batch((batch) => {
+        batch.despawn(batchEntity);
+    });
+
+    const existingEntity = world.spawn();
+
+    world.batch((batch) => {
+        batch.addComponent(existingEntity, Marker, {});
+    });
+    world.batch((batch) => {
+        batch.removeComponent(existingEntity, Marker);
+    });
+
+    assert.deepEqual(events, [
+        "add:spawned",
+        "remove:despawned",
+        "add:spawned",
+        "remove:despawned",
+        "add:added",
+        "remove:removed",
     ]);
 });
 

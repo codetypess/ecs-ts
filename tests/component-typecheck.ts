@@ -24,11 +24,12 @@ const SlgTransformWithLifecycle = registry.defineComponent<
     { start: number; speed: number },
     typeof Transform
 >("ComponentTypecheckSlgTransformWithLifecycle", {
-    onAdd(_entity, transform) {
+    onAdd(_entity, transform, _world, reason) {
         expectType<number>(transform.x);
         expectType<number>(transform.y);
         expectType<number>(transform.start);
         expectType<number>(transform.speed);
+        expectType<"added" | "spawned">(reason);
     },
     onUnset(_entity, transform) {
         expectType<number>(transform.x);
@@ -45,6 +46,10 @@ const SlgTransformWithLifecycle = registry.defineComponent<
         expectType<number>(next.y);
         expectType<number>(next.start);
         expectType<number>(next.speed);
+    },
+    onRemove(_entity, transform, _world, reason) {
+        expectType<number>(transform.x);
+        expectType<"removed" | "despawned">(reason);
     },
 });
 

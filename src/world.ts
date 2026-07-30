@@ -4,7 +4,11 @@ import {
     AnyComponentType,
     assertRegisteredComponent,
     assertRegisteredComponents,
+    ComponentAddHook,
+    ComponentAddReason,
     ComponentHook,
+    ComponentRemoveHook,
+    ComponentRemoveReason,
     ComponentReplaceHook,
     ComponentType,
 } from "./component.js";
@@ -199,6 +203,9 @@ export class World extends WorldQueryMethods {
             commitReservedEntity: (entity) => {
                 this.entityManager.commitReserved(entity);
             },
+            addSpawnedComponent: (entity, type, value) => {
+                this.addComponentWithReason(entity, type, value, "spawned");
+            },
         };
         this.componentStoreContext = createComponentStoreContext(registry);
 
@@ -220,6 +227,34 @@ export class World extends WorldQueryMethods {
                     componentOrPrevious,
                     next as object,
                     this
+                );
+
+                return;
+            }
+
+            if (stage === "onAdd") {
+                dispatchComponentHooks(
+                    this.componentHookContext,
+                    type,
+                    "onAdd",
+                    entity,
+                    componentOrPrevious,
+                    this,
+                    next as ComponentAddReason
+                );
+
+                return;
+            }
+
+            if (stage === "onRemove") {
+                dispatchComponentHooks(
+                    this.componentHookContext,
+                    type,
+                    "onRemove",
+                    entity,
+                    componentOrPrevious,
+                    this,
+                    next as ComponentRemoveReason
                 );
 
                 return;
@@ -306,21 +341,7 @@ export class World extends WorldQueryMethods {
 
     /** Inserts or replaces a component value on a live entity. */
     addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this {
-        assertRegisteredComponent(this.registry, type, "add");
-
-        if (type.deps.length > 0 && this.entityManager.isAlive(entity)) {
-            assertComponentDepsPresent(
-                entity,
-                type,
-                currentEntityComponentTypes(
-                    getEntityComponents(this.entityComponents, entity),
-                    (componentId) => this.registry.componentType(componentId)
-                ),
-                "add"
-            );
-        }
-
-        insertComponent(this.componentContext, entity, type, value);
+        this.addComponentWithReason(entity, type, value, "added");
 
         return this;
     }
@@ -629,8 +650,11 @@ export class World extends WorldQueryMethods {
         return this;
     }
 
-    /** Registers a component hook that runs after the component is first added. */
-    onAddComponent<T extends object>(type: ComponentType<T>, hook: ComponentHook<T>): () => void {
+    /** Registers a hook that reports whether the component was added or spawned. */
+    onAddComponent<T extends object>(
+        type: ComponentType<T>,
+        hook: ComponentAddHook<T>
+    ): () => void {
         assertRegisteredComponent(this.registry, type, "register hook for");
 
         return registerComponentHook(this.componentHookContext, type, "onAdd", hook);
@@ -663,24 +687,14 @@ export class World extends WorldQueryMethods {
         return registerComponentHook(this.componentHookContext, type, "onReplace", hook);
     }
 
-    /** Registers a component hook that runs when the component is removed explicitly. */
+    /** Registers a hook that reports whether the component was removed or despawned. */
     onRemoveComponent<T extends object>(
         type: ComponentType<T>,
-        hook: ComponentHook<T>
+        hook: ComponentRemoveHook<T>
     ): () => void {
         assertRegisteredComponent(this.registry, type, "register hook for");
 
         return registerComponentHook(this.componentHookContext, type, "onRemove", hook);
-    }
-
-    /** Registers a component hook that runs when the entity despawns. */
-    onDespawnComponent<T extends object>(
-        type: ComponentType<T>,
-        hook: ComponentHook<T>
-    ): () => void {
-        assertRegisteredComponent(this.registry, type, "register hook for");
-
-        return registerComponentHook(this.componentHookContext, type, "onDespawn", hook);
     }
 
     /** Ensures a state machine exists, using the provided initial value only on first creation. */
@@ -881,8 +895,8 @@ export class World extends WorldQueryMethods {
             commitReservedEntity: this.commandRuntime.commitReservedEntity,
             entityComponentIds: (entity) => getEntityComponents(this.entityComponents, entity),
             componentTypeById: (componentId) => this.registry.componentType(componentId),
-            insertComponent: (entity, type, value) => {
-                insertValidatedComponent(this.componentContext, entity, type, value);
+            insertComponent: (entity, type, value, reason) => {
+                insertValidatedComponent(this.componentContext, entity, type, value, reason);
             },
             removeComponent: (entity, type) => deleteComponent(this.componentContext, entity, type),
             despawnEntity: (entity) => despawnEntity(this.componentContext, entity),
@@ -898,10 +912,33 @@ export class World extends WorldQueryMethods {
         const entity = this.entityManager.create(etype);
 
         for (const entry of orderedEntries) {
-            insertComponent(this.componentContext, entity, entry.type, entry.value);
+            insertComponent(this.componentContext, entity, entry.type, entry.value, "spawned");
         }
 
         return entity;
+    }
+
+    private addComponentWithReason<T extends object>(
+        entity: Entity,
+        type: ComponentType<T>,
+        value: T,
+        reason: ComponentAddReason
+    ): void {
+        assertRegisteredComponent(this.registry, type, "add");
+
+        if (type.deps.length > 0 && this.entityManager.isAlive(entity)) {
+            assertComponentDepsPresent(
+                entity,
+                type,
+                currentEntityComponentTypes(
+                    getEntityComponents(this.entityComponents, entity),
+                    (componentId) => this.registry.componentType(componentId)
+                ),
+                "add"
+            );
+        }
+
+        insertComponent(this.componentContext, entity, type, value, reason);
     }
 
     private assertEntriesRegistered(entries: readonly AnyComponentEntry[], action: string): void {

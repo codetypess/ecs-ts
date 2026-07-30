@@ -14,6 +14,7 @@ export interface CommandRuntime {
     reserveEntity(etype: EntityType): Entity;
     commitReservedEntity(entity: Entity): void;
     releaseReservedEntity(entity: Entity): boolean;
+    addSpawnedComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): void;
 }
 
 type CommandRunner = (world: World) => void;
@@ -142,7 +143,7 @@ export class Commands {
                 this.runtime.commitReservedEntity(entity);
 
                 for (const entry of orderedEntries) {
-                    world.addComponent(entity, entry.type, entry.value);
+                    this.runtime.addSpawnedComponent(entity, entry.type, entry.value);
                 }
             } catch (error) {
                 if (world.isAlive(entity)) {

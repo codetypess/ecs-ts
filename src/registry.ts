@@ -347,7 +347,6 @@ export class Registry {
             onUnset: options.onUnset,
             onReplace: options.onReplace,
             onRemove: options.onRemove,
-            onDespawn: options.onDespawn,
         });
     }
 }

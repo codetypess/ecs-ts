@@ -10,21 +10,33 @@ export type ComponentHook<T> = {
     bivarianceHack(entity: Entity, component: T, world: World): void;
 }["bivarianceHack"];
 
+export type ComponentAddReason = "added" | "spawned";
+export type ComponentRemoveReason = "removed" | "despawned";
+
+/** Callback used when a component first becomes visible on an entity. */
+export type ComponentAddHook<T> = {
+    bivarianceHack(entity: Entity, component: T, world: World, reason: ComponentAddReason): void;
+}["bivarianceHack"];
+
 /** Callback used by component replacement hooks. */
 export type ComponentReplaceHook<T> = {
     bivarianceHack(entity: Entity, previous: T, next: T, world: World): void;
 }["bivarianceHack"];
 
+/** Callback used when a component is removed explicitly or with its entity. */
+export type ComponentRemoveHook<T> = {
+    bivarianceHack(entity: Entity, component: T, world: World, reason: ComponentRemoveReason): void;
+}["bivarianceHack"];
+
 /** Lifecycle callbacks that run around component insertion, unsetting, replacement, and removal. */
 export interface ComponentLifecycle<T> {
-    readonly onAdd?: ComponentHook<T>;
+    readonly onAdd?: ComponentAddHook<T>;
     readonly onInsert?: ComponentHook<T>;
     // Runs with the previous value before replacement, removal, or despawn.
     readonly onUnset?: ComponentHook<T>;
     // Runs with the previous and next values during replacement only.
     readonly onReplace?: ComponentReplaceHook<T>;
-    readonly onRemove?: ComponentHook<T>;
-    readonly onDespawn?: ComponentHook<T>;
+    readonly onRemove?: ComponentRemoveHook<T>;
 }
 
 /** Extra metadata and lifecycle hooks accepted by {@link defineComponent}. */

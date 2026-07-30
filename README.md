@@ -72,7 +72,7 @@ if (world.hasComponent(entity, Element)) {
 - Per-system 语义的 component/resource change detection。
 - Removed reader 和显式 `drainRemoved`。
 - 通过 `Commands` 做延迟结构修改。
-- Component lifecycle hooks：`onAdd`、`onInsert`、`onUnset`、`onReplace`、`onRemove`、`onDespawn`。
+- Component lifecycle hooks：带来源信息的 `onAdd`、`onRemove`，以及 `onInsert`、`onUnset`、`onReplace`。
 - 通过 `deps` 表达硬依赖。
 - 通过 `world.batch(...)` 做 entity/component 结构上的 deferred structural validation。
 - Scheduler：stage、label、system set、排序、fixed update、可组合 `runIf`。

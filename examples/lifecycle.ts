@@ -2,8 +2,10 @@ import { Commands, Entity, World, createRegistry, formatEntity, withComponent } 
 
 const registry = createRegistry("example-lifecycle");
 const Health = registry.defineComponent<{ value: number }>("Health", {
-    onAdd(entity, health) {
-        console.log(`component onAdd Health(${health.value}) -> ${formatEntity(entity)}`);
+    onAdd(entity, health, _world, reason) {
+        console.log(
+            `component onAdd(${reason}) Health(${health.value}) -> ${formatEntity(entity)}`
+        );
     },
     onInsert(entity, health) {
         console.log(`component onInsert Health(${health.value}) -> ${formatEntity(entity)}`);
@@ -16,11 +18,10 @@ const Health = registry.defineComponent<{ value: number }>("Health", {
             `component onReplace Health(${previous.value} -> ${next.value}) -> ${formatEntity(entity)}`
         );
     },
-    onRemove(entity, health) {
-        console.log(`component onRemove Health(${health.value}) -> ${formatEntity(entity)}`);
-    },
-    onDespawn(entity, health) {
-        console.log(`component onDespawn Health(${health.value}) -> ${formatEntity(entity)}`);
+    onRemove(entity, health, _world, reason) {
+        console.log(
+            `component onRemove(${reason}) Health(${health.value}) -> ${formatEntity(entity)}`
+        );
     },
 });
 

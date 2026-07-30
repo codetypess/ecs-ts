@@ -70,8 +70,8 @@ test("spawn inserts dependencies before dependents and despawn removes dependent
         onAdd() {
             events.push("transform:add");
         },
-        onDespawn(entity, _transform, world) {
-            events.push(`transform:despawn:element=${world.hasComponent(entity, Element)}`);
+        onRemove(entity, _transform, world, reason) {
+            events.push(`transform:${reason}:element=${world.hasComponent(entity, Element)}`);
         },
     });
     const Element = registry.defineComponent<{ name: string }>("Element", {
@@ -79,8 +79,8 @@ test("spawn inserts dependencies before dependents and despawn removes dependent
         onAdd(entity, _element, world) {
             events.push(`element:add:transform=${world.hasComponent(entity, Transform)}`);
         },
-        onDespawn(entity, _element, world) {
-            events.push(`element:despawn:transform=${world.hasComponent(entity, Transform)}`);
+        onRemove(entity, _element, world, reason) {
+            events.push(`element:${reason}:transform=${world.hasComponent(entity, Transform)}`);
         },
     });
     const world = new World(registry);
@@ -94,7 +94,10 @@ test("spawn inserts dependencies before dependents and despawn removes dependent
     events.length = 0;
     world.despawn(entity);
 
-    assert.deepEqual(events, ["element:despawn:transform=true", "transform:despawn:element=false"]);
+    assert.deepEqual(events, [
+        "element:despawned:transform=true",
+        "transform:despawned:element=false",
+    ]);
 });
 
 test("dependency sorting preserves duplicate component entry order", () => {

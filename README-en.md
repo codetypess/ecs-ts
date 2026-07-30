@@ -69,7 +69,7 @@ if (world.hasComponent(entity, Element)) {
 - Per-system change detection for components and resources.
 - Removed-component readers and explicit `drainRemoved`.
 - Deferred command queues through `Commands`.
-- Lifecycle hooks on components: `onAdd`, `onInsert`, `onUnset`, `onReplace`, `onRemove`, and `onDespawn`.
+- Component lifecycle hooks: source-aware `onAdd` and `onRemove`, plus `onInsert`, `onUnset`, and `onReplace`.
 - Hard component dependencies through `deps`.
 - Deferred entity/component structural validation with `world.batch(...)`.
 - Scheduler support for stages, labels, system sets, ordering, fixed update, and composable `runIf`.

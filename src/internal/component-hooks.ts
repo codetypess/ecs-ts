@@ -1,6 +1,10 @@
 import type {
+    ComponentAddHook,
+    ComponentAddReason,
     ComponentHook,
     ComponentLifecycleStage,
+    ComponentRemoveHook,
+    ComponentRemoveReason,
     ComponentReplaceHook,
     ComponentType,
 } from "../component.js";
@@ -9,12 +13,11 @@ import type { World } from "../world.js";
 
 /** Additional runtime hooks registered on top of component type metadata. */
 export type ComponentHookRegistry = {
-    onAdd?: ComponentHook<unknown>[];
+    onAdd?: ComponentAddHook<unknown>[];
     onInsert?: ComponentHook<unknown>[];
     onUnset?: ComponentHook<unknown>[];
     onReplace?: ComponentReplaceHook<unknown>[];
-    onRemove?: ComponentHook<unknown>[];
-    onDespawn?: ComponentHook<unknown>[];
+    onRemove?: ComponentRemoveHook<unknown>[];
 };
 
 /** Hook registry keyed by component type id. */
@@ -33,7 +36,19 @@ export function createComponentHookContext(): ComponentHookContext {
 export function addComponentHook<T extends object>(
     context: ComponentHookContext,
     type: ComponentType<T>,
-    stage: Exclude<ComponentLifecycleStage, "onReplace">,
+    stage: "onAdd",
+    hook: ComponentAddHook<T>
+): () => void;
+export function addComponentHook<T extends object>(
+    context: ComponentHookContext,
+    type: ComponentType<T>,
+    stage: "onRemove",
+    hook: ComponentRemoveHook<T>
+): () => void;
+export function addComponentHook<T extends object>(
+    context: ComponentHookContext,
+    type: ComponentType<T>,
+    stage: Exclude<ComponentLifecycleStage, "onAdd" | "onRemove" | "onReplace">,
     hook: ComponentHook<T>
 ): () => void;
 export function addComponentHook<T extends object>(
@@ -46,7 +61,7 @@ export function addComponentHook<T extends object>(
     context: ComponentHookContext,
     type: ComponentType<T>,
     stage: ComponentLifecycleStage,
-    hook: ComponentHook<T> | ComponentReplaceHook<T>
+    hook: ComponentAddHook<T> | ComponentHook<T> | ComponentRemoveHook<T> | ComponentReplaceHook<T>
 ): () => void {
     const registry = context.hooks.get(type.id) ?? {};
 
@@ -62,6 +77,38 @@ export function addComponentHook<T extends object>(
 
             if (index !== -1) {
                 replaceHooks.splice(index, 1);
+            }
+        };
+    }
+
+    if (stage === "onAdd") {
+        const addHooks = (registry.onAdd ?? []) as ComponentAddHook<T>[];
+
+        addHooks.push(hook as ComponentAddHook<T>);
+        registry.onAdd = addHooks as ComponentAddHook<unknown>[];
+        context.hooks.set(type.id, registry);
+
+        return () => {
+            const index = addHooks.indexOf(hook as ComponentAddHook<T>);
+
+            if (index !== -1) {
+                addHooks.splice(index, 1);
+            }
+        };
+    }
+
+    if (stage === "onRemove") {
+        const removeHooks = (registry.onRemove ?? []) as ComponentRemoveHook<T>[];
+
+        removeHooks.push(hook as ComponentRemoveHook<T>);
+        registry.onRemove = removeHooks as ComponentRemoveHook<unknown>[];
+        context.hooks.set(type.id, registry);
+
+        return () => {
+            const index = removeHooks.indexOf(hook as ComponentRemoveHook<T>);
+
+            if (index !== -1) {
+                removeHooks.splice(index, 1);
             }
         };
     }
@@ -85,7 +132,25 @@ export function addComponentHook<T extends object>(
 export function runComponentHooks<T extends object>(
     context: ComponentHookContext,
     type: ComponentType<T>,
-    stage: Exclude<ComponentLifecycleStage, "onReplace">,
+    stage: "onAdd",
+    entity: Entity,
+    component: T,
+    world: World,
+    reason: ComponentAddReason
+): void;
+export function runComponentHooks<T extends object>(
+    context: ComponentHookContext,
+    type: ComponentType<T>,
+    stage: "onRemove",
+    entity: Entity,
+    component: T,
+    world: World,
+    reason: ComponentRemoveReason
+): void;
+export function runComponentHooks<T extends object>(
+    context: ComponentHookContext,
+    type: ComponentType<T>,
+    stage: Exclude<ComponentLifecycleStage, "onAdd" | "onRemove" | "onReplace">,
     entity: Entity,
     component: T,
     world: World
@@ -106,12 +171,12 @@ export function runComponentHooks<T extends object>(
     entity: Entity,
     componentOrPrevious: T,
     nextOrWorld: T | World,
-    maybeWorld?: World
+    worldOrReason?: World | ComponentAddReason | ComponentRemoveReason
 ): void {
     if (stage === "onReplace") {
         const previous = componentOrPrevious;
         const next = nextOrWorld as T;
-        const world = maybeWorld as World;
+        const world = worldOrReason as World;
 
         type.lifecycle.onReplace?.(entity, previous, next, world);
 
@@ -127,6 +192,35 @@ export function runComponentHooks<T extends object>(
 
     const component = componentOrPrevious;
     const world = nextOrWorld as World;
+
+    if (stage === "onAdd") {
+        const reason = worldOrReason as ComponentAddReason;
+
+        type.lifecycle.onAdd?.(entity, component, world, reason);
+
+        const registeredHooks = (context.hooks.get(type.id)?.onAdd ?? []) as ComponentAddHook<T>[];
+
+        for (const hook of registeredHooks) {
+            hook(entity, component, world, reason);
+        }
+
+        return;
+    }
+
+    if (stage === "onRemove") {
+        const reason = worldOrReason as ComponentRemoveReason;
+
+        type.lifecycle.onRemove?.(entity, component, world, reason);
+
+        const registeredHooks = (context.hooks.get(type.id)?.onRemove ??
+            []) as ComponentRemoveHook<T>[];
+
+        for (const hook of registeredHooks) {
+            hook(entity, component, world, reason);
+        }
+
+        return;
+    }
 
     type.lifecycle[stage]?.(entity, component, world);
 

@@ -6,23 +6,22 @@ component lifecycle hook 是可选的，而且是按操作路径触发的。一�
 
 ## 对照表
 
-| 操作               | 触发顺序                               | 不会触发的阶段                                  |
-| ------------------ | -------------------------------------- | ----------------------------------------------- |
-| 首次添加           | `onAdd` -> `onInsert`                  | `onUnset`、`onReplace`、`onRemove`、`onDespawn` |
-| 覆盖已有值         | `onUnset` -> `onReplace` -> `onInsert` | `onAdd`、`onRemove`、`onDespawn`                |
-| 删除单个 component | `onUnset` -> `onRemove`                | `onAdd`、`onInsert`、`onReplace`、`onDespawn`   |
-| despawn entity     | `onUnset` -> `onRemove` -> `onDespawn` | `onAdd`、`onInsert`、`onReplace`                |
+| 操作               | 触发顺序                               | 不会触发的阶段                     |
+| ------------------ | -------------------------------------- | ---------------------------------- |
+| 首次添加           | `onAdd` -> `onInsert`                  | `onUnset`、`onReplace`、`onRemove` |
+| 覆盖已有值         | `onUnset` -> `onReplace` -> `onInsert` | `onAdd`、`onRemove`                |
+| 删除单个 component | `onUnset` -> `onRemove("removed")`     | `onAdd`、`onInsert`、`onReplace`   |
+| despawn entity     | `onUnset` -> `onRemove("despawned")`   | `onAdd`、`onInsert`、`onReplace`   |
 
 无论修改来自直接 `World` 写入、`Commands`，还是 `world.batch(...)` 最终提交的净变化，触发规则都是这一套。
 
 ## 怎么理解这几个阶段
 
-- `onAdd`：component 第一次对该 entity 可见。
+- `onAdd`：component 第一次对该 entity 可见；`reason` 是 `"added"` 或 `"spawned"`。
 - `onInsert`：component slot 被写入了一个值，不管这个 slot 之前是空的还是已有旧值。
 - `onUnset`：之前那个可见值即将不再是当前 slot 的值。
 - `onReplace`：之前那个可见值正在被另一个新值替换，并且会同时拿到 `previous` 和 `next`。
-- `onRemove`：这个 component 正在从 entity 上被摘掉。
-- `onDespawn`：这个 component 是因为整个 entity 被销毁而一起移除。
+- `onRemove`：component 正在从 entity 上被摘掉；`reason` 是 `"removed"` 或 `"despawned"`。
 
 这样命名就更字面：`onReplace` 只表示真正的替换；更宽泛的“旧值退出 slot”语义则交给 `onUnset`，它也会在 `removeComponent(...)` 和 `despawn(...)` 之前运行。
 
@@ -40,11 +39,11 @@ const Health = registry.defineComponent<{ value: number }>("Health", {
     onUnset(entity, health) {
         console.log("unset", entity, health.value);
     },
-    onAdd(entity, health) {
-        console.log("added", entity, health.value);
+    onAdd(entity, health, _world, reason) {
+        console.log(reason, entity, health.value);
     },
-    onRemove(entity, health) {
-        console.log("removed", entity, health.value);
+    onRemove(entity, health, _world, reason) {
+        console.log(reason, entity, health.value);
     },
 });
 

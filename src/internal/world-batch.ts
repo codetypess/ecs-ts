@@ -2,6 +2,7 @@ import {
     assertComponentValue,
     type AnyComponentEntry,
     type AnyComponentType,
+    type ComponentAddReason,
     type ComponentType,
 } from "../component.js";
 import { formatEntity, type Entity, type EntityType } from "../entity.js";
@@ -53,7 +54,8 @@ export interface WorldBatchRuntime {
     readonly insertComponent: <T extends object>(
         entity: Entity,
         type: ComponentType<T>,
-        value: T
+        value: T,
+        reason: ComponentAddReason
     ) => void;
     readonly removeComponent: <T extends object>(entity: Entity, type: ComponentType<T>) => boolean;
     readonly despawnEntity: (entity: Entity) => boolean;
@@ -356,7 +358,12 @@ function commitBatchNewEntity(runtime: WorldBatchRuntime, entityState: BatchEnti
         const componentState = entityState.componentStates.get(type.id);
 
         if (componentState?.present) {
-            runtime.insertComponent(entityState.entity, type, componentState.value as object);
+            runtime.insertComponent(
+                entityState.entity,
+                type,
+                componentState.value as object,
+                "spawned"
+            );
         }
     }
 }
@@ -391,7 +398,12 @@ function commitBatchExistingEntity(
         const componentState = entityState.componentStates.get(type.id);
 
         if (componentState?.present) {
-            runtime.insertComponent(entityState.entity, type, componentState.value as object);
+            runtime.insertComponent(
+                entityState.entity,
+                type,
+                componentState.value as object,
+                "added"
+            );
         }
     }
 }
