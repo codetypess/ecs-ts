@@ -318,7 +318,15 @@ export class Registry {
         const seen = new Set<number>();
         const normalized: AnyComponentType[] = [];
 
-        for (const dep of deps) {
+        for (let index = 0; index < deps.length; index++) {
+            const dep = deps[index];
+
+            if (dep === undefined || dep === null) {
+                throw new Error(
+                    `Cannot define component ${componentName} in ${this.name}: dependency at index ${index} is ${String(dep)}`
+                );
+            }
+
             if (!this.isRegisteredComponent(dep)) {
                 throw new Error(
                     `Cannot define component ${componentName} in ${this.name}: dependency ${dep.name} is not registered in ${this.name}`

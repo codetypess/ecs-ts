@@ -138,4 +138,18 @@ test("registry stores component dependencies and rejects invalid dependency meta
             }),
         /dependency Transform is duplicated/
     );
+    assert.throws(
+        () =>
+            registry.defineComponent("UndefinedDependent", {
+                deps: [undefined as never],
+            }),
+        /dependency at index 0 is undefined/
+    );
+    assert.throws(
+        () =>
+            registry.defineComponent("NullDependent", {
+                deps: [null as never],
+            }),
+        /dependency at index 0 is null/
+    );
 });
