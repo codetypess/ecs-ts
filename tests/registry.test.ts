@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createRegistry } from "../src";
+import { createRegistry, defineComponent } from "../src";
 
 test("registry assigns stable keys and supports name and key lookups", () => {
     const registry = createRegistry("registry-test");
@@ -11,7 +11,7 @@ test("registry assigns stable keys and supports name and key lookups", () => {
     const DamageMessage = registry.defineMessage<{ amount: number }>("Damage");
     const DamageEvent = registry.defineEvent<{ amount: number }>("Damage");
 
-    assert.equal(Position.key, "registry-test/component/Position");
+    assert.equal(Position.key, "component/Position");
     assert.equal(SharedResource.key, "registry-test/resource/Shared");
     assert.equal(SharedState.key, "registry-test/state/Shared");
     assert.equal(DamageMessage.key, "registry-test/message/Damage");
@@ -152,4 +152,16 @@ test("registry stores component dependencies and rejects invalid dependency meta
             }),
         /dependency at index 0 is null/
     );
+});
+
+test("component definitions can be registered in multiple registries", () => {
+    const Position = defineComponent<{ x: number }>("SharedPosition");
+    const first = createRegistry("shared-first");
+    const second = createRegistry("shared-second");
+
+    first.registerComponent(Position);
+    second.registerComponent(Position);
+
+    assert.equal(first.componentTypeByName("SharedPosition"), Position);
+    assert.equal(second.componentTypeByName("SharedPosition"), Position);
 });

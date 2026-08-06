@@ -22,7 +22,7 @@ interface BatchEntityState {
     readonly entity: Entity;
     readonly isNew: boolean;
     despawned: boolean;
-    readonly componentStates: Map<number, BatchComponentState>;
+    readonly componentStates: Map<AnyComponentType, BatchComponentState>;
 }
 
 interface BatchContext {
@@ -30,7 +30,6 @@ interface BatchContext {
     closed: boolean;
 }
 
-/** Batched structural edits that are committed together after validation succeeds. */
 export interface WorldBatch {
     spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
     addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this;
@@ -48,8 +47,7 @@ export interface WorldBatchRuntime {
     readonly reserveEntity: (etype: EntityType) => Entity;
     readonly releaseReservedEntity: (entity: Entity) => boolean;
     readonly commitReservedEntity: (entity: Entity) => void;
-    readonly entityComponentIds: (entity: Entity) => readonly number[];
-    readonly componentTypeById: (componentId: number) => AnyComponentType | undefined;
+    readonly entityComponentTypes: (entity: Entity) => readonly AnyComponentType[];
     readonly insertComponent: <T extends object>(
         entity: Entity,
         type: ComponentType<T>,
@@ -61,15 +59,10 @@ export interface WorldBatchRuntime {
 }
 
 export function runWorldBatch<T>(runtime: WorldBatchRuntime, run: (batch: WorldBatch) => T): T {
-    const context: BatchContext = {
-        entityStates: new Map(),
-        closed: false,
-    };
-
+    const context: BatchContext = { entityStates: new Map(), closed: false };
     let result: T;
 
     try {
-        // The callback only stages writes. Live world mutation starts after validation passes.
         result = run(createBatchWriter(runtime, context));
     } catch (error) {
         closeBatchContext(context);
@@ -96,7 +89,7 @@ export function runWorldBatch<T>(runtime: WorldBatchRuntime, run: (batch: WorldB
     return result;
 }
 
-function createBatchWriter(runtime: WorldBatchRuntime, context: BatchContext) {
+function createBatchWriter(runtime: WorldBatchRuntime, context: BatchContext): WorldBatch {
     function spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity {
         ensureBatchContextOpen(context);
         return stageBatchSpawn(runtime, context, etype, entries);
@@ -107,19 +100,16 @@ function createBatchWriter(runtime: WorldBatchRuntime, context: BatchContext) {
         addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T) {
             ensureBatchContextOpen(context);
             stageBatchAddComponent(runtime, context, entity, type, value);
-
             return batch;
         },
         removeComponent<T extends object>(entity: Entity, type: ComponentType<T>) {
             ensureBatchContextOpen(context);
             stageBatchRemoveComponent(runtime, context, entity, type);
-
             return batch;
         },
         despawn(entity: Entity) {
             ensureBatchContextOpen(context);
             stageBatchDespawn(runtime, context, entity);
-
             return batch;
         },
     };
@@ -144,7 +134,6 @@ function stageBatchSpawn(
     entries: readonly AnyComponentEntry[]
 ): Entity {
     runtime.assertEntriesRegistered(entries, "batch spawn");
-
     const entity = runtime.reserveEntity(etype);
     const entityState: BatchEntityState = {
         entity,
@@ -152,7 +141,6 @@ function stageBatchSpawn(
         despawned: false,
         componentStates: new Map(),
     };
-
     context.entityStates.set(entity, entityState);
 
     for (const entry of entries) {
@@ -181,7 +169,6 @@ function stageBatchAddKnownComponent<T extends object>(
     value: T
 ): void {
     assertComponentValue(type, value);
-
     const entityState = ensureBatchEntityState(runtime, context, entity);
 
     if (entityState.despawned) {
@@ -190,12 +177,7 @@ function stageBatchAddKnownComponent<T extends object>(
         );
     }
 
-    // One state per component id means later staged writes replace earlier writes.
-    entityState.componentStates.set(type.id, {
-        type,
-        present: true,
-        value,
-    });
+    entityState.componentStates.set(type, { type, present: true, value });
 }
 
 function stageBatchRemoveComponent<T extends object>(
@@ -205,7 +187,6 @@ function stageBatchRemoveComponent<T extends object>(
     type: ComponentType<T>
 ): void {
     runtime.assertComponentRegistered(type, "remove");
-
     const entityState = ensureBatchEntityState(runtime, context, entity);
 
     if (entityState.despawned) {
@@ -215,16 +196,11 @@ function stageBatchRemoveComponent<T extends object>(
     }
 
     if (entityState.isNew) {
-        // Removing from a batch-created entity simply cancels the staged addition.
-        entityState.componentStates.delete(type.id);
+        entityState.componentStates.delete(type);
         return;
     }
 
-    entityState.componentStates.set(type.id, {
-        type,
-        present: false,
-        value: undefined,
-    });
+    entityState.componentStates.set(type, { type, present: false, value: undefined });
 }
 
 function stageBatchDespawn(
@@ -233,8 +209,6 @@ function stageBatchDespawn(
     entity: Entity
 ): void {
     const entityState = ensureBatchEntityState(runtime, context, entity);
-
-    // Despawn wins over per-component edits; commit handles new vs existing entities.
     entityState.despawned = true;
     entityState.componentStates.clear();
 }
@@ -245,11 +219,7 @@ function ensureBatchEntityState(
     entity: Entity
 ): BatchEntityState {
     const existing = context.entityStates.get(entity);
-
-    if (existing !== undefined) {
-        return existing;
-    }
-
+    if (existing !== undefined) return existing;
     if (!runtime.isAlive(entity)) {
         throw new Error(`Entity is not alive: ${formatEntity(entity)}`);
     }
@@ -260,32 +230,25 @@ function ensureBatchEntityState(
         despawned: false,
         componentStates: new Map(),
     };
-
     context.entityStates.set(entity, entityState);
-
     return entityState;
 }
 
 function releaseReservedBatchEntities(runtime: WorldBatchRuntime, context: BatchContext): void {
     for (const entityState of context.entityStates.values()) {
-        if (entityState.isNew) {
-            runtime.releaseReservedEntity(entityState.entity);
-        }
+        if (entityState.isNew) runtime.releaseReservedEntity(entityState.entity);
     }
 }
 
 function assertBatchContextValid(runtime: WorldBatchRuntime, context: BatchContext): void {
     for (const entityState of context.entityStates.values()) {
-        if (entityState.despawned) {
-            continue;
+        if (!entityState.despawned) {
+            assertComponentSetDepsSatisfied(
+                entityState.entity,
+                collectFinalBatchComponentTypes(runtime, entityState),
+                "commit batch"
+            );
         }
-
-        // Batch semantics validate the final component set, not the intermediate call order.
-        assertComponentSetDepsSatisfied(
-            entityState.entity,
-            collectFinalBatchComponentTypes(runtime, entityState),
-            "commit batch"
-        );
     }
 }
 
@@ -293,24 +256,19 @@ function collectFinalBatchComponentTypes(
     runtime: WorldBatchRuntime,
     entityState: BatchEntityState
 ): AnyComponentType[] {
-    const finalTypes = new Map<number, AnyComponentType>();
+    const finalTypes = new Map<AnyComponentType, AnyComponentType>();
 
     if (!entityState.isNew) {
-        // Existing entities start from the live snapshot, then replay staged overrides on top.
         for (const type of currentEntityComponentTypes(
-            runtime.entityComponentIds(entityState.entity),
-            runtime.componentTypeById
+            runtime.entityComponentTypes(entityState.entity)
         )) {
-            finalTypes.set(type.id, type);
+            finalTypes.set(type, type);
         }
     }
 
-    for (const componentState of entityState.componentStates.values()) {
-        if (componentState.present) {
-            finalTypes.set(componentState.type.id, componentState.type);
-        } else {
-            finalTypes.delete(componentState.type.id);
-        }
+    for (const state of entityState.componentStates.values()) {
+        if (state.present) finalTypes.set(state.type, state.type);
+        else finalTypes.delete(state.type);
     }
 
     return [...finalTypes.values()];
@@ -319,43 +277,31 @@ function collectFinalBatchComponentTypes(
 function commitBatchContext(runtime: WorldBatchRuntime, context: BatchContext): void {
     for (const entityState of context.entityStates.values()) {
         if (entityState.despawned) {
-            if (entityState.isNew) {
-                runtime.releaseReservedEntity(entityState.entity);
-            } else {
-                runtime.despawnEntity(entityState.entity);
-            }
-
+            if (entityState.isNew) runtime.releaseReservedEntity(entityState.entity);
+            else runtime.despawnEntity(entityState.entity);
             continue;
         }
 
         if (entityState.isNew) {
-            // Publish reserved entities only after validation, so failed batches leak no live entity.
             runtime.commitReservedEntity(entityState.entity);
             commitBatchNewEntity(runtime, entityState);
-            continue;
+        } else {
+            commitBatchExistingEntity(runtime, entityState);
         }
-
-        commitBatchExistingEntity(runtime, entityState);
     }
 }
 
 function commitBatchNewEntity(runtime: WorldBatchRuntime, entityState: BatchEntityState): void {
     const additions = sortComponentTypesByDependencies(
         [...entityState.componentStates.values()]
-            .filter((componentState) => componentState.present)
-            .map((componentState) => componentState.type)
+            .filter((state) => state.present)
+            .map((state) => state.type)
     );
 
     for (const type of additions) {
-        const componentState = entityState.componentStates.get(type.id);
-
-        if (componentState?.present) {
-            runtime.insertComponent(
-                entityState.entity,
-                type,
-                componentState.value as object,
-                "spawned"
-            );
+        const state = entityState.componentStates.get(type);
+        if (state?.present) {
+            runtime.insertComponent(entityState.entity, type, state.value as object, "spawned");
         }
     }
 }
@@ -365,37 +311,27 @@ function commitBatchExistingEntity(
     entityState: BatchEntityState
 ): void {
     const currentTypes = currentEntityComponentTypes(
-        runtime.entityComponentIds(entityState.entity),
-        runtime.componentTypeById
+        runtime.entityComponentTypes(entityState.entity)
     );
-    const finalTypeIds = new Set(
-        collectFinalBatchComponentTypes(runtime, entityState).map((type) => type.id)
-    );
+    const finalTypes = new Set(collectFinalBatchComponentTypes(runtime, entityState));
     const removals = sortComponentTypesByDependencies(
-        currentTypes.filter((type) => !finalTypeIds.has(type.id)),
+        currentTypes.filter((type) => !finalTypes.has(type)),
         "dependentsFirst"
     );
     const additions = sortComponentTypesByDependencies(
         [...entityState.componentStates.values()]
-            .filter((componentState) => componentState.present)
-            .map((componentState) => componentState.type)
+            .filter((state) => state.present)
+            .map((state) => state.type)
     );
 
-    // Apply the net diff in dependency-safe order instead of replaying user call order.
     for (const type of removals) {
         runtime.removeComponent(entityState.entity, type);
     }
 
     for (const type of additions) {
-        const componentState = entityState.componentStates.get(type.id);
-
-        if (componentState?.present) {
-            runtime.insertComponent(
-                entityState.entity,
-                type,
-                componentState.value as object,
-                "added"
-            );
+        const state = entityState.componentStates.get(type);
+        if (state?.present) {
+            runtime.insertComponent(entityState.entity, type, state.value as object, "added");
         }
     }
 }

@@ -12,7 +12,6 @@ import {
     queryWithState as runQueryWithState,
 } from "./internal/query-executor.js";
 import { getSingleResult, mustGetSingleResult } from "./internal/query-single.js";
-import type { Registry } from "./registry.js";
 import type { SparseSet } from "./sparse-set.js";
 import type { World } from "./world.js";
 
@@ -59,7 +58,6 @@ export interface ChangeDetectionRange {
 
 /** Cached query definition for repeated required-component queries. */
 export interface QueryState<TComponents extends readonly AnyComponentType[]> {
-    readonly registry: Registry;
     readonly types: TComponents;
     readonly filter: QueryFilter;
     /** Iterates matching rows using the world's cached query plan. */
@@ -86,7 +84,6 @@ export interface OptionalQueryState<
     TRequiredComponents extends readonly AnyComponentType[],
     TOptionalComponents extends readonly AnyComponentType[],
 > {
-    readonly registry: Registry;
     readonly required: TRequiredComponents;
     readonly optional: TOptionalComponents;
     readonly filter: QueryFilter;
@@ -140,12 +137,13 @@ export function optionalQueryState<
 class CachedQueryState<
     TComponents extends readonly AnyComponentType[],
 > implements QueryState<TComponents> {
-    readonly registry: Registry;
     readonly types: TComponents;
     readonly filter: QueryFilter;
 
     constructor(types: TComponents, filter: QueryFilter = {}) {
-        this.registry = resolveQueryRegistry(types, filter, "query state");
+        if (types.length === 0) {
+            throw new Error("Query requires at least one component type");
+        }
         this.types = cloneComponentTypes(types);
         this.filter = cloneQueryFilter(filter);
     }
@@ -207,7 +205,6 @@ class CachedOptionalQueryState<
     TRequiredComponents extends readonly AnyComponentType[],
     TOptionalComponents extends readonly AnyComponentType[],
 > implements OptionalQueryState<TRequiredComponents, TOptionalComponents> {
-    readonly registry: Registry;
     readonly required: TRequiredComponents;
     readonly optional: TOptionalComponents;
     readonly filter: QueryFilter;
@@ -217,7 +214,9 @@ class CachedOptionalQueryState<
         optional: TOptionalComponents,
         filter: QueryFilter = {}
     ) {
-        this.registry = resolveOptionalQueryRegistry(required, optional, filter);
+        if (required.length === 0) {
+            throw new Error("Optional query requires at least one required component type");
+        }
         this.required = cloneComponentTypes(required);
         this.optional = cloneComponentTypes(optional);
         this.filter = cloneQueryFilter(filter);
@@ -312,42 +311,6 @@ function cloneFilterTypes(
     return types === undefined ? undefined : Object.freeze([...types]);
 }
 
-function resolveQueryRegistry(
-    types: readonly AnyComponentType[],
-    filter: QueryFilter,
-    label: string
-): Registry {
-    if (types.length === 0) {
-        throw new Error("Query requires at least one component type");
-    }
-
-    const registry = types[0]!.registry;
-
-    assertAllSameRegistry(registry, types, label);
-    assertAllSameRegistry(registry, allFilterTypes(filter), label);
-
-    return registry;
-}
-
-function resolveOptionalQueryRegistry(
-    required: readonly AnyComponentType[],
-    optional: readonly AnyComponentType[],
-    filter: QueryFilter
-): Registry {
-    if (required.length === 0) {
-        throw new Error("Optional query requires at least one required component type");
-    }
-
-    const registry = required[0]!.registry;
-    const label = "optional query state";
-
-    assertAllSameRegistry(registry, required, label);
-    assertAllSameRegistry(registry, optional, label);
-    assertAllSameRegistry(registry, allFilterTypes(filter), label);
-
-    return registry;
-}
-
 interface QueryStateWorldRuntime {
     readonly ecsContext: EcsContext;
     readonly changeDetectionRange: () => ChangeDetectionRange;
@@ -355,32 +318,6 @@ interface QueryStateWorldRuntime {
 
 function worldQueryRuntime(world: World): QueryStateWorldRuntime {
     return world as unknown as QueryStateWorldRuntime;
-}
-
-/** Returns a flat list of every component type referenced by a filter. */
-function allFilterTypes(filter: QueryFilter): readonly AnyComponentType[] {
-    return [
-        ...(filter.with ?? []),
-        ...(filter.without ?? []),
-        ...(filter.or ?? []),
-        ...(filter.added ?? []),
-        ...(filter.changed ?? []),
-    ];
-}
-
-/** Throws when any type in the list belongs to a different registry. */
-function assertAllSameRegistry(
-    registry: Registry,
-    types: readonly AnyComponentType[],
-    label: string
-): void {
-    for (const type of types) {
-        if (type.registry !== registry) {
-            throw new Error(
-                `Cannot create ${label} with components from ${registry.name} and ${type.registry.name}`
-            );
-        }
-    }
 }
 
 /** Checks whether a change tick falls inside the current system's visible window. */

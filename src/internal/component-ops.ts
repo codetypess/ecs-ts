@@ -21,7 +21,6 @@ import {
 import {
     ensureComponentStore,
     getComponentStore,
-    getComponentType,
     markComponentStoreForCompaction,
     type ComponentStoreContext,
 } from "./component-store.js";
@@ -140,7 +139,7 @@ export function hasAll(
     entity: Entity,
     types: readonly AnyComponentType[]
 ): boolean {
-    return hasAllComponents(context.entities, context.componentStores.stores, entity, types);
+    return hasAllComponents(context.entities, context.componentStores, entity, types);
 }
 
 /** Returns whether the entity has at least one component in the provided list. */
@@ -149,7 +148,7 @@ export function hasAny(
     entity: Entity,
     types: readonly AnyComponentType[]
 ): boolean {
-    return hasAnyComponents(context.entities, context.componentStores.stores, entity, types);
+    return hasAnyComponents(context.entities, context.componentStores, entity, types);
 }
 
 /** Returns the component value when the entity is alive and the component exists. */
@@ -186,7 +185,7 @@ export function getMany<const TComponents extends readonly AnyComponentType[]>(
     entity: Entity,
     ...types: TComponents
 ): ComponentTuple<TComponents> | undefined {
-    return getManyComponents(context.entities, context.componentStores.stores, entity, types);
+    return getManyComponents(context.entities, context.componentStores, entity, types);
 }
 
 /** Returns whether the component was added inside the current change-detection window. */
@@ -197,7 +196,7 @@ export function isAdded<T extends object>(
 ): boolean {
     return isComponentAdded(
         context.entities,
-        context.componentStores.stores,
+        context.componentStores,
         entity,
         type,
         context.getChangeDetectionRange()
@@ -212,7 +211,7 @@ export function isChanged<T extends object>(
 ): boolean {
     return isComponentChanged(
         context.entities,
-        context.componentStores.stores,
+        context.componentStores,
         entity,
         type,
         context.getChangeDetectionRange()
@@ -234,7 +233,7 @@ export function remove<T extends object>(
 
     context.runComponentHooks(type, "onUnset", entity, component);
     context.runComponentHooks(type, "onRemove", entity, component, "removed");
-    untrackEntityComponent(context.entityComponents, entity, type.id);
+    untrackEntityComponent(context.entityComponents, entity, type);
     deleteStoredComponent(context, store, entity);
 
     return true;
@@ -242,40 +241,19 @@ export function remove<T extends object>(
 
 /** Removes every component on the entity and destroys the entity handle. */
 export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
-    if (!context.entities.isAlive(entity)) {
-        return false;
-    }
+    if (!context.entities.isAlive(entity)) return false;
 
-    const componentIds = takeEntityComponents(context.entityComponents, entity);
-
-    if (!despawnNeedsDependencyOrder(context, componentIds)) {
-        componentIds.sort((left, right) => left - right);
-
-        for (const componentId of componentIds) {
-            const store = context.componentStores.stores[componentId];
-            const type = getComponentType(context.componentStores, componentId);
-            const component = store?.get(entity) as object | undefined;
-
-            if (type !== undefined && component !== undefined) {
-                context.runComponentHooks(type, "onUnset", entity, component);
-                context.runComponentHooks(type, "onRemove", entity, component, "despawned");
-            }
-
-            deleteStoredComponent(context, store, entity);
-        }
-
-        return context.entities.destroy(entity);
-    }
-
-    const componentTypes = sortComponentTypesByDependencies(
-        componentIds
-            .map((componentId) => getComponentType(context.componentStores, componentId))
-            .filter((type): type is AnyComponentType => type !== undefined),
-        "dependentsFirst"
-    );
+    const trackedTypes = takeEntityComponents(context.entityComponents, entity);
+    const componentTypes = despawnNeedsDependencyOrder(trackedTypes)
+        ? sortComponentTypesByDependencies(trackedTypes, "dependentsFirst")
+        : trackedTypes.sort(
+              (left, right) =>
+                  context.componentStores.registry.componentOrder(left)! -
+                  context.componentStores.registry.componentOrder(right)!
+          );
 
     for (const type of componentTypes) {
-        const store = context.componentStores.stores[type.id];
+        const store = getComponentStore(context.componentStores, type);
         const component = store?.get(entity) as object | undefined;
 
         if (component !== undefined) {
@@ -323,7 +301,7 @@ function insertComponentOnly<T extends object>(
         context.runComponentHooks(type, "onUnset", entity, previous);
         context.runComponentHooks(type, "onReplace", entity, previous, value);
     } else {
-        trackEntityComponent(context.entityComponents, entity, type.id);
+        trackEntityComponent(context.entityComponents, entity, type);
         context.runComponentHooks(type, "onAdd", entity, value, reason);
     }
 
@@ -337,21 +315,7 @@ function assertAlive(context: ComponentOpsContext, entity: Entity): void {
     }
 }
 
-function despawnNeedsDependencyOrder(
-    context: ComponentOpsContext,
-    componentIds: readonly number[]
-): boolean {
-    if (componentIds.length < 2) {
-        return false;
-    }
-
-    for (const componentId of componentIds) {
-        const type = getComponentType(context.componentStores, componentId);
-
-        if (type !== undefined && type.deps.length > 0) {
-            return true;
-        }
-    }
-
-    return false;
+function despawnNeedsDependencyOrder(componentTypes: readonly AnyComponentType[]): boolean {
+    if (componentTypes.length < 2) return false;
+    return componentTypes.some((type) => type.deps.length > 0);
 }

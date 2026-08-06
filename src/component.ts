@@ -48,15 +48,81 @@ export type ComponentLifecycleStage = keyof ComponentLifecycle<unknown>;
 
 /** Runtime handle used to identify a component store and its lifecycle behavior. */
 export interface ComponentType<T extends object> {
-    readonly id: number;
     readonly key: string;
     readonly name: string;
-    readonly registry: Registry;
     readonly deps: readonly ComponentType<object>[];
     readonly lifecycle: Readonly<ComponentLifecycle<T>>;
 }
 
 export type AnyComponentType = ComponentType<object>;
+
+export function defineComponent(
+    name: string,
+    options?: ComponentOptions<Record<string, never>>
+): ComponentType<Record<string, never>>;
+export function defineComponent<TOwn extends object, TTemplate extends ComponentType<object>>(
+    name: string,
+    options?: ComponentOptions<ComponentDataWithTemplate<TOwn, TTemplate>>
+): ComponentType<ComponentDataWithTemplate<TOwn, TTemplate>>;
+export function defineComponent<T extends object>(
+    name: string,
+    options?: ComponentOptions<T>
+): ComponentType<T>;
+export function defineComponent<T extends object>(
+    name: string,
+    options: ComponentOptions<T> = {} as ComponentOptions<T>
+): ComponentType<T> {
+    if (name.trim().length === 0) {
+        throw new Error("Cannot define component: name must be a non-empty string");
+    }
+
+    const deps = normalizeComponentDeps(name, options.deps);
+    const lifecycle = Object.freeze({
+        onAdd: options.onAdd,
+        onInsert: options.onInsert,
+        onUnset: options.onUnset,
+        onReplace: options.onReplace,
+        onRemove: options.onRemove,
+    });
+
+    return Object.freeze({
+        key: `component/${name}`,
+        name,
+        deps,
+        lifecycle,
+    });
+}
+
+function normalizeComponentDeps(
+    componentName: string,
+    deps: readonly AnyComponentType[] | undefined
+): readonly AnyComponentType[] {
+    if (deps === undefined || deps.length === 0) return Object.freeze([]);
+
+    const seen = new Set<AnyComponentType>();
+    const normalized: AnyComponentType[] = [];
+
+    for (let index = 0; index < deps.length; index++) {
+        const dep = deps[index];
+
+        if (dep === undefined || dep === null) {
+            throw new Error(
+                `Cannot define component ${componentName}: dependency at index ${index} is ${String(dep)}`
+            );
+        }
+
+        if (seen.has(dep)) {
+            throw new Error(
+                `Cannot define component ${componentName}: dependency ${dep.name} is duplicated`
+            );
+        }
+
+        seen.add(dep);
+        normalized.push(dep);
+    }
+
+    return Object.freeze(normalized);
+}
 
 export type ComponentData<TComponent extends AnyComponentType> =
     TComponent extends ComponentType<infer TData> ? TData : never;
@@ -116,14 +182,8 @@ export function assertRegisteredComponent(
         return;
     }
 
-    if (type.registry === registry) {
-        throw new Error(
-            `Cannot ${action} component ${type.name}: it is not registered in ${registry.name}`
-        );
-    }
-
     throw new Error(
-        `Cannot ${action} component ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
+        `Cannot ${action} component ${type.name}: it is not registered in ${registry.name}`
     );
 }
 

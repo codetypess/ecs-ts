@@ -1,7 +1,7 @@
+import { defineComponent as createComponentDefinition } from "./component.js";
 import type {
     AnyComponentType,
     ComponentDataWithTemplate,
-    ComponentLifecycle,
     ComponentOptions,
     ComponentType,
 } from "./component.js";
@@ -25,12 +25,12 @@ export type RegistryTypeKey = string;
  * Registry that owns every typed ECS definition for one domain.
  */
 export class Registry {
-    private nextComponentId = 0;
     private nextResourceId = 0;
     private nextStateId = 0;
     private nextMessageId = 0;
     private nextEventId = 0;
     private readonly componentTypeTable: AnyComponentType[] = [];
+    private readonly componentOrderByType = new Map<AnyComponentType, number>();
     private readonly resourceTypeTable: AnyResourceType[] = [];
     private readonly stateTypeTable: AnyStateType[] = [];
     private readonly messageTypeTable: AnyMessageType[] = [];
@@ -82,20 +82,22 @@ export class Registry {
         name: string,
         options: ComponentOptions<T> = {} as ComponentOptions<T>
     ): ComponentType<T> {
-        this.assertCanDefine("component", name, this.componentTypesByName);
-        const deps = this.normalizeComponentDeps(name, options.deps);
-        const lifecycle = this.createComponentLifecycle(options);
+        return this.registerComponent(createComponentDefinition(name, options));
+    }
 
-        const component = Object.freeze({
-            id: this.nextComponentId++,
-            key: this.typeKey("component", name),
-            name,
-            registry: this,
-            deps,
-            lifecycle,
-        }) satisfies ComponentType<T>;
+    registerComponent<T extends object>(component: ComponentType<T>): ComponentType<T> {
+        this.assertCanDefine("component", component.name, this.componentTypesByName);
 
-        this.componentTypeTable[component.id] = component;
+        for (const dep of component.deps) {
+            if (!this.isRegisteredComponent(dep)) {
+                throw new Error(
+                    `Cannot register component ${component.name} in ${this.name}: dependency ${dep.name} is not registered in ${this.name}`
+                );
+            }
+        }
+
+        this.componentTypeTable.push(component);
+        this.componentOrderByType.set(component, this.componentTypeTable.length - 1);
         this.componentTypesByName.set(component.name, component);
         this.typesByKey.set(component.key, component);
 
@@ -184,7 +186,7 @@ export class Registry {
 
     /** Returns whether the component belongs to this registry. */
     isRegisteredComponent(type: AnyComponentType): boolean {
-        return type.registry === this && this.componentTypeTable[type.id] === type;
+        return this.componentTypesByName.get(type.name) === type;
     }
 
     /** Returns whether the resource belongs to this registry. */
@@ -207,9 +209,9 @@ export class Registry {
         return type.registry === this && this.eventTypeTable[type.id] === type;
     }
 
-    /** Looks up the component registered for the numeric id. */
-    componentType(id: number): AnyComponentType | undefined {
-        return this.componentTypeTable[id];
+    /** Resolves the internal definition-order slot for component lifecycle ordering. */
+    componentOrder(type: AnyComponentType): number | undefined {
+        return this.componentOrderByType.get(type);
     }
 
     /** Returns every registered component in definition order. */
@@ -305,57 +307,6 @@ export class Registry {
 
     private typeKey(kind: RegistryTypeKind, name: string): RegistryTypeKey {
         return `${this.name}/${kind}/${name}`;
-    }
-
-    private normalizeComponentDeps(
-        componentName: string,
-        deps: readonly AnyComponentType[] | undefined
-    ): readonly AnyComponentType[] {
-        if (deps === undefined || deps.length === 0) {
-            return Object.freeze([]);
-        }
-
-        const seen = new Set<number>();
-        const normalized: AnyComponentType[] = [];
-
-        for (let index = 0; index < deps.length; index++) {
-            const dep = deps[index];
-
-            if (dep === undefined || dep === null) {
-                throw new Error(
-                    `Cannot define component ${componentName} in ${this.name}: dependency at index ${index} is ${String(dep)}`
-                );
-            }
-
-            if (!this.isRegisteredComponent(dep)) {
-                throw new Error(
-                    `Cannot define component ${componentName} in ${this.name}: dependency ${dep.name} is not registered in ${this.name}`
-                );
-            }
-
-            if (seen.has(dep.id)) {
-                throw new Error(
-                    `Cannot define component ${componentName} in ${this.name}: dependency ${dep.name} is duplicated`
-                );
-            }
-
-            seen.add(dep.id);
-            normalized.push(dep);
-        }
-
-        return Object.freeze(normalized);
-    }
-
-    private createComponentLifecycle<T extends object>(
-        options: ComponentOptions<T>
-    ): Readonly<ComponentLifecycle<T>> {
-        return Object.freeze({
-            onAdd: options.onAdd,
-            onInsert: options.onInsert,
-            onUnset: options.onUnset,
-            onReplace: options.onReplace,
-            onRemove: options.onRemove,
-        });
     }
 }
 

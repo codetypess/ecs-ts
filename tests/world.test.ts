@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
     World,
     createRegistry,
+    defineComponent,
     entityIndex,
     formatEntity,
     withComponent,
@@ -10,6 +11,22 @@ import {
 } from "../src";
 
 const registry = createRegistry("world-test");
+
+test("shared component definitions use independent World stores", () => {
+    const Position = defineComponent<{ x: number }>("SharedWorldPosition");
+    const firstRegistry = createRegistry("shared-world-first");
+    const secondRegistry = createRegistry("shared-world-second");
+    firstRegistry.registerComponent(Position);
+    secondRegistry.registerComponent(Position);
+
+    const firstWorld = new World(firstRegistry);
+    const secondWorld = new World(secondRegistry);
+    const firstEntity = firstWorld.spawn(0, withComponent(Position, { x: 1 }));
+    const secondEntity = secondWorld.spawn(0, withComponent(Position, { x: 2 }));
+
+    assert.deepEqual(firstWorld.getComponent(firstEntity, Position), { x: 1 });
+    assert.deepEqual(secondWorld.getComponent(secondEntity, Position), { x: 2 });
+});
 
 test("entity generation prevents stale handles from reading recycled entities", () => {
     type Position = { x: number; y: number };
@@ -390,12 +407,9 @@ test("world rejects components from a different registry", () => {
     const world = new World(registry);
     const entity = world.spawn(0, withMarker(local));
 
-    assert.throws(
-        () => world.addComponent(entity, foreign, {}),
-        /other-world-test, not world-test/
-    );
-    assert.throws(() => world.hasComponent(entity, foreign), /other-world-test, not world-test/);
-    assert.throws(() => Array.from(world.query([foreign])), /other-world-test, not world-test/);
+    assert.throws(() => world.addComponent(entity, foreign, {}), /not registered in world-test/);
+    assert.throws(() => world.hasComponent(entity, foreign), /not registered in world-test/);
+    assert.throws(() => Array.from(world.query([foreign])), /not registered in world-test/);
 });
 
 test("world rejects forged types with the same registry reference", () => {

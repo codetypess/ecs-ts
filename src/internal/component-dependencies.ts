@@ -2,24 +2,12 @@ import type { AnyComponentEntry, AnyComponentType } from "../component.js";
 import { formatEntity, type Entity } from "../entity.js";
 
 type DependencyOrder = "dependenciesFirst" | "dependentsFirst";
-type DependencyRank = number[];
+type DependencyRank = Map<AnyComponentType, number>;
 
-/** Resolves tracked component ids without coupling this helper to Registry or World. */
 export function currentEntityComponentTypes(
-    componentIds: readonly number[],
-    componentTypeById: (componentId: number) => AnyComponentType | undefined
+    types: readonly AnyComponentType[]
 ): AnyComponentType[] {
-    const types: AnyComponentType[] = [];
-
-    for (const componentId of componentIds) {
-        const type = componentTypeById(componentId);
-
-        if (type !== undefined) {
-            types.push(type);
-        }
-    }
-
-    return types;
+    return [...types];
 }
 
 export function assertComponentDepsPresent(
@@ -28,18 +16,11 @@ export function assertComponentDepsPresent(
     currentTypes: readonly AnyComponentType[],
     action: string
 ): void {
-    if (type.deps.length === 0) {
-        return;
-    }
-
-    const currentTypeIds = new Set<number>();
-
-    for (const currentType of currentTypes) {
-        currentTypeIds.add(currentType.id);
-    }
+    if (type.deps.length === 0) return;
+    const current = new Set(currentTypes);
 
     for (const dep of type.deps) {
-        if (!currentTypeIds.has(dep.id)) {
+        if (!current.has(dep)) {
             throw new Error(
                 `Cannot ${action} component ${type.name} on ${formatEntity(entity)}: missing dependency ${dep.name}`
             );
@@ -53,30 +34,25 @@ export function assertComponentHasNoDependents(
     currentTypes: readonly AnyComponentType[],
     action: string
 ): void {
-    if (currentTypes.length < 2) {
-        return;
-    }
+    if (currentTypes.length < 2) return;
 
-    for (const currentType of currentTypes) {
-        for (const dep of currentType.deps) {
-            if (dep.id === type.id) {
+    for (const current of currentTypes) {
+        for (const dep of current.deps) {
+            if (dep === type) {
                 throw new Error(
-                    `Cannot ${action} component ${type.name} from ${formatEntity(entity)}: component ${currentType.name} depends on it`
+                    `Cannot ${action} component ${type.name} from ${formatEntity(entity)}: component ${current.name} depends on it`
                 );
             }
         }
     }
 }
 
-/** Validates that a final component set is dependency-closed after staged edits settle. */
 export function assertComponentSetDepsSatisfied(
     entity: Entity,
     types: readonly AnyComponentType[],
     action: string
 ): void {
-    if (!mayHaveDependencyChecks(types)) {
-        return;
-    }
+    if (!types.some((type) => type.deps.length > 0)) return;
 
     assertComponentTypeSetDepsSatisfied(types, (type, dep) => {
         throw new Error(
@@ -86,9 +62,7 @@ export function assertComponentSetDepsSatisfied(
 }
 
 export function assertSpawnEntriesSatisfied(entries: readonly AnyComponentEntry[]): void {
-    if (!entriesHaveDependencyChecks(entries)) {
-        return;
-    }
+    if (!entries.some((entry) => entry.type.deps.length > 0)) return;
 
     assertComponentTypeSetDepsSatisfied(uniqueEntryTypes(entries), (type, dep) => {
         throw new Error(`Cannot spawn component ${type.name}: missing dependency ${dep.name}`);
@@ -96,96 +70,61 @@ export function assertSpawnEntriesSatisfied(entries: readonly AnyComponentEntry[
 }
 
 export function entriesHaveDependencyChecks(entries: readonly AnyComponentEntry[]): boolean {
-    for (const entry of entries) {
-        if (entry.type.deps.length > 0) {
-            return true;
-        }
-    }
-
-    return false;
+    return entries.some((entry) => entry.type.deps.length > 0);
 }
 
-/** Returns component types in dependency order while preserving unrelated definition order. */
 export function sortComponentTypesByDependencies(
     types: readonly AnyComponentType[],
     order: DependencyOrder = "dependenciesFirst"
 ): AnyComponentType[] {
-    if (types.length < 2) {
-        return [...types];
-    }
+    if (types.length < 2) return [...types];
 
-    const uniqueTypes: AnyComponentType[] = [];
-    const uniqueTypeIds = new Set<number>();
+    const unique: AnyComponentType[] = [];
+    const included = new Set<AnyComponentType>();
 
     for (const type of types) {
-        if (uniqueTypeIds.has(type.id)) {
-            continue;
+        if (!included.has(type)) {
+            included.add(type);
+            unique.push(type);
         }
-
-        uniqueTypeIds.add(type.id);
-        uniqueTypes.push(type);
     }
 
-    if (!hasIncludedDependencyEdges(uniqueTypes, uniqueTypeIds)) {
-        return [...uniqueTypes];
-    }
+    if (!hasIncludedDependencyEdges(unique, included)) return [...unique];
 
-    const dependencyRank = createDependencyRank(uniqueTypes, uniqueTypeIds);
-
-    if (isTypeOrderSorted(uniqueTypes, dependencyRank, order)) {
-        return [...uniqueTypes];
-    }
+    const ranks = createDependencyRank(unique, included);
+    if (isTypeOrderSorted(unique, ranks, order)) return [...unique];
 
     const direction = order === "dependenciesFirst" ? 1 : -1;
-
-    return [...uniqueTypes].sort(
-        (left, right) => direction * (dependencyRank[left.id]! - dependencyRank[right.id]!)
-    );
+    return [...unique].sort((left, right) => direction * (ranks.get(left)! - ranks.get(right)!));
 }
 
-/** Returns component entries ordered so dependencies are inserted before their dependents. */
 export function sortEntriesByDependencies(
     entries: readonly AnyComponentEntry[]
 ): AnyComponentEntry[] {
-    if (entries.length < 2) {
-        return [...entries];
-    }
+    if (entries.length < 2) return [...entries];
 
-    const uniqueTypeIds = new Set<number>();
-    const uniqueTypes = uniqueEntryTypes(entries, uniqueTypeIds);
+    const included = new Set<AnyComponentType>();
+    const unique = uniqueEntryTypes(entries, included);
+    if (!hasIncludedDependencyEdges(unique, included)) return [...entries];
 
-    if (!hasIncludedDependencyEdges(uniqueTypes, uniqueTypeIds)) {
-        return [...entries];
-    }
+    const ranks = createDependencyRank(unique, included);
+    if (areEntriesInDependencyOrder(entries, ranks)) return [...entries];
 
-    const dependencyRank = createDependencyRank(uniqueTypes, uniqueTypeIds);
-
-    if (areEntriesInDependencyOrder(entries, dependencyRank)) {
-        return [...entries];
-    }
-
-    // ES2019+ stable sort preserves caller order for duplicate or same-rank entries.
-    return [...entries].sort(
-        (left, right) => dependencyRank[left.type.id]! - dependencyRank[right.type.id]!
-    );
+    return [...entries].sort((left, right) => ranks.get(left.type)! - ranks.get(right.type)!);
 }
 
 function createDependencyRank(
     types: readonly AnyComponentType[],
-    includedTypeIds: ReadonlySet<number>
+    included: ReadonlySet<AnyComponentType>
 ): DependencyRank {
-    // Component ids are dense per registry, so arrays avoid Map lookups in sort comparators.
-    const visiting: boolean[] = [];
-    const rankByTypeId: DependencyRank = [];
+    const visiting = new Set<AnyComponentType>();
+    const ranks = new Map<AnyComponentType, number>();
     const path: AnyComponentType[] = [];
-    let nextRank = 0;
+    let next = 0;
 
     const visit = (type: AnyComponentType): void => {
-        if (rankByTypeId[type.id] !== undefined) {
-            return;
-        }
-
-        if (visiting[type.id] === true) {
+        if (ranks.has(type)) return;
+        if (visiting.has(type)) {
             throw new Error(
                 `Component dependency cycle detected: ${[...path, type]
                     .map((item) => item.name)
@@ -193,109 +132,67 @@ function createDependencyRank(
             );
         }
 
-        visiting[type.id] = true;
+        visiting.add(type);
         path.push(type);
-
         for (const dep of type.deps) {
-            // Missing external deps are validated separately; rank only edges within this set.
-            if (includedTypeIds.has(dep.id)) {
-                visit(dep);
-            }
+            if (included.has(dep)) visit(dep);
         }
-
         path.pop();
-        visiting[type.id] = false;
-        // Post-order assignment guarantees every dependency receives a smaller rank.
-        rankByTypeId[type.id] = nextRank++;
+        visiting.delete(type);
+        ranks.set(type, next++);
     };
 
-    for (const type of types) {
-        visit(type);
-    }
-
-    return rankByTypeId;
+    for (const type of types) visit(type);
+    return ranks;
 }
 
 function uniqueEntryTypes(
     entries: readonly AnyComponentEntry[],
-    uniqueTypeIds = new Set<number>()
+    included = new Set<AnyComponentType>()
 ): AnyComponentType[] {
-    const uniqueTypes: AnyComponentType[] = [];
+    const unique: AnyComponentType[] = [];
 
     for (const entry of entries) {
-        const type = entry.type;
-
-        if (uniqueTypeIds.has(type.id)) {
-            continue;
+        if (!included.has(entry.type)) {
+            included.add(entry.type);
+            unique.push(entry.type);
         }
-
-        uniqueTypeIds.add(type.id);
-        uniqueTypes.push(type);
     }
 
-    return uniqueTypes;
+    return unique;
 }
 
-/** Shares the same dependency-closure walk while letting callers keep context-specific errors. */
 function assertComponentTypeSetDepsSatisfied(
     types: readonly AnyComponentType[],
-    onMissingDependency: (type: AnyComponentType, dep: AnyComponentType) => never
+    onMissing: (type: AnyComponentType, dep: AnyComponentType) => never
 ): void {
-    const typeIds = new Set<number>();
-
-    for (const type of types) {
-        typeIds.add(type.id);
-    }
+    const typeSet = new Set(types);
 
     for (const type of types) {
         for (const dep of type.deps) {
-            if (!typeIds.has(dep.id)) {
-                onMissingDependency(type, dep);
-            }
+            if (!typeSet.has(dep)) onMissing(type, dep);
         }
     }
-}
-
-function mayHaveDependencyChecks(types: readonly AnyComponentType[]): boolean {
-    for (const type of types) {
-        if (type.deps.length > 0) {
-            return true;
-        }
-    }
-
-    return false;
 }
 
 function hasIncludedDependencyEdges(
     types: readonly AnyComponentType[],
-    includedTypeIds: ReadonlySet<number>
+    included: ReadonlySet<AnyComponentType>
 ): boolean {
-    for (const type of types) {
-        for (const dep of type.deps) {
-            if (includedTypeIds.has(dep.id)) {
-                return true;
-            }
-        }
-    }
-
-    return false;
+    return types.some((type) => type.deps.some((dep) => included.has(dep)));
 }
 
 function isTypeOrderSorted(
     types: readonly AnyComponentType[],
-    dependencyRank: DependencyRank,
+    ranks: DependencyRank,
     order: DependencyOrder
 ): boolean {
-    let previousRank = dependencyRank[types[0]!.id]!;
+    let previous = ranks.get(types[0]!)!;
 
     for (let index = 1; index < types.length; index++) {
-        const rank = dependencyRank[types[index]!.id]!;
-
-        if (order === "dependenciesFirst" ? previousRank > rank : previousRank < rank) {
-            return false;
-        }
-
-        previousRank = rank;
+        const rank = ranks.get(types[index]!)!;
+        if (order === "dependenciesFirst" ? previous > rank : previous < rank) return false;
+        previous = rank;
     }
 
     return true;
@@ -303,18 +200,14 @@ function isTypeOrderSorted(
 
 function areEntriesInDependencyOrder(
     entries: readonly AnyComponentEntry[],
-    dependencyRank: DependencyRank
+    ranks: DependencyRank
 ): boolean {
-    let previousRank = dependencyRank[entries[0]!.type.id]!;
+    let previous = ranks.get(entries[0]!.type)!;
 
     for (let index = 1; index < entries.length; index++) {
-        const rank = dependencyRank[entries[index]!.type.id]!;
-
-        if (previousRank > rank) {
-            return false;
-        }
-
-        previousRank = rank;
+        const rank = ranks.get(entries[index]!.type)!;
+        if (previous > rank) return false;
+        previous = rank;
     }
 
     return true;

@@ -26,6 +26,7 @@ import {
     addValidated as insertValidatedComponent,
     markChanged as markStoredComponentChanged,
 } from "./internal/component-ops.js";
+import { getComponentStore } from "./internal/component-store.js";
 import {
     getManyComponents,
     hasAllComponents,
@@ -288,12 +289,8 @@ export class World extends WorldQueryMethods {
     // execution still share the flattened internal helpers.
     /** Returns whether the entity currently has the requested component. */
     hasComponent<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
-        assertRegisteredComponent(this.registry, type, "read");
-
-        return (
-            this.ecsContext.entities.isAlive(entity) &&
-            (this.ecsContext.componentStores.stores[type.id]?.has(entity) ?? false)
-        );
+        const store = getComponentStore(this.ecsContext.componentStores, type);
+        return this.ecsContext.entities.isAlive(entity) && (store?.has(entity) ?? false);
     }
 
     /** Returns whether the entity has every component in the provided list. */
@@ -302,7 +299,7 @@ export class World extends WorldQueryMethods {
 
         return hasAllComponents(
             this.ecsContext.entities,
-            this.ecsContext.componentStores.stores,
+            this.ecsContext.componentStores,
             entity,
             types
         );
@@ -314,7 +311,7 @@ export class World extends WorldQueryMethods {
 
         return hasAnyComponents(
             this.ecsContext.entities,
-            this.ecsContext.componentStores.stores,
+            this.ecsContext.componentStores,
             entity,
             types
         );
@@ -322,13 +319,13 @@ export class World extends WorldQueryMethods {
 
     /** Returns the component value for the entity, or `undefined` when absent. */
     getComponent<T extends object>(entity: Entity, type: ComponentType<T>): T | undefined {
-        assertRegisteredComponent(this.registry, type, "read");
+        const store = getComponentStore(this.ecsContext.componentStores, type);
 
         if (!this.ecsContext.entities.isAlive(entity)) {
             return undefined;
         }
 
-        return this.ecsContext.componentStores.stores[type.id]?.get(entity) as T | undefined;
+        return store?.get(entity);
     }
 
     /** Returns the component value or throws when the entity does not have it. */
@@ -351,7 +348,7 @@ export class World extends WorldQueryMethods {
 
         return getManyComponents(
             this.ecsContext.entities,
-            this.ecsContext.componentStores.stores,
+            this.ecsContext.componentStores,
             entity,
             types
         );
@@ -363,7 +360,7 @@ export class World extends WorldQueryMethods {
 
         return isComponentAdded(
             this.ecsContext.entities,
-            this.ecsContext.componentStores.stores,
+            this.ecsContext.componentStores,
             entity,
             type,
             this.changeDetectionRange()
@@ -376,7 +373,7 @@ export class World extends WorldQueryMethods {
 
         return isComponentChanged(
             this.ecsContext.entities,
-            this.ecsContext.componentStores.stores,
+            this.ecsContext.componentStores,
             entity,
             type,
             this.changeDetectionRange()
@@ -387,15 +384,13 @@ export class World extends WorldQueryMethods {
     removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
         assertRegisteredComponent(this.registry, type, "remove");
 
-        const componentIds = getEntityComponents(this.ecsContext.entityComponents, entity);
+        const componentTypes = getEntityComponents(this.ecsContext.entityComponents, entity);
 
-        if (this.ecsContext.entities.isAlive(entity) && componentIds.length > 1) {
+        if (this.ecsContext.entities.isAlive(entity) && componentTypes.length > 1) {
             assertComponentHasNoDependents(
                 entity,
                 type,
-                currentEntityComponentTypes(componentIds, (componentId) =>
-                    this.registry.componentType(componentId)
-                ),
+                currentEntityComponentTypes(componentTypes),
                 "remove"
             );
         }
@@ -722,9 +717,8 @@ export class World extends WorldQueryMethods {
             reserveEntity: this.deferredCommandRuntime.reserveEntity,
             releaseReservedEntity: this.deferredCommandRuntime.releaseReservedEntity,
             commitReservedEntity: this.deferredCommandRuntime.commitReservedEntity,
-            entityComponentIds: (entity) =>
+            entityComponentTypes: (entity) =>
                 getEntityComponents(this.ecsContext.entityComponents, entity),
-            componentTypeById: (componentId) => this.registry.componentType(componentId),
             insertComponent: (entity, type, value, reason) => {
                 insertValidatedComponent(this.ecsContext.components, entity, type, value, reason);
             },
@@ -747,8 +741,7 @@ export class World extends WorldQueryMethods {
                 entity,
                 type,
                 currentEntityComponentTypes(
-                    getEntityComponents(this.ecsContext.entityComponents, entity),
-                    (componentId) => this.registry.componentType(componentId)
+                    getEntityComponents(this.ecsContext.entityComponents, entity)
                 ),
                 "add"
             );

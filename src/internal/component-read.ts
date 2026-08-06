@@ -3,106 +3,72 @@ import type { Entity } from "../entity.js";
 import { EntityManager } from "../entity.js";
 import type { ChangeDetectionRange, ComponentTuple } from "../query.js";
 import { isTickInRange } from "../query.js";
-import type { SparseSet } from "../sparse-set.js";
+import { getComponentStore, type ComponentStoreContext } from "./component-store.js";
 
-type ComponentStores = readonly (SparseSet<unknown> | undefined)[];
-
-/** Shared read helpers for non-hot component access paths. */
 export function hasAllComponents(
     entities: EntityManager,
-    stores: ComponentStores,
+    context: ComponentStoreContext,
     entity: Entity,
     types: readonly AnyComponentType[]
 ): boolean {
-    if (!entities.isAlive(entity)) {
-        return false;
-    }
-
+    if (!entities.isAlive(entity)) return false;
     for (const type of types) {
-        if (!stores[type.id]?.has(entity)) {
-            return false;
-        }
+        if (!getComponentStore(context, type)?.has(entity)) return false;
     }
-
     return true;
 }
 
-/** Shared read helpers for non-hot component access paths. */
 export function hasAnyComponents(
     entities: EntityManager,
-    stores: ComponentStores,
+    context: ComponentStoreContext,
     entity: Entity,
     types: readonly AnyComponentType[]
 ): boolean {
-    if (!entities.isAlive(entity)) {
-        return false;
-    }
-
+    if (!entities.isAlive(entity)) return false;
     for (const type of types) {
-        if (stores[type.id]?.has(entity)) {
-            return true;
-        }
+        if (getComponentStore(context, type)?.has(entity)) return true;
     }
-
     return false;
 }
 
-/** Reads multiple components at once, aborting when any are missing. */
 export function getManyComponents<const TComponents extends readonly AnyComponentType[]>(
     entities: EntityManager,
-    stores: ComponentStores,
+    context: ComponentStoreContext,
     entity: Entity,
     types: TComponents
 ): ComponentTuple<TComponents> | undefined {
-    if (!entities.isAlive(entity)) {
-        return undefined;
-    }
-
+    if (!entities.isAlive(entity)) return undefined;
     const components: unknown[] = new Array(types.length);
 
     for (let index = 0; index < types.length; index++) {
-        const component = stores[types[index]!.id]?.get(entity);
-
-        if (component === undefined) {
-            return undefined;
-        }
-
+        const component = getComponentStore(context, types[index]!)?.get(entity);
+        if (component === undefined) return undefined;
         components[index] = component;
     }
 
     return components as ComponentTuple<TComponents>;
 }
 
-/** Returns whether the component was added inside the visible change window. */
 export function isComponentAdded<T extends object>(
     entities: EntityManager,
-    stores: ComponentStores,
+    context: ComponentStoreContext,
     entity: Entity,
     type: ComponentType<T>,
     changeDetection: ChangeDetectionRange
 ): boolean {
-    if (!entities.isAlive(entity)) {
-        return false;
-    }
-
-    const tick = stores[type.id]?.getAddedTick(entity);
-
+    if (!entities.isAlive(entity)) return false;
+    const tick = getComponentStore(context, type)?.getAddedTick(entity);
     return tick !== undefined && isTickInRange(tick, changeDetection);
 }
 
-/** Returns whether the component changed inside the visible change window. */
 export function isComponentChanged<T extends object>(
     entities: EntityManager,
-    stores: ComponentStores,
+    context: ComponentStoreContext,
     entity: Entity,
     type: ComponentType<T>,
     changeDetection: ChangeDetectionRange
 ): boolean {
-    if (!entities.isAlive(entity)) {
-        return false;
-    }
-
-    const tick = stores[type.id]?.getChangedTick(entity);
-
+    if (!entities.isAlive(entity)) return false;
+    const tick = getComponentStore(context, type)?.getChangedTick(entity);
     return tick !== undefined && isTickInRange(tick, changeDetection);
 }

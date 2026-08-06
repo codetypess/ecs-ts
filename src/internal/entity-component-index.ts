@@ -1,88 +1,65 @@
+import type { AnyComponentType } from "../component.js";
 import { entityIndex } from "../entity.js";
 import type { Entity } from "../entity.js";
 
-/** Tracks which component ids are currently attached to each live entity slot. */
 export interface EntityComponentIndexContext {
-    readonly componentIdsByEntity: (number[] | undefined)[];
+    readonly componentTypesByEntity: (AnyComponentType[] | undefined)[];
 }
 
-/** Creates the reverse index used to despawn entities without scanning every store. */
 export function createEntityComponentIndexContext(): EntityComponentIndexContext {
-    return {
-        componentIdsByEntity: [],
-    };
+    return { componentTypesByEntity: [] };
 }
 
-/** Records that an entity gained a component id for the first time. */
 export function trackEntityComponent(
     context: EntityComponentIndexContext,
     entity: Entity,
-    componentId: number
+    componentType: AnyComponentType
 ): void {
     const slot = entityIndex(entity);
-    let componentIds = context.componentIdsByEntity[slot];
+    let types = context.componentTypesByEntity[slot];
 
-    if (componentIds === undefined) {
-        componentIds = [];
-        context.componentIdsByEntity[slot] = componentIds;
+    if (types === undefined) {
+        types = [];
+        context.componentTypesByEntity[slot] = types;
     }
 
-    componentIds.push(componentId);
+    types.push(componentType);
 }
 
-/** Removes one tracked component id from the entity's reverse index. */
 export function untrackEntityComponent(
     context: EntityComponentIndexContext,
     entity: Entity,
-    componentId: number
+    componentType: AnyComponentType
 ): void {
     const slot = entityIndex(entity);
-    const componentIds = context.componentIdsByEntity[slot];
+    const types = context.componentTypesByEntity[slot];
+    if (types === undefined) return;
 
-    if (componentIds === undefined) {
-        return;
-    }
+    const index = types.indexOf(componentType);
+    if (index === -1) return;
 
-    const trackedIndex = componentIds.indexOf(componentId);
+    const last = types.length - 1;
+    if (index !== last) types[index] = types[last]!;
+    types.pop();
 
-    if (trackedIndex === -1) {
-        return;
-    }
-
-    const lastIndex = componentIds.length - 1;
-
-    if (trackedIndex !== lastIndex) {
-        componentIds[trackedIndex] = componentIds[lastIndex]!;
-    }
-
-    componentIds.pop();
-
-    if (componentIds.length === 0) {
-        context.componentIdsByEntity[slot] = undefined;
-    }
+    if (types.length === 0) context.componentTypesByEntity[slot] = undefined;
 }
 
-/** Transfers all tracked component ids for an entity to the caller and clears the slot. */
 export function takeEntityComponents(
     context: EntityComponentIndexContext,
     entity: Entity
-): number[] {
+): AnyComponentType[] {
     const slot = entityIndex(entity);
-    const componentIds = context.componentIdsByEntity[slot];
+    const types = context.componentTypesByEntity[slot];
+    if (types === undefined) return [];
 
-    if (componentIds === undefined) {
-        return [];
-    }
-
-    context.componentIdsByEntity[slot] = undefined;
-
-    return componentIds;
+    context.componentTypesByEntity[slot] = undefined;
+    return types;
 }
 
-/** Returns the tracked component ids for an entity without transferring ownership. */
 export function getEntityComponents(
     context: EntityComponentIndexContext,
     entity: Entity
-): readonly number[] {
-    return context.componentIdsByEntity[entityIndex(entity)] ?? [];
+): readonly AnyComponentType[] {
+    return context.componentTypesByEntity[entityIndex(entity)] ?? [];
 }

@@ -121,7 +121,7 @@ export interface OptionalQueryStateCache {
 /** Inputs needed to resolve component types into concrete stores. */
 export interface QueryPlanContextOptions {
     readonly registry: Registry;
-    readonly stores: readonly (SparseSet<unknown> | undefined)[];
+    readonly stores: ReadonlyMap<AnyComponentType, SparseSet<unknown>>;
     readonly getStoreVersion: () => number;
 }
 
@@ -257,7 +257,7 @@ function resolveQueryStores(
         const type = types[index]!;
 
         assertRegisteredQueryComponent(context.registry, type);
-        const store = context.stores[type.id];
+        const store = context.stores.get(type);
 
         if (store === undefined) {
             return undefined;
@@ -279,7 +279,7 @@ function resolveOptionalStores(
         const type = types[index]!;
 
         assertRegisteredQueryComponent(context.registry, type);
-        stores[index] = context.stores[type.id];
+        stores[index] = context.stores.get(type);
     }
 
     return stores;
@@ -340,7 +340,7 @@ function resolveRequiredFilterStores(
 
     for (const type of types) {
         assertRegisteredQueryComponent(context.registry, type);
-        const store = context.stores[type.id];
+        const store = context.stores.get(type);
 
         if (store === undefined) return undefined;
 
@@ -369,7 +369,7 @@ function resolveOptionalFilterStores(
 
     for (const type of types) {
         assertRegisteredQueryComponent(context.registry, type);
-        const store = context.stores[type.id];
+        const store = context.stores.get(type);
 
         if (store !== undefined) {
             stores.push(store);
@@ -442,13 +442,7 @@ function assertRegisteredQueryComponent(registry: Registry, type: AnyComponentTy
         return;
     }
 
-    if (type.registry === registry) {
-        throw new Error(
-            `Cannot query component ${type.name}: it is not registered in ${registry.name}`
-        );
-    }
-
     throw new Error(
-        `Cannot query component ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
+        `Cannot query component ${type.name}: it is not registered in ${registry.name}`
     );
 }
