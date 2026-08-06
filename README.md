@@ -38,8 +38,11 @@ import { World, createRegistry, withComponent, withMarker } from "@codetypess/ec
 
 const registry = createRegistry("ui");
 
-const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
-const Element = registry.defineComponent<{ name: string }>("Element", {
+type Transform = { x: number; y: number };
+type Element = { name: string };
+
+const Transform = registry.defineComponent<Transform>("Transform");
+const Element = registry.defineComponent<Element>("Element", {
     deps: [Transform],
 });
 const Selected = registry.defineComponent("Selected");

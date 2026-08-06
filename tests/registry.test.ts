@@ -4,7 +4,8 @@ import { createRegistry } from "../src";
 
 test("registry assigns stable keys and supports name and key lookups", () => {
     const registry = createRegistry("registry-test");
-    const Position = registry.defineComponent<{ x: number; y: number }>("Position");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("Position");
     const SharedResource = registry.defineResource<{ enabled: boolean }>("Shared");
     const SharedState = registry.defineState("Shared", "idle" as "idle" | "running");
     const DamageMessage = registry.defineMessage<{ amount: number }>("Damage");
@@ -31,8 +32,10 @@ test("registry assigns stable keys and supports name and key lookups", () => {
 
 test("registry exposes definition-order enumeration snapshots", () => {
     const registry = createRegistry("registry-enumeration-test");
-    const Position = registry.defineComponent<{ x: number; y: number }>("Position");
-    const Velocity = registry.defineComponent<{ x: number; y: number }>("Velocity");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("Position");
+    type Velocity = { x: number; y: number };
+    const Velocity = registry.defineComponent<Velocity>("Velocity");
     const SharedResource = registry.defineResource<{ enabled: boolean }>("Shared");
     const Mode = registry.defineState("Mode", "idle" as "idle" | "running");
     const DamageMessage = registry.defineMessage<{ amount: number }>("Damage");
@@ -111,8 +114,10 @@ test("registry rejects blank names", () => {
 
 test("registry stores component dependencies and rejects invalid dependency metadata", () => {
     const registry = createRegistry("registry-component-deps-test");
-    const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
-    const Element = registry.defineComponent<{ name: string }>("Element", {
+    type Transform = { x: number; y: number };
+    const Transform = registry.defineComponent<Transform>("Transform");
+    type Element = { name: string };
+    const Element = registry.defineComponent<Element>("Element", {
         deps: [Transform],
     });
     const otherRegistry = createRegistry("registry-component-deps-other");

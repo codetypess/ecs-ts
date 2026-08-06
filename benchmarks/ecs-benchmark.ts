@@ -108,13 +108,18 @@ const SMOKE_BENCHMARK_CONFIG: BenchmarkConfig = {
     sampleRounds: 2,
 };
 
-const Position = registry.defineComponent<{ x: number; y: number }>("BenchPosition");
-const Velocity = registry.defineComponent<{ x: number; y: number }>("BenchVelocity");
+type Position = { x: number; y: number };
+type Velocity = { x: number; y: number };
+type Health = { value: number };
+type DespawnNoise = { value: number };
+
+const Position = registry.defineComponent<Position>("BenchPosition");
+const Velocity = registry.defineComponent<Velocity>("BenchVelocity");
 const Player = registry.defineComponent("BenchPlayer");
 const Sleeping = registry.defineComponent("BenchSleeping");
-const Health = registry.defineComponent<{ value: number }>("BenchHealth");
+const Health = registry.defineComponent<Health>("BenchHealth");
 const DespawnNoiseComponents = Array.from({ length: 64 }, (_value, index) =>
-    registry.defineComponent<{ value: number }>(`BenchDespawnNoise${index}`)
+    registry.defineComponent<DespawnNoise>(`BenchDespawnNoise${index}`)
 );
 const DamageMessage = registry.defineMessage<{ target: Entity; amount: number }>(
     "BenchDamageMessage"

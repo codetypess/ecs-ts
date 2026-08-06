@@ -2,7 +2,8 @@ import { World, createRegistry, withComponent } from "../src";
 
 const registry = createRegistry("example-world-batch");
 const history: string[] = [];
-const Value = registry.defineComponent<{ value: number }>("Value", {
+type Value = { value: number };
+const Value = registry.defineComponent<Value>("Value", {
     onAdd(_entity, value) {
         history.push(`onAdd:${value.value}`);
     },

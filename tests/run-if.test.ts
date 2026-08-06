@@ -274,7 +274,8 @@ test("stateMatches evaluates a predicate over the current state", () => {
 // ---------------------------------------------------------------------------
 
 test("matchesAny works correctly on a query with filter", () => {
-    const Item = registry.defineComponent<{ tag: string }>("RunIfItem");
+    type Item = { tag: string };
+    const Item = registry.defineComponent<Item>("RunIfItem");
     const Active = registry.defineComponent("RunIfActive");
     const activeItems = queryState([Item], { with: [Active] });
     const world = new World(registry);

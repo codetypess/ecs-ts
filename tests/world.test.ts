@@ -12,7 +12,8 @@ import {
 const registry = createRegistry("world-test");
 
 test("entity generation prevents stale handles from reading recycled entities", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("TestPosition");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("TestPosition");
     const world = new World(registry);
 
     const first = world.spawn(11, withComponent(Position, { x: 1, y: 2 }));
@@ -32,8 +33,10 @@ test("entity generation prevents stale handles from reading recycled entities", 
 });
 
 test("read helpers keep getMany and change detection aligned with entity liveness", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("ReadHelperPosition");
-    const Velocity = registry.defineComponent<{ x: number; y: number }>("ReadHelperVelocity");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("ReadHelperPosition");
+    type Velocity = { x: number; y: number };
+    const Velocity = registry.defineComponent<Velocity>("ReadHelperVelocity");
     const world = new World(registry);
     const entity = world.spawn(
         withComponent(Position, { x: 1, y: 2 }),
@@ -65,7 +68,8 @@ test("read helpers keep getMany and change detection aligned with entity livenes
 
 test("spawn inserts multiple component entries", () => {
     const Player = registry.defineComponent("TestPlayer");
-    const Health = registry.defineComponent<{ value: number }>("TestHealth");
+    type Health = { value: number };
+    const Health = registry.defineComponent<Health>("TestHealth");
     const world = new World(registry);
 
     const entity = world.spawn(withMarker(Player), withComponent(Health, { value: 100 }));
@@ -93,8 +97,10 @@ test("entities() iterates only currently live entities in storage-index order", 
 });
 
 test("commands flush queued structural edits in order", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("CommandPosition");
-    const Velocity = registry.defineComponent<{ x: number; y: number }>("CommandVelocity");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("CommandPosition");
+    type Velocity = { x: number; y: number };
+    const Velocity = registry.defineComponent<Velocity>("CommandVelocity");
     const world = new World(registry);
     const commands = world.commands();
     const entity = commands.spawn(2, withComponent(Position, { x: 1, y: 2 }));
@@ -116,8 +122,10 @@ test("commands flush queued structural edits in order", () => {
 
 test("commands spawn does not publish an empty entity when the spawn fails", () => {
     const commandRegistry = createRegistry("world-command-failed-spawn-test");
-    const Transform = commandRegistry.defineComponent<{ x: number; y: number }>("Transform");
-    const Element = commandRegistry.defineComponent<{ name: string }>("Element", {
+    type Transform = { x: number; y: number };
+    const Transform = commandRegistry.defineComponent<Transform>("Transform");
+    type Element = { name: string };
+    const Element = commandRegistry.defineComponent<Element>("Element", {
         deps: [Transform],
     });
     const world = new World(commandRegistry);
@@ -135,7 +143,8 @@ test("commands spawn does not publish an empty entity when the spawn fails", () 
 });
 
 test("commands queued during flush wait for the next flush", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("DeferredCommandPosition");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("DeferredCommandPosition");
     const world = new World(registry);
     const commands = world.commands();
     const entity = world.spawn();
@@ -238,7 +247,8 @@ test("addSystem accepts stage callbacks with scheduling options", () => {
 
 test("component lifecycle hooks report operation order and reasons", () => {
     const events: string[] = [];
-    const Position = registry.defineComponent<{ x: number }>("LifecycleHookPosition", {
+    type Position = { x: number };
+    const Position = registry.defineComponent<Position>("LifecycleHookPosition", {
         onAdd: (_entity, position, _world, reason) =>
             events.push(`type:add:${reason}:${position.x}`),
         onInsert: (_entity, position) => events.push(`type:insert:${position.x}`),
@@ -350,7 +360,8 @@ test("entity type rejects invalid runtime values", () => {
 });
 
 test("component values reject invalid runtime payloads", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("InvalidValuePosition");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("InvalidValuePosition");
     const world = new World(registry);
     const entity = world.spawn();
 
@@ -387,7 +398,8 @@ test("world rejects components from a different registry", () => {
 });
 
 test("world rejects forged types with the same registry reference", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("ForgedPosition");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("ForgedPosition");
     const Settings = registry.defineResource<{ value: number }>("ForgedSettings");
     const Mode = registry.defineState("ForgedMode", "idle" as "idle" | "running");
     const Notice = registry.defineMessage<{ value: number }>("ForgedNotice");

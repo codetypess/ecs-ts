@@ -5,7 +5,8 @@ import { DeferredCommands, Entity, World, createRegistry, withComponent } from "
 const registry = createRegistry("change-message-removed-test");
 
 test("per-system change detection lets state systems see earlier changes", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("ChangedPosition");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("ChangedPosition");
     const Mode = registry.defineState<"editing" | "watching">("ChangedMode", "editing");
     const seen: number[] = [];
 
@@ -53,7 +54,8 @@ test("per-system change detection lets state systems see earlier changes", () =>
 });
 
 test("message readers keep independent cursors", () => {
-    const Health = registry.defineComponent<{ value: number }>("MessageHealth");
+    type Health = { value: number };
+    const Health = registry.defineComponent<Health>("MessageHealth");
     const Damage = registry.defineMessage<{ target: Entity; amount: number }>("MessageDamage");
     const world = new World(registry);
     const target = world.spawn(withComponent(Health, { value: 100 }));
@@ -93,7 +95,8 @@ test("messages expire after the next message update window", () => {
 });
 
 test("removed readers can inspect records without draining them", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedPosition");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("RemovedPosition");
     const world = new World(registry);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
     const readerA = world.removedReader(Position);
@@ -113,9 +116,8 @@ test("removed readers can inspect records without draining them", () => {
 });
 
 test("removed readers only see removals still buffered after drain", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>(
-        "RemovedAfterDrainPosition"
-    );
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("RemovedAfterDrainPosition");
     const world = new World(registry);
     const reader = world.removedReader(Position);
     const first = world.spawn(withComponent(Position, { x: 1, y: 2 }));
@@ -135,9 +137,8 @@ test("removed readers only see removals still buffered after drain", () => {
 });
 
 test("removed readers reuse the same output buffer across successive reads", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>(
-        "RemovedReadBufferPosition"
-    );
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("RemovedReadBufferPosition");
     const world = new World(registry);
     const reader = world.removedReader(Position);
     const first = world.spawn(withComponent(Position, { x: 1, y: 2 }));
@@ -161,7 +162,8 @@ test("removed readers reuse the same output buffer across successive reads", () 
 });
 
 test("removed readers hide fully consumed history from drainRemoved immediately", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedConsumedPosition");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("RemovedConsumedPosition");
     const world = new World(registry);
     const reader = world.removedReader(Position);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
@@ -173,7 +175,8 @@ test("removed readers hide fully consumed history from drainRemoved immediately"
 });
 
 test("drainRemoved keeps working even when no removed reader exists", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedDrainOnlyPosition");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("RemovedDrainOnlyPosition");
     const world = new World(registry);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
 
@@ -187,9 +190,8 @@ test("drainRemoved keeps working even when no removed reader exists", () => {
 });
 
 test("removed history compacts once every live reader advances past it", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>(
-        "RemovedCompactionPosition"
-    );
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("RemovedCompactionPosition");
     const world = new World(registry);
     const readerA = world.removedReader(Position);
     const readerB = world.removedReader(Position);
@@ -217,7 +219,8 @@ test("removed history compacts once every live reader advances past it", () => {
 });
 
 test("closing a removed reader releases any history pinned by its cursor", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("RemovedClosePosition");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("RemovedClosePosition");
     const world = new World(registry);
     const readerA = world.removedReader(Position);
     const readerB = world.removedReader(Position);
@@ -234,9 +237,8 @@ test("closing a removed reader releases any history pinned by its cursor", () =>
 });
 
 test("removed readers still see new removals after single-reader compaction", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>(
-        "RemovedSingleReaderCompactionPosition"
-    );
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("RemovedSingleReaderCompactionPosition");
     const world = new World(registry);
     const readerA = world.removedReader(Position);
     const readerB = world.removedReader(Position);
@@ -268,9 +270,8 @@ test("removed readers still see new removals after single-reader compaction", ()
 });
 
 test("late removed readers only see history retained by currently live readers", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>(
-        "RemovedLateReaderPosition"
-    );
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("RemovedLateReaderPosition");
     const world = new World(registry);
     const earlyReader = world.removedReader(Position);
     const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));

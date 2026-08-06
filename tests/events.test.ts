@@ -18,7 +18,8 @@ test("multiple observers for the same event all receive the value", () => {
 });
 
 test("observer commands are flushed after each observer returns", () => {
-    const Health = registry.defineComponent<{ value: number }>("EventHealth");
+    type Health = { value: number };
+    const Health = registry.defineComponent<Health>("EventHealth");
     const Damage = registry.defineEvent<{ target: Entity; amount: number }>("EventDamage");
     const Died = registry.defineEvent<{ entity: Entity }>("EventDied");
     const world = new World(registry);

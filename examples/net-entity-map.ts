@@ -36,9 +36,12 @@ class NetEntityMap {
     }
 }
 
-const Unit = registry.defineComponent<{ serverId: number }>("Unit");
-const Position = registry.defineComponent<{ x: number; y: number }>("Position");
-const Health = registry.defineComponent<{ value: number }>("Health");
+type Unit = { serverId: number };
+const Unit = registry.defineComponent<Unit>("Unit");
+type Position = { x: number; y: number };
+const Position = registry.defineComponent<Position>("Position");
+type Health = { value: number };
+const Health = registry.defineComponent<Health>("Health");
 
 const NetEntities = registry.defineResource<NetEntityMap>("NetEntities");
 const SnapshotFrames = registry.defineResource<UnitSnapshot[][]>("SnapshotFrames");

@@ -11,7 +11,8 @@ import {
 
 const registry = createRegistry("example-messages");
 const Enemy = registry.defineComponent("Enemy");
-const Health = registry.defineComponent<{ value: number }>("Health");
+type Health = { value: number };
+const Health = registry.defineComponent<Health>("Health");
 const Damage = registry.defineMessage<{ target: Entity; amount: number }>("Damage");
 
 class AttackSystem {

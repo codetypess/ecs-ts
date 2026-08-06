@@ -8,7 +8,8 @@ import {
 } from "../src";
 
 const registry = createRegistry("example-per-system-change");
-const Position = registry.defineComponent<{ x: number; y: number }>("Position");
+type Position = { x: number; y: number };
+const Position = registry.defineComponent<Position>("Position");
 const Mode = registry.defineState<"editing" | "watching">("Mode", "editing");
 
 class MutationSystem {

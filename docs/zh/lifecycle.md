@@ -30,7 +30,9 @@ component lifecycle hook 是可选的，而且是按操作路径触发的。一�
 生命周期 hook 是传给 `defineComponent(...)` 的 component 元数据的一部分。
 
 ```ts
-const Health = registry.defineComponent<{ value: number }>("Health", {
+type Health = { value: number };
+
+const Health = registry.defineComponent<Health>("Health", {
     onUnset(entity, health) {
         console.log("unset", entity, health.value);
     },

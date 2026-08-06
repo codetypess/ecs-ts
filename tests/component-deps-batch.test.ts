@@ -4,8 +4,10 @@ import { World, createRegistry, entityIndex, withComponent } from "../src";
 
 test("world enforces component dependencies on direct writes", () => {
     const registry = createRegistry("world-component-deps-test");
-    const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
-    const Element = registry.defineComponent<{ name: string }>("Element", {
+    type Transform = { x: number; y: number };
+    const Transform = registry.defineComponent<Transform>("Transform");
+    type Element = { name: string };
+    const Element = registry.defineComponent<Element>("Element", {
         deps: [Transform],
     });
     const world = new World(registry);
@@ -30,8 +32,10 @@ test("world enforces component dependencies on direct writes", () => {
 
 test("visible dependent components can safely mustGet their dependencies", () => {
     const registry = createRegistry("world-component-deps-must-get-test");
-    const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
-    const Element = registry.defineComponent<{ name: string }>("Element", {
+    type Transform = { x: number; y: number };
+    const Transform = registry.defineComponent<Transform>("Transform");
+    type Element = { name: string };
+    const Element = registry.defineComponent<Element>("Element", {
         deps: [Transform],
     });
     const world = new World(registry);
@@ -46,8 +50,10 @@ test("visible dependent components can safely mustGet their dependencies", () =>
 
 test("failed dependency spawn does not publish an empty entity", () => {
     const registry = createRegistry("world-component-deps-failed-spawn-test");
-    const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
-    const Element = registry.defineComponent<{ name: string }>("Element", {
+    type Transform = { x: number; y: number };
+    const Transform = registry.defineComponent<Transform>("Transform");
+    type Element = { name: string };
+    const Element = registry.defineComponent<Element>("Element", {
         deps: [Transform],
     });
     const world = new World(registry);
@@ -66,7 +72,8 @@ test("failed dependency spawn does not publish an empty entity", () => {
 test("spawn inserts dependencies before dependents and despawn removes dependents first", () => {
     const registry = createRegistry("world-component-deps-order-test");
     const events: string[] = [];
-    const Transform = registry.defineComponent<{ x: number; y: number }>("Transform", {
+    type Transform = { x: number; y: number };
+    const Transform = registry.defineComponent<Transform>("Transform", {
         onAdd() {
             events.push("transform:add");
         },
@@ -74,7 +81,8 @@ test("spawn inserts dependencies before dependents and despawn removes dependent
             events.push(`transform:${reason}:element=${world.hasComponent(entity, Element)}`);
         },
     });
-    const Element = registry.defineComponent<{ name: string }>("Element", {
+    type Element = { name: string };
+    const Element = registry.defineComponent<Element>("Element", {
         deps: [Transform],
         onAdd(entity, _element, world) {
             events.push(`element:add:transform=${world.hasComponent(entity, Transform)}`);
@@ -102,8 +110,10 @@ test("spawn inserts dependencies before dependents and despawn removes dependent
 
 test("dependency sorting preserves duplicate component entry order", () => {
     const registry = createRegistry("world-component-deps-duplicate-order-test");
-    const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
-    const Element = registry.defineComponent<{ name: string }>("Element", {
+    type Transform = { x: number; y: number };
+    const Transform = registry.defineComponent<Transform>("Transform");
+    type Element = { name: string };
+    const Element = registry.defineComponent<Element>("Element", {
         deps: [Transform],
     });
     const world = new World(registry);
@@ -118,8 +128,10 @@ test("dependency sorting preserves duplicate component entry order", () => {
 
 test("batch validates final component state and returns committed entities", () => {
     const registry = createRegistry("world-batch-component-deps-test");
-    const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
-    const Element = registry.defineComponent<{ name: string }>("Element", {
+    type Transform = { x: number; y: number };
+    const Transform = registry.defineComponent<Transform>("Transform");
+    type Element = { name: string };
+    const Element = registry.defineComponent<Element>("Element", {
         deps: [Transform],
     });
     const world = new World(registry);
@@ -141,8 +153,10 @@ test("batch validates final component state and returns committed entities", () 
 test("batch commit keeps dependency mustGet invariant for hooks and later reads", () => {
     const registry = createRegistry("world-batch-component-deps-must-get-test");
     const seen: Array<{ x: number; y: number }> = [];
-    const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
-    const Element = registry.defineComponent<{ name: string }>("Element", {
+    type Transform = { x: number; y: number };
+    const Transform = registry.defineComponent<Transform>("Transform");
+    type Element = { name: string };
+    const Element = registry.defineComponent<Element>("Element", {
         deps: [Transform],
         onAdd(entity, _element, world) {
             seen.push(world.mustGetComponent(entity, Transform));
@@ -167,7 +181,8 @@ test("batch commit keeps dependency mustGet invariant for hooks and later reads"
 test("batch commits only the final diff for component hooks", () => {
     const registry = createRegistry("world-batch-final-diff-test");
     const events: string[] = [];
-    const Value = registry.defineComponent<{ value: number }>("Value", {
+    type Value = { value: number };
+    const Value = registry.defineComponent<Value>("Value", {
         onAdd(_entity, value) {
             events.push(`add:${value.value}`);
         },
@@ -208,8 +223,10 @@ test("batch commits only the final diff for component hooks", () => {
 
 test("batch does not commit when the callback throws or validation fails", () => {
     const registry = createRegistry("world-batch-failure-test");
-    const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
-    const Element = registry.defineComponent<{ name: string }>("Element", {
+    type Transform = { x: number; y: number };
+    const Transform = registry.defineComponent<Transform>("Transform");
+    type Element = { name: string };
+    const Element = registry.defineComponent<Element>("Element", {
         deps: [Transform],
     });
     const world = new World(registry);

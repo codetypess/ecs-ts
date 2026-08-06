@@ -7,8 +7,10 @@ import {
     withComponent,
 } from "../src";
 
+type Health = { value: number };
+
 const registry = createRegistry("example-observer");
-const Health = registry.defineComponent<{ value: number }>("Health");
+const Health = registry.defineComponent<Health>("Health");
 const Damage = registry.defineEvent<{ target: Entity; amount: number }>("Damage");
 const Died = registry.defineEvent<{ entity: Entity }>("Died");
 

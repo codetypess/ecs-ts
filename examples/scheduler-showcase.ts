@@ -21,8 +21,10 @@ const ControlledEntity = registry.defineResource<{ value: Entity | undefined }>(
 );
 const GameMode = registry.defineState<"running" | "paused">("SchedulerShowcaseMode", "running");
 
-const Transform = registry.defineComponent<{ x: number; y: number }>("SchedulerShowcaseTransform");
-const Velocity = registry.defineComponent<{ x: number; y: number }>("SchedulerShowcaseVelocity");
+type Transform = { x: number; y: number };
+const Transform = registry.defineComponent<Transform>("SchedulerShowcaseTransform");
+type Velocity = { x: number; y: number };
+const Velocity = registry.defineComponent<Velocity>("SchedulerShowcaseVelocity");
 const RigidBody = registry.defineComponent("SchedulerShowcaseRigidBody");
 const Sleeping = registry.defineComponent("SchedulerShowcaseSleeping");
 

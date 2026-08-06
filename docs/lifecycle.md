@@ -30,7 +30,9 @@ That split keeps the names literal: `onReplace` is replace-only, while `onUnset`
 Lifecycle hooks are part of the component metadata passed to `defineComponent(...)`.
 
 ```ts
-const Health = registry.defineComponent<{ value: number }>("Health", {
+type Health = { value: number };
+
+const Health = registry.defineComponent<Health>("Health", {
     onUnset(entity, health) {
         console.log("unset", entity, health.value);
     },

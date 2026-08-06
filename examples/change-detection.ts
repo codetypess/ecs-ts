@@ -8,7 +8,8 @@ import {
 } from "../src";
 
 const registry = createRegistry("example-change-detection");
-const Position = registry.defineComponent<{ x: number; y: number }>("Position");
+type Position = { x: number; y: number };
+const Position = registry.defineComponent<Position>("Position");
 
 class ChangeDetectionSystem {
     private entity: Entity | undefined;

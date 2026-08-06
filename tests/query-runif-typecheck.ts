@@ -31,9 +31,12 @@ function expectType<T>(value: T): void {
 }
 
 const registry = createRegistry("query-runif-typecheck");
-const Position = registry.defineComponent<{ x: number; y: number }>("Position");
-const Velocity = registry.defineComponent<{ x: number; y: number }>("Velocity");
-const Name = registry.defineComponent<{ value: string }>("Name");
+type Position = { x: number; y: number };
+const Position = registry.defineComponent<Position>("Position");
+type Velocity = { x: number; y: number };
+const Velocity = registry.defineComponent<Velocity>("Velocity");
+type Name = { value: string };
+const Name = registry.defineComponent<Name>("Name");
 const Player = registry.defineComponent("Player");
 const Flags = registry.defineResource<{ enabled: boolean; paused: boolean }>("Flags");
 const Mode = registry.defineState<"boot" | "running" | "paused">("Mode", "boot");
@@ -61,8 +64,8 @@ expectType<
 
 for (const [entity, position, velocity] of world.query([Position, Velocity])) {
     expectType<Entity>(entity);
-    expectType<{ x: number; y: number }>(position);
-    expectType<{ x: number; y: number }>(velocity);
+    expectType<Position>(position);
+    expectType<Velocity>(velocity);
 }
 
 for (const [entity, position, velocity, name] of world.queryOptional(
@@ -70,9 +73,9 @@ for (const [entity, position, velocity, name] of world.queryOptional(
     [Velocity, Name]
 )) {
     expectType<Entity>(entity);
-    expectType<{ x: number; y: number }>(position);
-    expectType<{ x: number; y: number } | undefined>(velocity);
-    expectType<{ value: string } | undefined>(name);
+    expectType<Position>(position);
+    expectType<Velocity | undefined>(velocity);
+    expectType<Name | undefined>(name);
 }
 
 const moving = queryState([Position, Velocity], { with: [Player] });
@@ -101,15 +104,15 @@ expectType<OptionalQueryRow<readonly [typeof Position], readonly [typeof Velocit
 
 moving.each(world, (entity, position, velocity) => {
     expectType<Entity>(entity);
-    expectType<{ x: number; y: number }>(position);
-    expectType<{ x: number; y: number }>(velocity);
+    expectType<Position>(position);
+    expectType<Velocity>(velocity);
 });
 
 named.each(world, (entity, position, velocity, name) => {
     expectType<Entity>(entity);
-    expectType<{ x: number; y: number }>(position);
-    expectType<{ x: number; y: number } | undefined>(velocity);
-    expectType<{ value: string } | undefined>(name);
+    expectType<Position>(position);
+    expectType<Velocity | undefined>(velocity);
+    expectType<Name | undefined>(name);
 });
 
 world.addSystem(
@@ -191,7 +194,7 @@ expectType<"stopped">(world.mustGetState(Mode));
 
 named.each(world, (_entity, _position, velocity, _name) => {
     // @ts-expect-error optional query rows keep optional components as possibly undefined
-    expectType<{ x: number; y: number }>(velocity);
+    expectType<Velocity>(velocity);
 });
 
 const firstDamage = damageReader.read()[0];

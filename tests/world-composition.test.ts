@@ -5,7 +5,8 @@ import { DeferredCommands, World, createRegistry, withComponent } from "../src";
 const registry = createRegistry("world-composition-test");
 
 test("world can register systems, resources, states, and drive updates together", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("WorldCompositionPosition");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("WorldCompositionPosition");
     const Log = registry.defineResource<string[]>("WorldCompositionLog");
     const Mode = registry.defineState<"boot" | "running">("WorldCompositionMode", "boot");
 

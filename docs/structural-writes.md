@@ -92,8 +92,11 @@ npm run example:batch
 Component dependencies are hard runtime constraints, not hints.
 
 ```ts
-const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
-const Element = registry.defineComponent<{ name: string }>("Element", {
+type Transform = { x: number; y: number };
+type Element = { name: string };
+
+const Transform = registry.defineComponent<Transform>("Transform");
+const Element = registry.defineComponent<Element>("Element", {
     deps: [Transform],
 });
 ```

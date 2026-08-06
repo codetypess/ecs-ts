@@ -8,21 +8,21 @@ interface UiHandle {
     destroyed: boolean;
 }
 
-interface UiSourceData {
+type UiSource = {
     readonly key: string;
     readonly props?: unknown;
     readonly delayMs?: number;
-}
+};
 
-interface UiLoadingData {
+type UiLoading = {
     readonly requestId: number;
     readonly abort: AbortController;
-}
+};
 
-interface UiInstanceData {
+type UiInstance = {
     readonly handle: UiHandle;
     readonly requestId: number;
-}
+};
 
 interface UiLoadResult {
     readonly entity: Entity;
@@ -87,13 +87,13 @@ class UiRuntime {
 
 const UiRuntimeResource = registry.defineResource<UiRuntime>("UiRuntime");
 
-const UiSource = registry.defineComponent<UiSourceData>("UiSource");
-const UiLoading = registry.defineComponent<UiLoadingData>("UiLoading", {
+const UiSource = registry.defineComponent<UiSource>("UiSource");
+const UiLoading = registry.defineComponent<UiLoading>("UiLoading", {
     onRemove(_entity, loading) {
         loading.abort.abort();
     },
 });
-const UiInstance = registry.defineComponent<UiInstanceData>("UiInstance", {
+const UiInstance = registry.defineComponent<UiInstance>("UiInstance", {
     onRemove(_entity, instance, world) {
         world.mustGetResource(UiRuntimeResource).destroy(instance.handle);
     },

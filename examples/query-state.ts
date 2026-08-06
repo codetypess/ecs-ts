@@ -1,8 +1,10 @@
 import { World, createRegistry, formatEntity, queryState, withComponent, withMarker } from "../src";
 
 const registry = createRegistry("example-query-state");
-const Position = registry.defineComponent<{ x: number; y: number }>("Position");
-const Velocity = registry.defineComponent<{ x: number; y: number }>("Velocity");
+type Position = { x: number; y: number };
+const Position = registry.defineComponent<Position>("Position");
+type Velocity = { x: number; y: number };
+const Velocity = registry.defineComponent<Velocity>("Velocity");
 const Sleeping = registry.defineComponent("Sleeping");
 
 class MovementSystem {

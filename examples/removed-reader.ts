@@ -9,7 +9,8 @@ import {
 } from "../src";
 
 const registry = createRegistry("example-removed-reader");
-const Position = registry.defineComponent<{ x: number; y: number }>("Position");
+type Position = { x: number; y: number };
+const Position = registry.defineComponent<Position>("Position");
 
 class RemovePositionSystem {
     private entity: Entity | undefined;

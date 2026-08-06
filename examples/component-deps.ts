@@ -1,8 +1,10 @@
 import { World, createRegistry, formatEntity, withComponent } from "../src";
 
 const registry = createRegistry("example-component-deps");
-const Transform = registry.defineComponent<{ x: number; y: number }>("Transform");
-const Element = registry.defineComponent<{ name: string }>("Element", {
+type Transform = { x: number; y: number };
+const Transform = registry.defineComponent<Transform>("Transform");
+type Element = { name: string };
+const Element = registry.defineComponent<Element>("Element", {
     deps: [Transform],
 });
 

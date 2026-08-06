@@ -15,13 +15,17 @@ function expectType<T>(value: T): void {
 }
 
 const Marker = registry.defineComponent("ComponentTypecheckDefaultMarker");
-const Value = registry.defineComponent<{ value: number }>("ComponentTypecheckValue");
-const Transform = registry.defineComponent<{ x: number; y: number }>("ComponentTypecheckTransform");
-const SlgTransform = registry.defineComponent<{ start: number; speed: number }, typeof Transform>(
+type Value = { value: number };
+const Value = registry.defineComponent<Value>("ComponentTypecheckValue");
+type Transform = { x: number; y: number };
+const Transform = registry.defineComponent<Transform>("ComponentTypecheckTransform");
+type SlgTransformFields = { start: number; speed: number };
+const SlgTransform = registry.defineComponent<SlgTransformFields, typeof Transform>(
     "ComponentTypecheckSlgTransform"
 );
+type SlgTransformWithLifecycleFields = { start: number; speed: number };
 const SlgTransformWithLifecycle = registry.defineComponent<
-    { start: number; speed: number },
+    SlgTransformWithLifecycleFields,
     typeof Transform
 >("ComponentTypecheckSlgTransformWithLifecycle", {
     onAdd(_entity, transform, _world, reason) {
@@ -103,10 +107,10 @@ const removedValueReader = world.removedReader(Value);
 for (const [matched, marker, value] of world.query([Marker, Value])) {
     expectType<number>(matched);
     expectType<Record<string, never>>(marker);
-    expectType<{ value: number }>(value);
+    expectType<Value>(value);
 }
 
-expectType<readonly [Record<string, never>, { value: number }] | undefined>(
+expectType<readonly [Record<string, never>, Value] | undefined>(
     world.getManyComponents(entity, Marker, Value)
 );
 expectType<RemovedReader<typeof Value>>(removedValueReader);

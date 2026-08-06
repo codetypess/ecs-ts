@@ -317,8 +317,10 @@ test("scheduler combines multiple sets for ordering and runIf", () => {
 });
 
 test("scheduler supports query-backed runIf helpers", () => {
-    const Position = registry.defineComponent<{ x: number; y: number }>("RunIfQueryPosition");
-    const Velocity = registry.defineComponent<{ x: number; y: number }>("RunIfQueryVelocity");
+    type Position = { x: number; y: number };
+    const Position = registry.defineComponent<Position>("RunIfQueryPosition");
+    type Velocity = { x: number; y: number };
+    const Velocity = registry.defineComponent<Velocity>("RunIfQueryVelocity");
     const Player = registry.defineComponent("RunIfQueryPlayer");
     const Sleeping = registry.defineComponent("RunIfQuerySleeping");
     const moving = queryState([Position, Velocity], { without: [Sleeping] });
@@ -534,7 +536,8 @@ test("scheduler rejects ambiguous system and set labels inside a stage", () => {
 });
 
 test("observers dispatch immediate events and can queue commands", () => {
-    const Health = registry.defineComponent<{ value: number }>("ObserverHealth");
+    type Health = { value: number };
+    const Health = registry.defineComponent<Health>("ObserverHealth");
     const Damage = registry.defineEvent<{ target: Entity; amount: number }>("ObserverDamage");
     const Died = registry.defineEvent<{ entity: Entity }>("ObserverDied");
     const world = new World(registry);

@@ -8,7 +8,8 @@ import {
 } from "../src";
 
 const registry = createRegistry("example-lifecycle");
-const Health = registry.defineComponent<{ value: number }>("Health", {
+type Health = { value: number };
+const Health = registry.defineComponent<Health>("Health", {
     onAdd(entity, health, _world, reason) {
         console.log(
             `component onAdd(${reason}) Health(${health.value}) -> ${formatEntity(entity)}`

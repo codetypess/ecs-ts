@@ -1,13 +1,16 @@
 import { World, createRegistry, formatEntity, withComponent, withMarker } from "../src";
 
 const registry = createRegistry("example-query-filter-advanced");
-const Position = registry.defineComponent<{ x: number; y: number }>("Position");
-const Velocity = registry.defineComponent<{ x: number; y: number }>("Velocity");
+type Position = { x: number; y: number };
+const Position = registry.defineComponent<Position>("Position");
+type Velocity = { x: number; y: number };
+const Velocity = registry.defineComponent<Velocity>("Velocity");
 const Player = registry.defineComponent("Player");
 const Npc = registry.defineComponent("Npc");
 const Sleeping = registry.defineComponent("Sleeping");
 const Frozen = registry.defineComponent("Frozen");
-const Name = registry.defineComponent<{ value: string }>("Name");
+type Name = { value: string };
+const Name = registry.defineComponent<Name>("Name");
 
 const world = new World(registry);
 
