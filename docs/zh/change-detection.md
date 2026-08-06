@@ -60,7 +60,7 @@ npm run example:resources
 
 ## Message
 
-Message 是短生命周期、多 reader 的事件队列。Writer 可以直接调用 `writeMessage(...)`，也可以通过 `Commands` 排队写入。Reader 会维护独立 cursor。
+Message 是短生命周期、多 reader 的事件队列。Writer 可以直接调用 `writeMessage(...)`，也可以通过 `DeferredCommands` 排队写入。Reader 会维护独立 cursor。
 `reader.read()` 每次都会复用同一个输出数组，所以不要在多次读取之间长期持有上一次返回值的引用。
 
 ```ts

@@ -13,7 +13,7 @@ component lifecycle hook 是可选的，而且是按操作路径触发的。一�
 | 删除单个 component | `onUnset` -> `onRemove("removed")`     | `onAdd`、`onInsert`、`onReplace`   |
 | despawn entity     | `onUnset` -> `onRemove("despawned")`   | `onAdd`、`onInsert`、`onReplace`   |
 
-无论修改来自直接 `World` 写入、`Commands`，还是 `world.batch(...)` 最终提交的净变化，触发规则都是这一套。
+无论修改来自直接 `World` 写入、`DeferredCommands`，还是 `world.batch(...)` 最终提交的净变化，触发规则都是这一套。
 
 ## 怎么理解这几个阶段
 

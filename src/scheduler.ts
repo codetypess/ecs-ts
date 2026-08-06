@@ -1,4 +1,4 @@
-import type { Commands } from "./commands.js";
+import type { DeferredCommands } from "./deferred-commands.js";
 import type { World } from "./world.js";
 
 /** Ordered scheduler stages supported by object-style systems. */
@@ -49,7 +49,7 @@ export interface SystemOptions {
 }
 
 /** Function form used by the scheduler and state/event helpers to run work. */
-export type SystemCallback = (world: World, dt: number, commands: Commands) => void;
+export type SystemCallback = (world: World, dt: number, commands: DeferredCommands) => void;
 
 /** Normalized system metadata stored by the scheduler. */
 export interface SystemRunner {

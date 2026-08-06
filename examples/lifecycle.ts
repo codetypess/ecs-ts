@@ -1,4 +1,11 @@
-import { Commands, Entity, World, createRegistry, formatEntity, withComponent } from "../src";
+import {
+    DeferredCommands,
+    Entity,
+    World,
+    createRegistry,
+    formatEntity,
+    withComponent,
+} from "../src";
 
 const registry = createRegistry("example-lifecycle");
 const Health = registry.defineComponent<{ value: number }>("Health", {
@@ -33,7 +40,7 @@ class LifecycleDemoSystem {
         console.log("system onPreStartup");
     }
 
-    onStartup(_world: World, _dt: number, commands: Commands): void {
+    onStartup(_world: World, _dt: number, commands: DeferredCommands): void {
         console.log("system onStartup");
         this.entity = commands.spawn(withComponent(Health, { value: 100 }));
     }
@@ -42,7 +49,7 @@ class LifecycleDemoSystem {
         console.log("system onPostStartup");
     }
 
-    onUpdate(_world: World, _dt: number, commands: Commands): void {
+    onUpdate(_world: World, _dt: number, commands: DeferredCommands): void {
         console.log(`system onUpdate frame=${this.frame}`);
 
         if (this.entity === undefined) {

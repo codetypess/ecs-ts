@@ -13,7 +13,7 @@ English README: [README-en.md](README-en.md).
 它更像一个有明确边界的 runtime core：
 
 - Schema 是显式的。Component、resource、state、message 和 event 都归属于一个 registry。
-- World 修改是显式的。`spawn`、`addComponent`、`removeComponent`、`despawn`、`Commands` 和 `world.batch(...)` 都有明确语义。
+- World 修改是显式的。`spawn`、`addComponent`、`removeComponent`、`despawn`、`DeferredCommands` 和 `world.batch(...)` 都有明确语义。
 - 运行时不变量是认真的。跨 registry 误用会立刻失败，component 依赖可以被强约束，非法 batch 结果不会对外可见。
 - 易用性也要保留。常见 query、change detection、scheduler 和 lifecycle 场景不该写得很累。
 
@@ -71,7 +71,7 @@ if (world.hasComponent(entity, Element)) {
 - `QueryState`，用于缓存重复 query 的解析结果。
 - Per-system 语义的 component/resource change detection。
 - Removed reader 和显式 `drainRemoved`。
-- 通过 `Commands` 做延迟结构修改。
+- 通过 `DeferredCommands` 做延迟结构修改。
 - Component lifecycle hooks：带来源信息的 `onAdd`、`onRemove`，以及 `onInsert`、`onUnset`、`onReplace`。
 - 通过 `deps` 表达硬依赖。
 - 通过 `world.batch(...)` 做 entity/component 结构上的 deferred structural validation。
@@ -87,7 +87,7 @@ if (world.hasComponent(entity, Element)) {
 
 ## 结构修改语义
 
-- `Commands` 是 deferred queue。命令会在 `flush()` 或 system/observer 结束后统一执行。
+- `DeferredCommands` 是 deferred queue。命令会在 `flush()` 或 system/observer 结束后统一执行。
 - `world.batch(...)` 会先验证最终 entity/component 结构状态，再一次性提交净变化；它更接近一次 transactional commit。
 - `commands.spawn(...)` 在 flush 前只返回一个保留的 entity handle，不会立刻变成 live entity。
 - `world.shutdown()` 是终态。shutdown 后再次 `update()` 不会继续跑 startup 或 update。
@@ -100,7 +100,7 @@ if (world.hasComponent(entity, Element)) {
 - [Scheduler](docs/zh/scheduler.md)：system 什么时候跑、怎么排序、怎么组合条件。
 - [Change Detection](docs/zh/change-detection.md)：`added`、`changed`、removed readers 和 message 的行为。
 - [组件生命周期](docs/zh/lifecycle.md)：add、unset、replace、remove 和 despawn 分别会触发哪些 hook。
-- [结构修改](docs/zh/structural-writes.md)：直接写 world、`Commands`、`world.batch(...)` 和 `deps` 的区别。
+- [结构修改](docs/zh/structural-writes.md)：直接写 world、`DeferredCommands`、`world.batch(...)` 和 `deps` 的区别。
 
 如果你更想先看代码而不是说明，examples 是更好的入口：
 

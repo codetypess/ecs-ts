@@ -1,4 +1,4 @@
-import { Commands, type CommandRuntime } from "./commands.js";
+import { DeferredCommands, type DeferredCommandRuntime } from "./deferred-commands.js";
 import {
     AnyComponentEntry,
     AnyComponentType,
@@ -10,7 +10,7 @@ import {
 } from "./component.js";
 import { Entity, formatEntity, type EntityType } from "./entity.js";
 import { assertRegisteredEvent, type EventObserver, type EventType } from "./event.js";
-import { runSystemWithCommands } from "./internal/command-execution.js";
+import { runSystemWithDeferredCommands } from "./internal/command-execution.js";
 import {
     assertComponentDepsPresent,
     assertComponentHasNoDependents,
@@ -115,7 +115,7 @@ import { createSystemRunner, scheduleStageDefinitions } from "./scheduler.js";
 import { assertRegisteredState, type StateType, type StateValue } from "./state.js";
 import type { StateSystem, System, TransitionSystem } from "./system.js";
 
-export { Commands } from "./commands.js";
+export { DeferredCommands } from "./deferred-commands.js";
 export type { WorldBatch } from "./internal/world-batch.js";
 export { optionalQueryState, queryState } from "./query.js";
 export type {
@@ -147,7 +147,7 @@ export type { StateSystem, System, TransitionSystem } from "./system.js";
 export class World extends WorldQueryMethods {
     readonly registry: Registry;
     protected readonly ecsContext: EcsContext;
-    private readonly commandRuntime: CommandRuntime;
+    private readonly deferredCommandRuntime: DeferredCommandRuntime;
     private readonly stateContext: StateMachineContext;
     private readonly eventContext: EventContext;
     private readonly messageContext: MessageContext;
@@ -209,7 +209,7 @@ export class World extends WorldQueryMethods {
             getChangeDetectionRange: () => this.changeDetectionRange(),
             runComponentHooks,
         });
-        this.commandRuntime = {
+        this.deferredCommandRuntime = {
             reserveEntity: (etype) => this.ecsContext.entities.reserve(etype),
             releaseReservedEntity: (entity) => this.ecsContext.entities.releaseReserved(entity),
             commitReservedEntity: (entity) => {
@@ -523,8 +523,8 @@ export class World extends WorldQueryMethods {
     }
 
     /** Creates a deferred command queue bound to this world. */
-    commands(): Commands {
-        return new Commands(this, this.commandRuntime);
+    commands(): DeferredCommands {
+        return new DeferredCommands(this, this.deferredCommandRuntime);
     }
 
     /** Registers a message channel so it exists even before the first write. */
@@ -740,9 +740,9 @@ export class World extends WorldQueryMethods {
                 assertRegisteredComponent(this.registry, type, action);
             },
             isAlive: (entity) => this.ecsContext.entities.isAlive(entity),
-            reserveEntity: this.commandRuntime.reserveEntity,
-            releaseReservedEntity: this.commandRuntime.releaseReservedEntity,
-            commitReservedEntity: this.commandRuntime.commitReservedEntity,
+            reserveEntity: this.deferredCommandRuntime.reserveEntity,
+            releaseReservedEntity: this.deferredCommandRuntime.releaseReservedEntity,
+            commitReservedEntity: this.deferredCommandRuntime.commitReservedEntity,
             entityComponentIds: (entity) =>
                 getEntityComponents(this.ecsContext.entityComponents, entity),
             componentTypeById: (componentId) => this.registry.componentType(componentId),
@@ -860,7 +860,7 @@ export class World extends WorldQueryMethods {
                     continue;
                 }
 
-                runSystemWithCommands(this, system, dt);
+                runSystemWithDeferredCommands(this, system, dt);
                 system.lastRunTick = thisRunTick;
                 this.changeTick++;
             } finally {

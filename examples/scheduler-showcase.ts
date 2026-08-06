@@ -1,5 +1,5 @@
 import {
-    type Commands,
+    type DeferredCommands,
     type Entity,
     World,
     createRegistry,
@@ -102,7 +102,7 @@ class FixedReportSystem {
 }
 
 class InputSystem {
-    onUpdate(world: World, _dt: number, commands: Commands): void {
+    onUpdate(world: World, _dt: number, commands: DeferredCommands): void {
         const frame = world.mustGetResource(Frame).value;
         const controlled = world.mustGetResource(ControlledEntity).value;
 

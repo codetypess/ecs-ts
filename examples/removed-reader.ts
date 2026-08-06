@@ -1,5 +1,5 @@
 import {
-    Commands,
+    DeferredCommands,
     Entity,
     RemovedReader,
     World,
@@ -14,11 +14,11 @@ const Position = registry.defineComponent<{ x: number; y: number }>("Position");
 class RemovePositionSystem {
     private entity: Entity | undefined;
 
-    onStartup(_world: World, _dt: number, commands: Commands): void {
+    onStartup(_world: World, _dt: number, commands: DeferredCommands): void {
         this.entity = commands.spawn(withComponent(Position, { x: 1, y: 2 }));
     }
 
-    onUpdate(_world: World, _dt: number, commands: Commands): void {
+    onUpdate(_world: World, _dt: number, commands: DeferredCommands): void {
         if (this.entity !== undefined) {
             commands.removeComponent(this.entity, Position);
             this.entity = undefined;

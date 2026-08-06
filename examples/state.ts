@@ -1,4 +1,4 @@
-import { Commands, World, createRegistry } from "../src";
+import { DeferredCommands, World, createRegistry } from "../src";
 
 const registry = createRegistry("example-state");
 const GameState = registry.defineState("GameState", "menu" as "menu" | "playing" | "paused");
@@ -29,7 +29,7 @@ class GameTransitionSystem {
     onTransition(
         _world: World,
         _dt: number,
-        _commands: Commands,
+        _commands: DeferredCommands,
         from: "menu" | "playing" | "paused",
         to: "menu" | "playing" | "paused"
     ): void {
@@ -40,7 +40,7 @@ class GameTransitionSystem {
 class StateDriverSystem {
     private frame = 0;
 
-    onUpdate(world: World, _dt: number, commands: Commands): void {
+    onUpdate(world: World, _dt: number, commands: DeferredCommands): void {
         console.log(`Update: state=${world.mustGetState(GameState)} frame=${this.frame}`);
 
         if (this.frame === 0) {

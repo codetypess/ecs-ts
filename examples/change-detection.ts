@@ -1,4 +1,11 @@
-import { Commands, Entity, World, createRegistry, formatEntity, withComponent } from "../src";
+import {
+    DeferredCommands,
+    Entity,
+    World,
+    createRegistry,
+    formatEntity,
+    withComponent,
+} from "../src";
 
 const registry = createRegistry("example-change-detection");
 const Position = registry.defineComponent<{ x: number; y: number }>("Position");
@@ -7,11 +14,11 @@ class ChangeDetectionSystem {
     private entity: Entity | undefined;
     private frame = 0;
 
-    onStartup(_world: World, _dt: number, commands: Commands): void {
+    onStartup(_world: World, _dt: number, commands: DeferredCommands): void {
         this.entity = commands.spawn(withComponent(Position, { x: 0, y: 0 }));
     }
 
-    onUpdate(world: World, _dt: number, commands: Commands): void {
+    onUpdate(world: World, _dt: number, commands: DeferredCommands): void {
         world.each([Position], { added: [Position] }, (entity, position) => {
             console.log(`added ${formatEntity(entity)} -> (${position.x}, ${position.y})`);
         });

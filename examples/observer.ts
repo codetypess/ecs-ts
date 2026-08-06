@@ -1,4 +1,11 @@
-import { Commands, Entity, World, createRegistry, formatEntity, withComponent } from "../src";
+import {
+    DeferredCommands,
+    Entity,
+    World,
+    createRegistry,
+    formatEntity,
+    withComponent,
+} from "../src";
 
 const registry = createRegistry("example-observer");
 const Health = registry.defineComponent<{ value: number }>("Health");
@@ -8,7 +15,7 @@ const Died = registry.defineEvent<{ entity: Entity }>("Died");
 class AttackSystem {
     constructor(private readonly target: Entity) {}
 
-    onUpdate(_world: World, _dt: number, commands: Commands): void {
+    onUpdate(_world: World, _dt: number, commands: DeferredCommands): void {
         commands.trigger(Damage, { target: this.target, amount: 20 });
     }
 }

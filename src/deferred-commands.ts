@@ -10,23 +10,23 @@ import type { ResourceType } from "./resource.js";
 import type { StateType, StateValue } from "./state.js";
 import type { World } from "./world.js";
 
-export interface CommandRuntime {
+export interface DeferredCommandRuntime {
     reserveEntity(etype: EntityType): Entity;
     commitReservedEntity(entity: Entity): void;
     releaseReservedEntity(entity: Entity): boolean;
     addSpawnedComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): void;
 }
 
-type CommandRunner = (world: World) => void;
+type DeferredCommandRunner = (world: World) => void;
 
 /** Deferred structural edits that are flushed after a system or observer finishes. */
-export class Commands {
-    private queue: CommandRunner[] = [];
-    private flushing: CommandRunner[] = [];
+export class DeferredCommands {
+    private queue: DeferredCommandRunner[] = [];
+    private flushing: DeferredCommandRunner[] = [];
 
     constructor(
         private readonly world: World,
-        private readonly runtime: CommandRuntime
+        private readonly runtime: DeferredCommandRuntime
     ) {}
 
     /** Number of queued commands waiting to be flushed. */
@@ -125,7 +125,7 @@ export class Commands {
         return this.enqueue(command);
     }
 
-    private enqueue(command: CommandRunner): this {
+    private enqueue(command: DeferredCommandRunner): this {
         this.queue.push(command);
 
         return this;

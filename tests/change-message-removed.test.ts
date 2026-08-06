@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Commands, Entity, World, createRegistry, withComponent } from "../src";
+import { DeferredCommands, Entity, World, createRegistry, withComponent } from "../src";
 
 const registry = createRegistry("change-message-removed-test");
 
@@ -13,11 +13,11 @@ test("per-system change detection lets state systems see earlier changes", () =>
         private entity: Entity | undefined;
         private frame = 0;
 
-        onStartup(_world: World, _dt: number, commands: Commands): void {
+        onStartup(_world: World, _dt: number, commands: DeferredCommands): void {
             this.entity = commands.spawn(withComponent(Position, { x: 0, y: 0 }));
         }
 
-        onUpdate(world: World, _dt: number, commands: Commands): void {
+        onUpdate(world: World, _dt: number, commands: DeferredCommands): void {
             if (this.entity === undefined || this.frame !== 0) {
                 this.frame++;
                 return;

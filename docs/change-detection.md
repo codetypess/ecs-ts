@@ -60,7 +60,7 @@ npm run example:resources
 
 ## Messages
 
-Messages are short-lived, multi-reader event queues. Writers can call `writeMessage(...)` directly or queue writes through `Commands`. Readers keep independent cursors.
+Messages are short-lived, multi-reader event queues. Writers can call `writeMessage(...)` directly or queue writes through `DeferredCommands`. Readers keep independent cursors.
 `reader.read()` reuses the same output array on each call, so do not hold a reference to a previous result across reads.
 
 ```ts

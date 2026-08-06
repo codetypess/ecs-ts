@@ -4,7 +4,7 @@
 
 Structural writes are the operations that change visible world state: spawning and despawning entities, adding or removing components, changing singleton resources and states, and publishing queued messages or events.
 
-`ecs-ts` keeps three write paths because they solve different timing problems, but they do not cover exactly the same surface area. `world.batch(...)` is intentionally limited to entity/component structure edits; resources, states, messages, and events stay on direct `World` writes or `Commands`.
+`ecs-ts` keeps three write paths because they solve different timing problems, but they do not cover exactly the same surface area. `world.batch(...)` is intentionally limited to entity/component structure edits; resources, states, messages, and events stay on direct `World` writes or `DeferredCommands`.
 
 ## Direct World Writes
 
@@ -24,9 +24,9 @@ world.addComponent(entity, Velocity, { x: 1, y: 1 });
 
 This is the simplest path for setup code, tests, import tools, and one-off scripts.
 
-## Commands
+## DeferredCommands
 
-`Commands` is a deferred queue.
+`DeferredCommands` is a deferred queue.
 
 - Systems and event observers automatically get a fresh command queue.
 - The queue flushes after the system or observer returns.
@@ -45,7 +45,7 @@ Important details:
 
 - `commands.spawn(...)` returns a reserved entity handle immediately.
 - That entity is not live until `flush()` commits the queued work.
-- Commands run in insertion order.
+- DeferredCommands run in insertion order.
 - If `flush()` throws, already executed commands stay applied and unexecuted commands stay queued.
 
 Run the example:
@@ -78,7 +78,7 @@ Important details:
 - Nested `world.batch(...)` calls are rejected.
 - The batch writer becomes invalid once the callback returns.
 - Batch writers only support `spawn(...)`, `addComponent(...)`, `removeComponent(...)`, and `despawn(...)`.
-- Resource, state, message, and event writes still go through direct `World` calls or `Commands`.
+- Resource, state, message, and event writes still go through direct `World` calls or `DeferredCommands`.
 - Component hooks observe the committed final diff, not every temporary step inside the callback.
 
 Run the example:
@@ -116,5 +116,5 @@ npm run example:deps
 ## Choosing The Write Path
 
 - Use direct world writes for immediate setup and imperative code that wants instant visibility.
-- Use `Commands` inside systems and observers, or when you want a deferred queue with explicit flush timing.
+- Use `DeferredCommands` inside systems and observers, or when you want a deferred queue with explicit flush timing.
 - Use `world.batch(...)` when structure changes must publish atomically.

@@ -1,4 +1,4 @@
-export * from "./commands.js";
+export * from "./deferred-commands.js";
 export * from "./component.js";
 export type { Entity, EntityType } from "./entity.js";
 export { entityGeneration, entityIndex, formatEntity } from "./entity.js";

@@ -1,4 +1,4 @@
-import { Commands, World, createRegistry } from "../src";
+import { DeferredCommands, World, createRegistry } from "../src";
 
 const registry = createRegistry("example-resource-change-detection");
 const Settings = registry.defineResource<{ volume: number }>("Settings");
@@ -10,7 +10,7 @@ class SettingsMutationSystem {
         world.setResource(Settings, { volume: 1 });
     }
 
-    onUpdate(world: World, _dt: number, commands: Commands): void {
+    onUpdate(world: World, _dt: number, commands: DeferredCommands): void {
         const settings = world.mustGetResource(Settings);
 
         if (this.frame === 0) {

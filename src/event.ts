@@ -1,4 +1,4 @@
-import type { Commands } from "./commands.js";
+import type { DeferredCommands } from "./deferred-commands.js";
 import type { Registry } from "./registry.js";
 import type { World } from "./world.js";
 
@@ -16,7 +16,7 @@ export interface EventType<T> {
 export type AnyEventType = EventType<unknown>;
 
 /** Observer callback invoked immediately when an event is triggered. */
-export type EventObserver<T> = (event: T, world: World, commands: Commands) => void;
+export type EventObserver<T> = (event: T, world: World, commands: DeferredCommands) => void;
 
 /** Throws unless the event belongs to the expected registry. */
 export function assertRegisteredEvent(

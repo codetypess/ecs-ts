@@ -3,7 +3,11 @@ import type { SystemRunner } from "../scheduler.js";
 import type { World } from "../world.js";
 
 /** Runs a system with a fresh deferred command queue and flushes afterward. */
-export function runSystemWithCommands(world: World, system: SystemRunner, dt: number): void {
+export function runSystemWithDeferredCommands(
+    world: World,
+    system: SystemRunner,
+    dt: number
+): void {
     const commands = world.commands();
 
     system.run(world, dt, commands);
@@ -11,7 +15,7 @@ export function runSystemWithCommands(world: World, system: SystemRunner, dt: nu
 }
 
 /** Runs an event observer with its own deferred command queue and flushes afterward. */
-export function runEventObserverWithCommands<T>(
+export function runEventObserverWithDeferredCommands<T>(
     world: World,
     observer: EventObserver<T>,
     value: T

@@ -4,7 +4,7 @@ English: [Structural Writes](../structural-writes.md).
 
 结构修改指的是会改变 world 可见状态的操作：spawn / despawn entity、添加或移除 component、修改 singleton resource / state，以及发布排队的 message / event。
 
-`ecs-ts` 保留了三条写路径，因为它们解决的是不同的时序问题，但三条路径并不覆盖完全相同的能力面。`world.batch(...)` 会刻意限制在 entity/component 结构修改上；resource、state、message 和 event 仍然走直接 `World` 写入或 `Commands`。
+`ecs-ts` 保留了三条写路径，因为它们解决的是不同的时序问题，但三条路径并不覆盖完全相同的能力面。`world.batch(...)` 会刻意限制在 entity/component 结构修改上；resource、state、message 和 event 仍然走直接 `World` 写入或 `DeferredCommands`。
 
 ## 直接写 World
 
@@ -24,9 +24,9 @@ world.addComponent(entity, Velocity, { x: 1, y: 1 });
 
 这条路径最适合初始化代码、测试、导入工具和一次性的脚本。
 
-## Commands
+## DeferredCommands
 
-`Commands` 是 deferred queue。
+`DeferredCommands` 是 deferred queue。
 
 - system 和 event observer 会自动拿到一个新的 command queue。
 - callback 返回后，这个 queue 会自动 flush。
@@ -78,7 +78,7 @@ world.batch((batch) => {
 - 不支持嵌套 `world.batch(...)`。
 - callback 返回后，batch writer 就失效了。
 - batch writer 只支持 `spawn(...)`、`addComponent(...)`、`removeComponent(...)` 和 `despawn(...)`。
-- resource、state、message 和 event 的写入仍然通过直接 `World` 调用或 `Commands` 完成。
+- resource、state、message 和 event 的写入仍然通过直接 `World` 调用或 `DeferredCommands` 完成。
 - component hook 看到的是最终提交的净变化，而不是 callback 内部的每个临时步骤。
 
 运行示例：
@@ -116,5 +116,5 @@ npm run example:deps
 ## 怎么选写路径
 
 - 需要立刻生效的初始化或命令式代码，用直接 world 写入。
-- 在 system / observer 里，或者需要 deferred queue 和明确 flush 时机时，用 `Commands`。
+- 在 system / observer 里，或者需要 deferred queue 和明确 flush 时机时，用 `DeferredCommands`。
 - 结构修改必须原子发布时，用 `world.batch(...)`。

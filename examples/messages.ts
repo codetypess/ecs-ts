@@ -1,5 +1,5 @@
 import {
-    Commands,
+    DeferredCommands,
     Entity,
     MessageReader,
     World,
@@ -15,11 +15,11 @@ const Health = registry.defineComponent<{ value: number }>("Health");
 const Damage = registry.defineMessage<{ target: Entity; amount: number }>("Damage");
 
 class AttackSystem {
-    onStartup(_world: World, _dt: number, commands: Commands): void {
+    onStartup(_world: World, _dt: number, commands: DeferredCommands): void {
         commands.spawn(withMarker(Enemy), withComponent(Health, { value: 100 }));
     }
 
-    onUpdate(world: World, _dt: number, commands: Commands): void {
+    onUpdate(world: World, _dt: number, commands: DeferredCommands): void {
         world.each([Enemy], (entity) => {
             commands.writeMessage(Damage, { target: entity, amount: 10 });
         });

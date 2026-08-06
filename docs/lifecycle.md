@@ -13,7 +13,7 @@ Component lifecycle hooks are optional and operation-scoped. A single component 
 | Remove one component   | `onUnset` -> `onRemove("removed")`     | `onAdd`, `onInsert`, `onReplace`   |
 | Despawn entity         | `onUnset` -> `onRemove("despawned")`   | `onAdd`, `onInsert`, `onReplace`   |
 
-The same dispatch rules apply whether the change came from direct `World` writes, `Commands`, or the final committed diff of `world.batch(...)`.
+The same dispatch rules apply whether the change came from direct `World` writes, `DeferredCommands`, or the final committed diff of `world.batch(...)`.
 
 ## Mental Model
 

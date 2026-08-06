@@ -1,4 +1,4 @@
-import { Commands, Entity, World, createRegistry, withComponent } from "../src";
+import { DeferredCommands, Entity, World, createRegistry, withComponent } from "../src";
 
 const registry = createRegistry("example-ui-lifecycle");
 
@@ -104,7 +104,7 @@ class UiSystem {
         world.setResource(UiRuntimeResource, new UiRuntime());
     }
 
-    onUpdate(world: World, _dt: number, commands: Commands): void {
+    onUpdate(world: World, _dt: number, commands: DeferredCommands): void {
         const ui = world.mustGetResource(UiRuntimeResource);
 
         world.each([UiSource], { without: [UiLoading, UiInstance] }, (entity, source) => {
@@ -128,7 +128,7 @@ class UiSystem {
         });
     }
 
-    onPostUpdate(world: World, _dt: number, commands: Commands): void {
+    onPostUpdate(world: World, _dt: number, commands: DeferredCommands): void {
         const ui = world.mustGetResource(UiRuntimeResource);
 
         for (const result of drain(ui.completed)) {

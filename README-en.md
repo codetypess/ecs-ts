@@ -13,7 +13,7 @@ This project is not trying to be a giant engine framework or a maximalist “eve
 It is trying to be a solid runtime core with a clear mental model:
 
 - Schema is explicit. Components, resources, states, messages, and events all belong to a registry.
-- World mutations are explicit. `spawn`, `addComponent`, `removeComponent`, `despawn`, `Commands`, and `world.batch(...)` each have clear timing semantics.
+- World mutations are explicit. `spawn`, `addComponent`, `removeComponent`, `despawn`, `DeferredCommands`, and `world.batch(...)` each have clear timing semantics.
 - Runtime invariants matter. Cross-registry misuse fails fast. Component dependencies can be enforced. Invalid batch results never become visible.
 - Query ergonomics matter too. Common tasks should feel lightweight in application code.
 
@@ -68,7 +68,7 @@ if (world.hasComponent(entity, Element)) {
 - `QueryState` for caching repeated query plans.
 - Per-system change detection for components and resources.
 - Removed-component readers and explicit `drainRemoved`.
-- Deferred command queues through `Commands`.
+- Deferred command queues through `DeferredCommands`.
 - Component lifecycle hooks: source-aware `onAdd` and `onRemove`, plus `onInsert`, `onUnset`, and `onReplace`.
 - Hard component dependencies through `deps`.
 - Deferred entity/component structural validation with `world.batch(...)`.
@@ -84,7 +84,7 @@ if (world.hasComponent(entity, Element)) {
 
 ## Structural Timing Semantics
 
-- `Commands` is a deferred queue. Work runs on `flush()` or after a system/observer completes.
+- `DeferredCommands` is a deferred queue. Work runs on `flush()` or after a system/observer completes.
 - `world.batch(...)` validates the final entity/component structural state first, then commits the net diff; it is the transactional option.
 - `commands.spawn(...)` returns a reserved entity handle and does not publish a live entity before flush.
 - `world.shutdown()` is terminal. Calling `update()` afterward will not run startup or update stages again.
@@ -97,7 +97,7 @@ If you open the docs first, the project is easier to understand as a set of work
 - [Scheduler](docs/scheduler.md): how systems are ordered and when they run.
 - [Change Detection](docs/change-detection.md): how `added`, `changed`, removed readers, and message flow behave.
 - [Component Lifecycle](docs/lifecycle.md): which hooks run for add, unset, replace, remove, and despawn.
-- [Structural Writes](docs/structural-writes.md): when to use direct world writes, `Commands`, `world.batch(...)`, and `deps`.
+- [Structural Writes](docs/structural-writes.md): when to use direct world writes, `DeferredCommands`, `world.batch(...)`, and `deps`.
 
 If you want code instead of prose, the examples are the next best entry point:
 

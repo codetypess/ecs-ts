@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Commands, World, createRegistry, withComponent } from "../src";
+import { DeferredCommands, World, createRegistry, withComponent } from "../src";
 
 const registry = createRegistry("world-composition-test");
 
@@ -10,7 +10,7 @@ test("world can register systems, resources, states, and drive updates together"
     const Mode = registry.defineState<"boot" | "running">("WorldCompositionMode", "boot");
 
     class BootstrapSystem {
-        onStartup(world: World, _dt: number, commands: Commands): void {
+        onStartup(world: World, _dt: number, commands: DeferredCommands): void {
             world.mustGetResource(Log).push("startup");
             commands.spawn(withComponent(Position, { x: 0, y: 0 }));
             commands.setState(Mode, "running");
@@ -29,7 +29,12 @@ test("world can register systems, resources, states, and drive updates together"
     class RunningEnterSystem {
         private readonly prefix = "enter";
 
-        onEnter(world: World, _dt: number, _commands: Commands, value: "boot" | "running"): void {
+        onEnter(
+            world: World,
+            _dt: number,
+            _commands: DeferredCommands,
+            value: "boot" | "running"
+        ): void {
             world.mustGetResource(Log).push(`${this.prefix}:${value}`);
         }
     }
@@ -37,7 +42,12 @@ test("world can register systems, resources, states, and drive updates together"
     class BootExitSystem {
         private readonly prefix = "exit";
 
-        onExit(world: World, _dt: number, _commands: Commands, value: "boot" | "running"): void {
+        onExit(
+            world: World,
+            _dt: number,
+            _commands: DeferredCommands,
+            value: "boot" | "running"
+        ): void {
             world.mustGetResource(Log).push(`${this.prefix}:${value}`);
         }
     }
@@ -48,7 +58,7 @@ test("world can register systems, resources, states, and drive updates together"
         onTransition(
             world: World,
             _dt: number,
-            _commands: Commands,
+            _commands: DeferredCommands,
             from: "boot" | "running",
             to: "boot" | "running"
         ): void {

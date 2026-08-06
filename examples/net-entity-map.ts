@@ -1,4 +1,11 @@
-import { Commands, Entity, World, createRegistry, formatEntity, withComponent } from "../src";
+import {
+    DeferredCommands,
+    Entity,
+    World,
+    createRegistry,
+    formatEntity,
+    withComponent,
+} from "../src";
 
 const registry = createRegistry("example-net-entity-map");
 
@@ -38,7 +45,7 @@ const SnapshotFrames = registry.defineResource<UnitSnapshot[][]>("SnapshotFrames
 const Log = registry.defineResource<string[]>("NetLog");
 
 class NetSyncSystem {
-    onUpdate(world: World, _dt: number, commands: Commands): void {
+    onUpdate(world: World, _dt: number, commands: DeferredCommands): void {
         const snapshots = world.mustGetResource(SnapshotFrames).shift();
 
         if (snapshots === undefined) {
