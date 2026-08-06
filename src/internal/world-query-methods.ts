@@ -8,7 +8,7 @@ import type {
     QueryFilter,
     QueryRow,
 } from "../query.js";
-import type { QueryExecutorContext } from "./query-executor.js";
+import type { EcsContext } from "./ecs-context.js";
 import { getSingleResult, mustGetSingleResult } from "./query-single.js";
 import {
     eachOptional as eachOptionalQuery,
@@ -19,7 +19,7 @@ import {
 
 /** Shared public query API for world instances. */
 export abstract class WorldQueryMethods {
-    protected abstract readonly queryContext: QueryExecutorContext;
+    protected abstract readonly ecsContext: EcsContext;
     protected abstract changeDetectionRange(): ChangeDetectionRange;
 
     /** Iterates entities from an explicit component tuple with an optional filter. */
@@ -27,7 +27,7 @@ export abstract class WorldQueryMethods {
         types: TComponents,
         filter: QueryFilter = {}
     ): IterableIterator<QueryRow<TComponents>> {
-        return runQuery(this.queryContext, types, filter, this.changeDetectionRange());
+        return runQuery(this.ecsContext.queries, types, filter, this.changeDetectionRange());
     }
 
     /** Iterates queries with required and optional component sections. */
@@ -40,7 +40,7 @@ export abstract class WorldQueryMethods {
         filter: QueryFilter = {}
     ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
         return runOptionalQuery(
-            this.queryContext,
+            this.ecsContext.queries,
             required,
             optional,
             filter,
@@ -86,7 +86,7 @@ export abstract class WorldQueryMethods {
                 ? [{}, filterOrVisitor]
                 : [filterOrVisitor, maybeVisitor];
 
-        eachQuery(this.queryContext, types, filter, this.changeDetectionRange(), visitor!);
+        eachQuery(this.ecsContext.queries, types, filter, this.changeDetectionRange(), visitor!);
     }
 
     /** Visits required-plus-optional query rows without allocating a query state object. */
@@ -133,7 +133,7 @@ export abstract class WorldQueryMethods {
                 : [filterOrVisitor, maybeVisitor];
 
         eachOptionalQuery(
-            this.queryContext,
+            this.ecsContext.queries,
             required,
             optional,
             filter,

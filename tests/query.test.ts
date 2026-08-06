@@ -307,11 +307,13 @@ test("query state refreshes the base store when store sizes skew after cache res
 
     const stores = (
         world as unknown as {
-            readonly componentStoreContext: {
-                readonly stores: readonly (SparseSet<unknown> | undefined)[];
+            readonly ecsContext: {
+                readonly componentStores: {
+                    readonly stores: readonly (SparseSet<unknown> | undefined)[];
+                };
             };
         }
-    ).componentStoreContext.stores;
+    ).ecsContext.componentStores.stores;
     const positionStore = stores[Position.id];
     const velocityStore = stores[Velocity.id];
 

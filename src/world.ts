@@ -8,7 +8,7 @@ import {
     ComponentRemoveReason,
     ComponentType,
 } from "./component.js";
-import { Entity, EntityManager, formatEntity, type EntityType } from "./entity.js";
+import { Entity, formatEntity, type EntityType } from "./entity.js";
 import { assertRegisteredEvent, type EventObserver, type EventType } from "./event.js";
 import { runSystemWithCommands } from "./internal/command-execution.js";
 import {
@@ -20,13 +20,11 @@ import {
     sortEntriesByDependencies,
 } from "./internal/component-dependencies.js";
 import {
-    createComponentOpsContext,
     remove as deleteComponent,
     despawn as despawnEntity,
     add as insertComponent,
     addValidated as insertValidatedComponent,
     markChanged as markStoredComponentChanged,
-    type ComponentOpsContext,
 } from "./internal/component-ops.js";
 import {
     getManyComponents,
@@ -35,15 +33,8 @@ import {
     isComponentAdded,
     isComponentChanged,
 } from "./internal/component-read.js";
-import {
-    compactComponentStores,
-    createComponentStoreContext,
-    type ComponentStoreContext,
-} from "./internal/component-store.js";
-import {
-    createEntityComponentIndexContext,
-    getEntityComponents,
-} from "./internal/entity-component-index.js";
+import { createEcsContext, type EcsContext } from "./internal/ecs-context.js";
+import { getEntityComponents } from "./internal/entity-component-index.js";
 import {
     createEventContext,
     observeEvent,
@@ -60,17 +51,11 @@ import {
     writeMessage as writeStoredMessage,
     type MessageContext,
 } from "./internal/messages.js";
-import type { QueryExecutorContext } from "./internal/query-executor.js";
-import { createQueryPlanContext } from "./internal/query-plan.js";
 import {
     createRemovedReader as createBoundRemovedReader,
-    createRemovedStoreContext,
     drainRemoved as drainRemovedComponents,
-    recordRemoved as recordRemovedComponent,
-    type RemovedStoreContext,
 } from "./internal/removed-store.js";
 import {
-    createResourceContext,
     getResource as getStoredResource,
     hasResource as hasStoredResource,
     isResourceAdded as isStoredResourceAdded,
@@ -79,7 +64,6 @@ import {
     matchesResource as matchesStoredResource,
     removeResource as removeStoredResource,
     setResource as setStoredResource,
-    type ResourceContext,
 } from "./internal/resources.js";
 import {
     addSystemRunner as addScheduledSystemRunner,
@@ -162,20 +146,13 @@ export type { StateSystem, System, TransitionSystem } from "./system.js";
  */
 export class World extends WorldQueryMethods {
     readonly registry: Registry;
-    protected readonly entityManager: EntityManager;
-    protected readonly queryContext: QueryExecutorContext;
-    private readonly componentStoreContext: ComponentStoreContext;
-    private readonly resourceContext: ResourceContext;
-    private readonly removedContext: RemovedStoreContext;
-    private readonly componentContext: ComponentOpsContext;
-    private readonly entityComponents = createEntityComponentIndexContext();
+    protected readonly ecsContext: EcsContext;
     private readonly commandRuntime: CommandRuntime;
     private readonly stateContext: StateMachineContext;
     private readonly eventContext: EventContext;
     private readonly messageContext: MessageContext;
     private readonly scheduleContext: ScheduleEngineContext;
     private activeChangeDetection: ChangeDetectionRange | undefined;
-    private activeQueryDepth = 0;
     private changeTick = 1;
     private didStartup = false;
     private didShutdown = false;
@@ -184,26 +161,6 @@ export class World extends WorldQueryMethods {
     constructor(registry: Registry) {
         super();
         this.registry = registry;
-        this.entityManager = new EntityManager();
-        this.commandRuntime = {
-            reserveEntity: (etype) => this.entityManager.reserve(etype),
-            releaseReservedEntity: (entity) => this.entityManager.releaseReserved(entity),
-            commitReservedEntity: (entity) => {
-                this.entityManager.commitReserved(entity);
-            },
-            addSpawnedComponent: (entity, type, value) => {
-                this.addComponentWithReason(entity, type, value, "spawned");
-            },
-        };
-        this.componentStoreContext = createComponentStoreContext(registry);
-
-        this.removedContext = createRemovedStoreContext({
-            getChangeTick: () => this.changeTick,
-        });
-        this.resourceContext = createResourceContext({
-            getChangeTick: () => this.changeTick,
-            getChangeDetectionRange: () => this.changeDetectionRange(),
-        });
         const runComponentHooks = ((type, stage, entity, componentOrPrevious, next) => {
             if (stage === "onReplace") {
                 type.lifecycle.onReplace?.(
@@ -245,42 +202,28 @@ export class World extends WorldQueryMethods {
             }
 
             type.lifecycle.onUnset?.(entity, componentOrPrevious, this);
-        }) as ComponentOpsContext["runComponentHooks"];
-        this.componentContext = createComponentOpsContext({
-            entities: this.entityManager,
-            componentStores: this.componentStoreContext,
-            entityComponents: this.entityComponents,
+        }) as EcsContext["components"]["runComponentHooks"];
+        this.ecsContext = createEcsContext({
+            registry,
             getChangeTick: () => this.changeTick,
             getChangeDetectionRange: () => this.changeDetectionRange(),
-            shouldDeferComponentCompaction: () => this.activeQueryDepth > 0,
             runComponentHooks,
-            recordRemoved: (type, entity, component) => {
-                recordRemovedComponent(this.removedContext, type, entity, component);
-            },
         });
+        this.commandRuntime = {
+            reserveEntity: (etype) => this.ecsContext.entities.reserve(etype),
+            releaseReservedEntity: (entity) => this.ecsContext.entities.releaseReserved(entity),
+            commitReservedEntity: (entity) => {
+                this.ecsContext.entities.commitReserved(entity);
+            },
+            addSpawnedComponent: (entity, type, value) => {
+                this.addComponentWithReason(entity, type, value, "spawned");
+            },
+        };
         this.stateContext = createStateMachineContext();
         this.eventContext = createEventContext();
         this.messageContext = createMessageContext();
-        this.queryContext = {
-            planContext: createQueryPlanContext({
-                registry,
-                stores: this.componentStoreContext.stores,
-                getStoreVersion: () => this.componentStoreContext.storeVersion,
-            }),
-            beginIteration: () => {
-                this.activeQueryDepth++;
-            },
-            endIteration: () => {
-                this.activeQueryDepth--;
-
-                if (this.activeQueryDepth === 0) {
-                    compactComponentStores(this.componentStoreContext);
-                }
-            },
-        };
         this.scheduleContext = createScheduleEngineContext();
     }
-
     /** Creates a new entity and inserts the provided component entries immediately. */
     spawn(...entries: AnyComponentEntry[]): Entity;
     spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
@@ -299,17 +242,17 @@ export class World extends WorldQueryMethods {
 
     /** Returns whether the entity handle still points at a live entity. */
     isAlive(entity: Entity): boolean {
-        return this.entityManager.isAlive(entity);
+        return this.ecsContext.entities.isAlive(entity);
     }
 
     /** Returns the type assigned when the entity was created, or `undefined` for stale handles. */
     entityType(entity: Entity): EntityType | undefined {
-        return this.entityManager.entityType(entity);
+        return this.ecsContext.entities.entityType(entity);
     }
 
     /** Iterates every currently live entity handle in storage-index order. */
     entities(): IterableIterator<Entity> {
-        return this.entityManager.entities();
+        return this.ecsContext.entities.entities();
     }
 
     /** Stages structural edits and commits their final diff after validation succeeds. */
@@ -338,7 +281,7 @@ export class World extends WorldQueryMethods {
     markComponentChanged<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
         assertRegisteredComponent(this.registry, type, "mark changed");
 
-        return markStoredComponentChanged(this.componentContext, entity, type);
+        return markStoredComponentChanged(this.ecsContext.components, entity, type);
     }
 
     // Keep these tiny component-read helpers inlined on World.
@@ -350,8 +293,8 @@ export class World extends WorldQueryMethods {
         assertRegisteredComponent(this.registry, type, "read");
 
         return (
-            this.entityManager.isAlive(entity) &&
-            (this.componentStoreContext.stores[type.id]?.has(entity) ?? false)
+            this.ecsContext.entities.isAlive(entity) &&
+            (this.ecsContext.componentStores.stores[type.id]?.has(entity) ?? false)
         );
     }
 
@@ -360,8 +303,8 @@ export class World extends WorldQueryMethods {
         assertRegisteredComponents(this.registry, types, "read");
 
         return hasAllComponents(
-            this.entityManager,
-            this.componentStoreContext.stores,
+            this.ecsContext.entities,
+            this.ecsContext.componentStores.stores,
             entity,
             types
         );
@@ -372,8 +315,8 @@ export class World extends WorldQueryMethods {
         assertRegisteredComponents(this.registry, types, "read");
 
         return hasAnyComponents(
-            this.entityManager,
-            this.componentStoreContext.stores,
+            this.ecsContext.entities,
+            this.ecsContext.componentStores.stores,
             entity,
             types
         );
@@ -383,11 +326,11 @@ export class World extends WorldQueryMethods {
     getComponent<T extends object>(entity: Entity, type: ComponentType<T>): T | undefined {
         assertRegisteredComponent(this.registry, type, "read");
 
-        if (!this.entityManager.isAlive(entity)) {
+        if (!this.ecsContext.entities.isAlive(entity)) {
             return undefined;
         }
 
-        return this.componentStoreContext.stores[type.id]?.get(entity) as T | undefined;
+        return this.ecsContext.componentStores.stores[type.id]?.get(entity) as T | undefined;
     }
 
     /** Returns the component value or throws when the entity does not have it. */
@@ -409,8 +352,8 @@ export class World extends WorldQueryMethods {
         assertRegisteredComponents(this.registry, types, "read");
 
         return getManyComponents(
-            this.entityManager,
-            this.componentStoreContext.stores,
+            this.ecsContext.entities,
+            this.ecsContext.componentStores.stores,
             entity,
             types
         );
@@ -421,8 +364,8 @@ export class World extends WorldQueryMethods {
         assertRegisteredComponent(this.registry, type, "read");
 
         return isComponentAdded(
-            this.entityManager,
-            this.componentStoreContext.stores,
+            this.ecsContext.entities,
+            this.ecsContext.componentStores.stores,
             entity,
             type,
             this.changeDetectionRange()
@@ -434,8 +377,8 @@ export class World extends WorldQueryMethods {
         assertRegisteredComponent(this.registry, type, "read");
 
         return isComponentChanged(
-            this.entityManager,
-            this.componentStoreContext.stores,
+            this.ecsContext.entities,
+            this.ecsContext.componentStores.stores,
             entity,
             type,
             this.changeDetectionRange()
@@ -446,9 +389,9 @@ export class World extends WorldQueryMethods {
     removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
         assertRegisteredComponent(this.registry, type, "remove");
 
-        const componentIds = getEntityComponents(this.entityComponents, entity);
+        const componentIds = getEntityComponents(this.ecsContext.entityComponents, entity);
 
-        if (this.entityManager.isAlive(entity) && componentIds.length > 1) {
+        if (this.ecsContext.entities.isAlive(entity) && componentIds.length > 1) {
             assertComponentHasNoDependents(
                 entity,
                 type,
@@ -459,12 +402,12 @@ export class World extends WorldQueryMethods {
             );
         }
 
-        return deleteComponent(this.componentContext, entity, type);
+        return deleteComponent(this.ecsContext.components, entity, type);
     }
 
     /** Removes all components from an entity, runs hooks, and destroys the entity handle. */
     despawn(entity: Entity): boolean {
-        return despawnEntity(this.componentContext, entity);
+        return despawnEntity(this.ecsContext.components, entity);
     }
 
     /** Drains and clears the removed-component buffer for the given component type. */
@@ -473,7 +416,7 @@ export class World extends WorldQueryMethods {
     ): RemovedComponent<TComponent>[] {
         assertRegisteredComponent(this.registry, type, "read removed");
 
-        return drainRemovedComponents(this.removedContext, type);
+        return drainRemovedComponents(this.ecsContext.removed, type);
     }
 
     /** Creates a removed-component reader bound to this world. */
@@ -483,7 +426,7 @@ export class World extends WorldQueryMethods {
     ): RemovedReader<TComponent> {
         assertRegisteredComponent(this.registry, type, "create removed reader");
 
-        return createBoundRemovedReader(this.removedContext, type, options);
+        return createBoundRemovedReader(this.ecsContext.removed, type, options);
     }
 
     /** Registers an object-style system or a callback for one schedule stage. */
@@ -718,7 +661,7 @@ export class World extends WorldQueryMethods {
     setResource<T>(type: ResourceType<T>, value: T): this {
         assertRegisteredResource(this.registry, type, "set");
 
-        setStoredResource(this.resourceContext, type, value);
+        setStoredResource(this.ecsContext.resources, type, value);
 
         return this;
     }
@@ -727,14 +670,14 @@ export class World extends WorldQueryMethods {
     hasResource<T>(type: ResourceType<T>): boolean {
         assertRegisteredResource(this.registry, type, "read");
 
-        return hasStoredResource(this.resourceContext, type);
+        return hasStoredResource(this.ecsContext.resources, type);
     }
 
     /** Returns the resource value, or `undefined` when missing. */
     getResource<T>(type: ResourceType<T>): T | undefined {
         assertRegisteredResource(this.registry, type, "read");
 
-        return getStoredResource(this.resourceContext, type);
+        return getStoredResource(this.ecsContext.resources, type);
     }
 
     /** Evaluates a predicate against the current resource value. */
@@ -744,14 +687,14 @@ export class World extends WorldQueryMethods {
     ): boolean {
         assertRegisteredResource(this.registry, type, "read");
 
-        return matchesStoredResource(this.resourceContext, type, predicate, this);
+        return matchesStoredResource(this.ecsContext.resources, type, predicate, this);
     }
 
     /** Returns the resource value or throws when it is missing. */
     mustGetResource<T>(type: ResourceType<T>): T {
         assertRegisteredResource(this.registry, type, "read");
 
-        const resource = getStoredResource(this.resourceContext, type);
+        const resource = getStoredResource(this.ecsContext.resources, type);
 
         if (resource === undefined) {
             throw new Error(`Resource not found: ${type.name}`);
@@ -764,28 +707,28 @@ export class World extends WorldQueryMethods {
     removeResource<T>(type: ResourceType<T>): T | undefined {
         assertRegisteredResource(this.registry, type, "remove");
 
-        return removeStoredResource(this.resourceContext, type);
+        return removeStoredResource(this.ecsContext.resources, type);
     }
 
     /** Marks an existing resource as changed without replacing its value. */
     markResourceChanged<T>(type: ResourceType<T>): boolean {
         assertRegisteredResource(this.registry, type, "mark changed");
 
-        return markStoredResourceChanged(this.resourceContext, type);
+        return markStoredResourceChanged(this.ecsContext.resources, type);
     }
 
     /** Returns whether the resource was added inside the current change-detection window. */
     isResourceAdded<T>(type: ResourceType<T>): boolean {
         assertRegisteredResource(this.registry, type, "read");
 
-        return isStoredResourceAdded(this.resourceContext, type);
+        return isStoredResourceAdded(this.ecsContext.resources, type);
     }
 
     /** Returns whether the resource changed inside the current change-detection window. */
     isResourceChanged<T>(type: ResourceType<T>): boolean {
         assertRegisteredResource(this.registry, type, "read");
 
-        return isStoredResourceChanged(this.resourceContext, type);
+        return isStoredResourceChanged(this.ecsContext.resources, type);
     }
 
     private createWorldBatchRuntime(): WorldBatchRuntime {
@@ -796,17 +739,19 @@ export class World extends WorldQueryMethods {
             assertComponentRegistered: (type, action) => {
                 assertRegisteredComponent(this.registry, type, action);
             },
-            isAlive: (entity) => this.entityManager.isAlive(entity),
+            isAlive: (entity) => this.ecsContext.entities.isAlive(entity),
             reserveEntity: this.commandRuntime.reserveEntity,
             releaseReservedEntity: this.commandRuntime.releaseReservedEntity,
             commitReservedEntity: this.commandRuntime.commitReservedEntity,
-            entityComponentIds: (entity) => getEntityComponents(this.entityComponents, entity),
+            entityComponentIds: (entity) =>
+                getEntityComponents(this.ecsContext.entityComponents, entity),
             componentTypeById: (componentId) => this.registry.componentType(componentId),
             insertComponent: (entity, type, value, reason) => {
-                insertValidatedComponent(this.componentContext, entity, type, value, reason);
+                insertValidatedComponent(this.ecsContext.components, entity, type, value, reason);
             },
-            removeComponent: (entity, type) => deleteComponent(this.componentContext, entity, type),
-            despawnEntity: (entity) => despawnEntity(this.componentContext, entity),
+            removeComponent: (entity, type) =>
+                deleteComponent(this.ecsContext.components, entity, type),
+            despawnEntity: (entity) => despawnEntity(this.ecsContext.components, entity),
         };
     }
 
@@ -816,10 +761,10 @@ export class World extends WorldQueryMethods {
         const orderedEntries = entriesHaveDependencyChecks(entries)
             ? (assertSpawnEntriesSatisfied(entries), sortEntriesByDependencies(entries))
             : entries;
-        const entity = this.entityManager.create(etype);
+        const entity = this.ecsContext.entities.create(etype);
 
         for (const entry of orderedEntries) {
-            insertComponent(this.componentContext, entity, entry.type, entry.value, "spawned");
+            insertComponent(this.ecsContext.components, entity, entry.type, entry.value, "spawned");
         }
 
         return entity;
@@ -833,19 +778,19 @@ export class World extends WorldQueryMethods {
     ): void {
         assertRegisteredComponent(this.registry, type, "add");
 
-        if (type.deps.length > 0 && this.entityManager.isAlive(entity)) {
+        if (type.deps.length > 0 && this.ecsContext.entities.isAlive(entity)) {
             assertComponentDepsPresent(
                 entity,
                 type,
                 currentEntityComponentTypes(
-                    getEntityComponents(this.entityComponents, entity),
+                    getEntityComponents(this.ecsContext.entityComponents, entity),
                     (componentId) => this.registry.componentType(componentId)
                 ),
                 "add"
             );
         }
 
-        insertComponent(this.componentContext, entity, type, value, reason);
+        insertComponent(this.ecsContext.components, entity, type, value, reason);
     }
 
     private assertEntriesRegistered(entries: readonly AnyComponentEntry[], action: string): void {

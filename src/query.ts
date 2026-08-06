@@ -1,4 +1,5 @@
 import type { AnyComponentType, ComponentData } from "./component.js";
+import type { EcsContext } from "./internal/ecs-context.js";
 import type { Entity } from "./entity.js";
 import {
     eachOptionalWithState as eachOptionalQueryWithState,
@@ -9,7 +10,6 @@ import {
     matchesSingleWithState as matchesSingleQueryWithState,
     queryOptionalWithState as runOptionalQueryWithState,
     queryWithState as runQueryWithState,
-    type QueryExecutorContext,
 } from "./internal/query-executor.js";
 import { getSingleResult, mustGetSingleResult } from "./internal/query-single.js";
 import type { Registry } from "./registry.js";
@@ -153,7 +153,7 @@ class CachedQueryState<
     iter(world: World): IterableIterator<QueryRow<TComponents>> {
         const runtime = worldQueryRuntime(world);
 
-        return runQueryWithState(runtime.queryContext, this, runtime.changeDetectionRange());
+        return runQueryWithState(runtime.ecsContext.queries, this, runtime.changeDetectionRange());
     }
 
     each(
@@ -162,13 +162,22 @@ class CachedQueryState<
     ): void {
         const runtime = worldQueryRuntime(world);
 
-        eachQueryWithState(runtime.queryContext, this, runtime.changeDetectionRange(), visitor);
+        eachQueryWithState(
+            runtime.ecsContext.queries,
+            this,
+            runtime.changeDetectionRange(),
+            visitor
+        );
     }
 
     matchesAny(world: World): boolean {
         const runtime = worldQueryRuntime(world);
 
-        return matchesAnyQueryWithState(runtime.queryContext, this, runtime.changeDetectionRange());
+        return matchesAnyQueryWithState(
+            runtime.ecsContext.queries,
+            this,
+            runtime.changeDetectionRange()
+        );
     }
 
     matchesNone(world: World): boolean {
@@ -179,7 +188,7 @@ class CachedQueryState<
         const runtime = worldQueryRuntime(world);
 
         return matchesSingleQueryWithState(
-            runtime.queryContext,
+            runtime.ecsContext.queries,
             this,
             runtime.changeDetectionRange()
         );
@@ -220,7 +229,7 @@ class CachedOptionalQueryState<
         const runtime = worldQueryRuntime(world);
 
         return runOptionalQueryWithState(
-            runtime.queryContext,
+            runtime.ecsContext.queries,
             this,
             runtime.changeDetectionRange()
         );
@@ -239,7 +248,7 @@ class CachedOptionalQueryState<
         const runtime = worldQueryRuntime(world);
 
         eachOptionalQueryWithState(
-            runtime.queryContext,
+            runtime.ecsContext.queries,
             this,
             runtime.changeDetectionRange(),
             visitor
@@ -250,7 +259,7 @@ class CachedOptionalQueryState<
         const runtime = worldQueryRuntime(world);
 
         return matchesAnyOptionalQueryWithState(
-            runtime.queryContext,
+            runtime.ecsContext.queries,
             this,
             runtime.changeDetectionRange()
         );
@@ -264,7 +273,7 @@ class CachedOptionalQueryState<
         const runtime = worldQueryRuntime(world);
 
         return matchesSingleOptionalQueryWithState(
-            runtime.queryContext,
+            runtime.ecsContext.queries,
             this,
             runtime.changeDetectionRange()
         );
@@ -340,7 +349,7 @@ function resolveOptionalQueryRegistry(
 }
 
 interface QueryStateWorldRuntime {
-    readonly queryContext: QueryExecutorContext;
+    readonly ecsContext: EcsContext;
     readonly changeDetectionRange: () => ChangeDetectionRange;
 }
 
