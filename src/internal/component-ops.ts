@@ -9,6 +9,7 @@ import { assertComponentValue } from "../component.js";
 import type { Entity } from "../entity.js";
 import { EntityManager, formatEntity } from "../entity.js";
 import type { ChangeDetectionRange, ComponentTuple } from "../query.js";
+import type { SparseSet } from "../sparse-set.js";
 import { sortComponentTypesByDependencies } from "./component-dependencies.js";
 import {
     getManyComponents,
@@ -21,6 +22,7 @@ import {
     ensureComponentStore,
     getComponentStore,
     getComponentType,
+    markComponentStoreForCompaction,
     type ComponentStoreContext,
 } from "./component-store.js";
 import {
@@ -36,6 +38,7 @@ interface ComponentOpsContextOptions {
     readonly entityComponents: EntityComponentIndexContext;
     readonly getChangeTick: () => number;
     readonly getChangeDetectionRange: () => ChangeDetectionRange;
+    readonly shouldDeferComponentCompaction: () => boolean;
     readonly runComponentHooks: {
         <T extends object>(
             type: ComponentType<T>,
@@ -238,7 +241,7 @@ export function remove<T extends object>(
     context.runComponentHooks(type, "onRemove", entity, component, "removed");
     context.recordRemoved(type, entity, component);
     untrackEntityComponent(context.entityComponents, entity, type.id);
-    store.delete(entity);
+    deleteStoredComponent(context, store, entity);
 
     return true;
 }
@@ -265,7 +268,7 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
                 context.recordRemoved(type, entity, component);
             }
 
-            store?.delete(entity);
+            deleteStoredComponent(context, store, entity);
         }
 
         return context.entities.destroy(entity);
@@ -288,10 +291,29 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
             context.recordRemoved(type, entity, component);
         }
 
-        store?.delete(entity);
+        deleteStoredComponent(context, store, entity);
     }
 
     return context.entities.destroy(entity);
+}
+
+function deleteStoredComponent<T>(
+    context: ComponentOpsContext,
+    store: SparseSet<T> | undefined,
+    entity: Entity
+): boolean {
+    if (store === undefined) {
+        return false;
+    }
+
+    const deferCompaction = context.shouldDeferComponentCompaction();
+    const deleted = store.delete(entity, deferCompaction);
+
+    if (deleted && deferCompaction) {
+        markComponentStoreForCompaction(context.componentStores, store);
+    }
+
+    return deleted;
 }
 
 /** Writes exactly one component store and runs the appropriate lifecycle hooks around it. */

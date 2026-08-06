@@ -9,6 +9,8 @@ export function getSingleResult<TRow>(iterator: Iterator<TRow>): TRow | undefine
     const second = iterator.next();
 
     if (second.done !== true) {
+        iterator.return?.();
+
         throw new Error("Expected at most one query result");
     }
 

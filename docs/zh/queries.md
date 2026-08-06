@@ -15,6 +15,12 @@ world.each([Position, Velocity], (_entity, position, velocity) => {
 
 需要 iterator row 时使用 `world.query(...)`；在热路径上可以使用 `world.each(...)`，避免为每个匹配结果分配 row 数组。
 
+## 迭代期间删除
+
+在活跃 query 中移除 component 或 despawn entity 时，删除会立即在逻辑上生效。尚未访问且不再匹配的 entity 会被跳过；删除已经访问过的 entity 不会立刻重排 dense storage，因此不会导致后续 row 意外消失。嵌套 query 也会看到这次删除。
+
+物理 compact 会等到最外层 query 结束。手动消费 iterator 时，应将其消费完，或者在提前停止时调用 `return()`。该稳定性保证只覆盖删除；结构添加继续保持现有的立即生效语义。
+
 ## 过滤器
 
 `query(...)` 和 `each(...)` 支持这些过滤器：

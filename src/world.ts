@@ -36,6 +36,7 @@ import {
     isComponentChanged,
 } from "./internal/component-read.js";
 import {
+    compactComponentStores,
     createComponentStoreContext,
     type ComponentStoreContext,
 } from "./internal/component-store.js";
@@ -174,6 +175,7 @@ export class World extends WorldQueryMethods {
     private readonly messageContext: MessageContext;
     private readonly scheduleContext: ScheduleEngineContext;
     private activeChangeDetection: ChangeDetectionRange | undefined;
+    private activeQueryDepth = 0;
     private changeTick = 1;
     private didStartup = false;
     private didShutdown = false;
@@ -250,6 +252,7 @@ export class World extends WorldQueryMethods {
             entityComponents: this.entityComponents,
             getChangeTick: () => this.changeTick,
             getChangeDetectionRange: () => this.changeDetectionRange(),
+            shouldDeferComponentCompaction: () => this.activeQueryDepth > 0,
             runComponentHooks,
             recordRemoved: (type, entity, component) => {
                 recordRemovedComponent(this.removedContext, type, entity, component);
@@ -264,6 +267,16 @@ export class World extends WorldQueryMethods {
                 stores: this.componentStoreContext.stores,
                 getStoreVersion: () => this.componentStoreContext.storeVersion,
             }),
+            beginIteration: () => {
+                this.activeQueryDepth++;
+            },
+            endIteration: () => {
+                this.activeQueryDepth--;
+
+                if (this.activeQueryDepth === 0) {
+                    compactComponentStores(this.componentStoreContext);
+                }
+            },
         };
         this.scheduleContext = createScheduleEngineContext();
     }

@@ -33,6 +33,149 @@ test("each visits every matching entity", () => {
     world.despawn(b);
     world.despawn(c);
 });
+test("each keeps base-store iteration stable across logical deletion and nested queries", () => {
+    const localRegistry = createRegistry("stable-each-removal-test");
+    const Position = localRegistry.defineComponent<{ x: number }>("Position");
+    const Velocity = localRegistry.defineComponent<{ x: number }>("Velocity");
+    const moving = queryState([Position, Velocity]);
+    const world = new World(localRegistry);
+    const first = world.spawn(withComponent(Position, { x: 1 }), withComponent(Velocity, { x: 1 }));
+    const second = world.spawn(
+        withComponent(Position, { x: 2 }),
+        withComponent(Velocity, { x: 2 })
+    );
+    const third = world.spawn(withComponent(Position, { x: 3 }), withComponent(Velocity, { x: 3 }));
+
+    world.spawn(withComponent(Position, { x: 4 }));
+
+    const seen: (typeof first)[] = [];
+    let nestedSeen: (typeof first)[] = [];
+
+    world.each([Position, Velocity], (entity) => {
+        seen.push(entity);
+
+        if (entity === second) {
+            assert.equal(world.removeComponent(first, Velocity), true);
+            nestedSeen = Array.from(moving.iter(world), ([nestedEntity]) => nestedEntity);
+        }
+    });
+
+    assert.deepEqual(seen, [first, second, third]);
+    assert.deepEqual(nestedSeen, [second, third]);
+    assert.equal(world.hasComponent(first, Velocity), false);
+    assert.deepEqual(
+        new Set(Array.from(moving.iter(world), ([entity]) => entity)),
+        new Set([second, third])
+    );
+});
+
+test("each skips an unvisited entity when its base filter component is removed", () => {
+    const localRegistry = createRegistry("stable-filter-base-removal-test");
+    const Position = localRegistry.defineComponent<{ x: number }>("Position");
+    const Active = localRegistry.defineComponent("Active");
+    const world = new World(localRegistry);
+    const first = world.spawn(withComponent(Position, { x: 1 }), withMarker(Active));
+    const removed = world.spawn(withComponent(Position, { x: 2 }), withMarker(Active));
+    const third = world.spawn(withComponent(Position, { x: 3 }), withMarker(Active));
+
+    world.spawn(withComponent(Position, { x: 4 }));
+
+    const seen: (typeof first)[] = [];
+
+    world.each([Position], { with: [Active] }, (entity) => {
+        seen.push(entity);
+
+        if (entity === first) {
+            assert.equal(world.removeComponent(removed, Active), true);
+        }
+    });
+
+    assert.deepEqual(seen, [first, third]);
+});
+
+test("query iterators defer compaction until iteration completes", () => {
+    const localRegistry = createRegistry("stable-query-iterator-removal-test");
+    const Value = localRegistry.defineComponent<{ value: number }>("Value");
+    const world = new World(localRegistry);
+    const first = world.spawn(withComponent(Value, { value: 1 }));
+    const second = world.spawn(withComponent(Value, { value: 2 }));
+    const third = world.spawn(withComponent(Value, { value: 3 }));
+    const iterator = world.query([Value]);
+    const firstResult = iterator.next();
+
+    assert.equal(firstResult.done, false);
+    assert.equal(firstResult.value?.[0], first);
+    assert.equal(world.removeComponent(first, Value), true);
+
+    const remaining = Array.from(iterator, ([entity]) => entity);
+
+    assert.deepEqual(remaining, [second, third]);
+    assert.deepEqual(
+        new Set(Array.from(world.query([Value]), ([entity]) => entity)),
+        new Set([second, third])
+    );
+});
+test("query iterator return releases tracking and compacts tombstones", () => {
+    const localRegistry = createRegistry("stable-query-iterator-return-test");
+    const Value = localRegistry.defineComponent<{ value: number }>("Value");
+    const world = new World(localRegistry);
+    const first = world.spawn(withComponent(Value, { value: 1 }));
+    const second = world.spawn(withComponent(Value, { value: 2 }));
+    const third = world.spawn(withComponent(Value, { value: 3 }));
+    const iterator = world.query([Value]);
+
+    assert.equal(iterator.next().value?.[0], first);
+    assert.equal(world.removeComponent(first, Value), true);
+    assert.deepEqual(iterator.return?.(), { done: true, value: undefined });
+    assert.deepEqual(
+        Array.from(world.query([Value]), ([entity]) => entity),
+        [third, second]
+    );
+});
+
+test("query iterator throw releases tracking and compacts tombstones", () => {
+    const localRegistry = createRegistry("stable-query-iterator-throw-test");
+    const Value = localRegistry.defineComponent<{ value: number }>("Value");
+    const world = new World(localRegistry);
+    const first = world.spawn(withComponent(Value, { value: 1 }));
+    const second = world.spawn(withComponent(Value, { value: 2 }));
+    const third = world.spawn(withComponent(Value, { value: 3 }));
+    const iterator = world.query([Value]);
+    const expected = new Error("stop iteration");
+
+    assert.equal(iterator.next().value?.[0], first);
+    assert.equal(world.removeComponent(first, Value), true);
+    assert.throws(
+        () => iterator.throw?.(expected),
+        (error) => error === expected
+    );
+    assert.deepEqual(
+        Array.from(world.query([Value]), ([entity]) => entity),
+        [third, second]
+    );
+});
+
+test("query counts ignore base-store tombstones during an outer iteration", () => {
+    const localRegistry = createRegistry("stable-query-count-removal-test");
+    const Outer = localRegistry.defineComponent("Outer");
+    const Value = localRegistry.defineComponent<{ value: number }>("Value");
+    const values = queryState([Value]);
+    const world = new World(localRegistry);
+    const outer = world.spawn(withMarker(Outer));
+    const removed = world.spawn(withComponent(Value, { value: 1 }));
+    const remaining = world.spawn(withComponent(Value, { value: 2 }));
+
+    world.each([Outer], () => {
+        assert.equal(world.removeComponent(removed, Value), true);
+        assert.equal(values.matchesSingle(world), true);
+        assert.deepEqual(
+            Array.from(values.iter(world), ([entity]) => entity),
+            [remaining]
+        );
+    });
+
+    assert.equal(world.isAlive(outer), true);
+});
 
 test("each skips despawned entities", () => {
     const Marker = registry.defineComponent("EachSkipMarker");

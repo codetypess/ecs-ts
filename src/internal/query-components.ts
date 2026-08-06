@@ -13,6 +13,10 @@ export function fillComponents(
         const store = stores[index]!;
 
         if (store === knownPresentStore) {
+            if (knownPresentValue === undefined) {
+                return false;
+            }
+
             output[index] = knownPresentValue;
             continue;
         }

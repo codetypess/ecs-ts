@@ -97,243 +97,335 @@ export function compileOptionalQueryCount(filterMode: QueryFilterMode): Optional
 
 function* iterateRequired1(
     plan: ResolvedQueryPlan,
-    _changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
-    const baseStore = currentRequiredBaseStore(plan);
-    const baseEntities = baseStore.entities;
-    const baseValues = baseStore.values;
-    const store0 = plan.stores[0]!;
-    const baseIsStore0 = store0 === baseStore;
+    beginIteration();
 
-    for (let index = 0; index < baseEntities.length; index++) {
-        const entity = baseEntities[index]!;
+    try {
+        const baseStore = currentRequiredBaseStore(plan);
+        const baseEntities = baseStore.entities;
+        const baseValues = baseStore.values;
+        const store0 = plan.stores[0]!;
+        const baseIsStore0 = store0 === baseStore;
 
-        const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
 
-        if (value0 === undefined) {
-            continue;
+            const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
+
+            if (value0 === undefined) {
+                continue;
+            }
+
+            yield [entity, value0] as unknown as QueryRow<readonly AnyComponentType[]>;
         }
-
-        yield [entity, value0] as unknown as QueryRow<readonly AnyComponentType[]>;
+    } finally {
+        endIteration();
     }
 }
 
 function* iterateRequired1Filtered(
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
-    const baseStore = currentRequiredBaseStore(plan);
-    const baseEntities = baseStore.entities;
-    const baseValues = baseStore.values;
-    const store0 = plan.stores[0]!;
-    const baseIsStore0 = store0 === baseStore;
+    beginIteration();
 
-    for (let index = 0; index < baseEntities.length; index++) {
-        const entity = baseEntities[index]!;
+    try {
+        const baseStore = currentRequiredBaseStore(plan);
+        const baseEntities = baseStore.entities;
+        const baseValues = baseStore.values;
+        const store0 = plan.stores[0]!;
+        const baseIsStore0 = store0 === baseStore;
 
-        if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
-            continue;
+        for (let index = 0; index < baseEntities.length; index++) {
+            const baseValue = baseValues[index];
+
+            if (baseValue === undefined) {
+                continue;
+            }
+
+            const entity = baseEntities[index]!;
+
+            if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
+                continue;
+            }
+
+            const value0 = baseIsStore0 ? baseValue : store0.get(entity);
+
+            if (value0 === undefined) {
+                continue;
+            }
+
+            yield [entity, value0] as unknown as QueryRow<readonly AnyComponentType[]>;
         }
-
-        const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
-
-        if (value0 === undefined) {
-            continue;
-        }
-
-        yield [entity, value0] as unknown as QueryRow<readonly AnyComponentType[]>;
+    } finally {
+        endIteration();
     }
 }
 
 function* iterateRequired2(
     plan: ResolvedQueryPlan,
-    _changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
-    const baseStore = currentRequiredBaseStore(plan);
-    const baseEntities = baseStore.entities;
-    const baseValues = baseStore.values;
-    const store0 = plan.stores[0]!;
-    const store1 = plan.stores[1]!;
-    const baseIsStore0 = store0 === baseStore;
-    const baseIsStore1 = store1 === baseStore;
+    beginIteration();
 
-    for (let index = 0; index < baseEntities.length; index++) {
-        const entity = baseEntities[index]!;
+    try {
+        const baseStore = currentRequiredBaseStore(plan);
+        const baseEntities = baseStore.entities;
+        const baseValues = baseStore.values;
+        const store0 = plan.stores[0]!;
+        const store1 = plan.stores[1]!;
+        const baseIsStore0 = store0 === baseStore;
+        const baseIsStore1 = store1 === baseStore;
 
-        const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
 
-        if (value0 === undefined) {
-            continue;
+            const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
+
+            if (value0 === undefined) {
+                continue;
+            }
+
+            const value1 = baseIsStore1 ? baseValues[index] : store1.get(entity);
+
+            if (value1 === undefined) {
+                continue;
+            }
+
+            yield [entity, value0, value1] as unknown as QueryRow<readonly AnyComponentType[]>;
         }
-
-        const value1 = baseIsStore1 ? baseValues[index] : store1.get(entity);
-
-        if (value1 === undefined) {
-            continue;
-        }
-
-        yield [entity, value0, value1] as unknown as QueryRow<readonly AnyComponentType[]>;
+    } finally {
+        endIteration();
     }
 }
 
 function* iterateRequired2Filtered(
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
-    const baseStore = currentRequiredBaseStore(plan);
-    const baseEntities = baseStore.entities;
-    const baseValues = baseStore.values;
-    const store0 = plan.stores[0]!;
-    const store1 = plan.stores[1]!;
-    const baseIsStore0 = store0 === baseStore;
-    const baseIsStore1 = store1 === baseStore;
+    beginIteration();
 
-    for (let index = 0; index < baseEntities.length; index++) {
-        const entity = baseEntities[index]!;
+    try {
+        const baseStore = currentRequiredBaseStore(plan);
+        const baseEntities = baseStore.entities;
+        const baseValues = baseStore.values;
+        const store0 = plan.stores[0]!;
+        const store1 = plan.stores[1]!;
+        const baseIsStore0 = store0 === baseStore;
+        const baseIsStore1 = store1 === baseStore;
 
-        if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
-            continue;
+        for (let index = 0; index < baseEntities.length; index++) {
+            const baseValue = baseValues[index];
+
+            if (baseValue === undefined) {
+                continue;
+            }
+
+            const entity = baseEntities[index]!;
+
+            if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
+                continue;
+            }
+
+            const value0 = baseIsStore0 ? baseValue : store0.get(entity);
+
+            if (value0 === undefined) {
+                continue;
+            }
+
+            const value1 = baseIsStore1 ? baseValue : store1.get(entity);
+
+            if (value1 === undefined) {
+                continue;
+            }
+
+            yield [entity, value0, value1] as unknown as QueryRow<readonly AnyComponentType[]>;
         }
-
-        const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
-
-        if (value0 === undefined) {
-            continue;
-        }
-
-        const value1 = baseIsStore1 ? baseValues[index] : store1.get(entity);
-
-        if (value1 === undefined) {
-            continue;
-        }
-
-        yield [entity, value0, value1] as unknown as QueryRow<readonly AnyComponentType[]>;
+    } finally {
+        endIteration();
     }
 }
 
 function* iterateRequired3(
     plan: ResolvedQueryPlan,
-    _changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
-    const baseStore = currentRequiredBaseStore(plan);
-    const baseEntities = baseStore.entities;
-    const baseValues = baseStore.values;
-    const store0 = plan.stores[0]!;
-    const store1 = plan.stores[1]!;
-    const store2 = plan.stores[2]!;
-    const baseIsStore0 = store0 === baseStore;
-    const baseIsStore1 = store1 === baseStore;
-    const baseIsStore2 = store2 === baseStore;
+    beginIteration();
 
-    for (let index = 0; index < baseEntities.length; index++) {
-        const entity = baseEntities[index]!;
+    try {
+        const baseStore = currentRequiredBaseStore(plan);
+        const baseEntities = baseStore.entities;
+        const baseValues = baseStore.values;
+        const store0 = plan.stores[0]!;
+        const store1 = plan.stores[1]!;
+        const store2 = plan.stores[2]!;
+        const baseIsStore0 = store0 === baseStore;
+        const baseIsStore1 = store1 === baseStore;
+        const baseIsStore2 = store2 === baseStore;
 
-        const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
 
-        if (value0 === undefined) {
-            continue;
+            const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
+
+            if (value0 === undefined) {
+                continue;
+            }
+
+            const value1 = baseIsStore1 ? baseValues[index] : store1.get(entity);
+
+            if (value1 === undefined) {
+                continue;
+            }
+
+            const value2 = baseIsStore2 ? baseValues[index] : store2.get(entity);
+
+            if (value2 === undefined) {
+                continue;
+            }
+
+            yield [entity, value0, value1, value2] as unknown as QueryRow<
+                readonly AnyComponentType[]
+            >;
         }
-
-        const value1 = baseIsStore1 ? baseValues[index] : store1.get(entity);
-
-        if (value1 === undefined) {
-            continue;
-        }
-
-        const value2 = baseIsStore2 ? baseValues[index] : store2.get(entity);
-
-        if (value2 === undefined) {
-            continue;
-        }
-
-        yield [entity, value0, value1, value2] as unknown as QueryRow<readonly AnyComponentType[]>;
+    } finally {
+        endIteration();
     }
 }
 
 function* iterateRequired3Filtered(
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
-    const baseStore = currentRequiredBaseStore(plan);
-    const baseEntities = baseStore.entities;
-    const baseValues = baseStore.values;
-    const store0 = plan.stores[0]!;
-    const store1 = plan.stores[1]!;
-    const store2 = plan.stores[2]!;
-    const baseIsStore0 = store0 === baseStore;
-    const baseIsStore1 = store1 === baseStore;
-    const baseIsStore2 = store2 === baseStore;
+    beginIteration();
 
-    for (let index = 0; index < baseEntities.length; index++) {
-        const entity = baseEntities[index]!;
+    try {
+        const baseStore = currentRequiredBaseStore(plan);
+        const baseEntities = baseStore.entities;
+        const baseValues = baseStore.values;
+        const store0 = plan.stores[0]!;
+        const store1 = plan.stores[1]!;
+        const store2 = plan.stores[2]!;
+        const baseIsStore0 = store0 === baseStore;
+        const baseIsStore1 = store1 === baseStore;
+        const baseIsStore2 = store2 === baseStore;
 
-        if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
-            continue;
+        for (let index = 0; index < baseEntities.length; index++) {
+            const baseValue = baseValues[index];
+
+            if (baseValue === undefined) {
+                continue;
+            }
+
+            const entity = baseEntities[index]!;
+
+            if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
+                continue;
+            }
+
+            const value0 = baseIsStore0 ? baseValue : store0.get(entity);
+
+            if (value0 === undefined) {
+                continue;
+            }
+
+            const value1 = baseIsStore1 ? baseValue : store1.get(entity);
+
+            if (value1 === undefined) {
+                continue;
+            }
+
+            const value2 = baseIsStore2 ? baseValue : store2.get(entity);
+
+            if (value2 === undefined) {
+                continue;
+            }
+
+            yield [entity, value0, value1, value2] as unknown as QueryRow<
+                readonly AnyComponentType[]
+            >;
         }
-
-        const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
-
-        if (value0 === undefined) {
-            continue;
-        }
-
-        const value1 = baseIsStore1 ? baseValues[index] : store1.get(entity);
-
-        if (value1 === undefined) {
-            continue;
-        }
-
-        const value2 = baseIsStore2 ? baseValues[index] : store2.get(entity);
-
-        if (value2 === undefined) {
-            continue;
-        }
-
-        yield [entity, value0, value1, value2] as unknown as QueryRow<readonly AnyComponentType[]>;
+    } finally {
+        endIteration();
     }
 }
 
 function* iterateRequiredGeneric(
     plan: ResolvedQueryPlan,
-    _changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
-    const baseStore = currentRequiredBaseStore(plan);
-    const baseEntities = baseStore.entities;
-    const baseValues = baseStore.values;
-    const components: unknown[] = new Array(plan.stores.length);
+    beginIteration();
 
-    for (let index = 0; index < baseEntities.length; index++) {
-        const entity = baseEntities[index]!;
+    try {
+        const baseStore = currentRequiredBaseStore(plan);
+        const baseEntities = baseStore.entities;
+        const baseValues = baseStore.values;
+        const components: unknown[] = new Array(plan.stores.length);
 
-        if (!fillComponents(entity, plan.stores, components, baseStore, baseValues[index])) {
-            continue;
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
+
+            if (!fillComponents(entity, plan.stores, components, baseStore, baseValues[index])) {
+                continue;
+            }
+
+            yield [entity, ...components] as unknown as QueryRow<readonly AnyComponentType[]>;
         }
-
-        yield [entity, ...components] as unknown as QueryRow<readonly AnyComponentType[]>;
+    } finally {
+        endIteration();
     }
 }
 
 function* iterateRequiredGenericFiltered(
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
-    const baseStore = currentRequiredBaseStore(plan);
-    const baseEntities = baseStore.entities;
-    const baseValues = baseStore.values;
-    const components: unknown[] = new Array(plan.stores.length);
+    beginIteration();
 
-    for (let index = 0; index < baseEntities.length; index++) {
-        const entity = baseEntities[index]!;
+    try {
+        const baseStore = currentRequiredBaseStore(plan);
+        const baseEntities = baseStore.entities;
+        const baseValues = baseStore.values;
+        const components: unknown[] = new Array(plan.stores.length);
 
-        if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
-            continue;
+        for (let index = 0; index < baseEntities.length; index++) {
+            const baseValue = baseValues[index];
+
+            if (baseValue === undefined) {
+                continue;
+            }
+
+            const entity = baseEntities[index]!;
+
+            if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
+                continue;
+            }
+
+            if (!fillComponents(entity, plan.stores, components, baseStore, baseValue)) {
+                continue;
+            }
+
+            yield [entity, ...components] as unknown as QueryRow<readonly AnyComponentType[]>;
         }
-
-        if (!fillComponents(entity, plan.stores, components, baseStore, baseValues[index])) {
-            continue;
-        }
-
-        yield [entity, ...components] as unknown as QueryRow<readonly AnyComponentType[]>;
+    } finally {
+        endIteration();
     }
 }
 
@@ -373,13 +465,19 @@ function eachRequired1Filtered(
     const baseIsStore0 = store0 === baseStore;
 
     for (let index = 0; index < baseEntities.length; index++) {
+        const baseValue = baseValues[index];
+
+        if (baseValue === undefined) {
+            continue;
+        }
+
         const entity = baseEntities[index]!;
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
 
-        const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
+        const value0 = baseIsStore0 ? baseValue : store0.get(entity);
 
         if (value0 === undefined) {
             continue;
@@ -435,19 +533,25 @@ function eachRequired2Filtered(
     const baseIsStore1 = store1 === baseStore;
 
     for (let index = 0; index < baseEntities.length; index++) {
+        const baseValue = baseValues[index];
+
+        if (baseValue === undefined) {
+            continue;
+        }
+
         const entity = baseEntities[index]!;
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
 
-        const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
+        const value0 = baseIsStore0 ? baseValue : store0.get(entity);
 
         if (value0 === undefined) {
             continue;
         }
 
-        const value1 = baseIsStore1 ? baseValues[index] : store1.get(entity);
+        const value1 = baseIsStore1 ? baseValue : store1.get(entity);
 
         if (value1 === undefined) {
             continue;
@@ -513,25 +617,31 @@ function eachRequired3Filtered(
     const baseIsStore2 = store2 === baseStore;
 
     for (let index = 0; index < baseEntities.length; index++) {
+        const baseValue = baseValues[index];
+
+        if (baseValue === undefined) {
+            continue;
+        }
+
         const entity = baseEntities[index]!;
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
 
-        const value0 = baseIsStore0 ? baseValues[index] : store0.get(entity);
+        const value0 = baseIsStore0 ? baseValue : store0.get(entity);
 
         if (value0 === undefined) {
             continue;
         }
 
-        const value1 = baseIsStore1 ? baseValues[index] : store1.get(entity);
+        const value1 = baseIsStore1 ? baseValue : store1.get(entity);
 
         if (value1 === undefined) {
             continue;
         }
 
-        const value2 = baseIsStore2 ? baseValues[index] : store2.get(entity);
+        const value2 = baseIsStore2 ? baseValue : store2.get(entity);
 
         if (value2 === undefined) {
             continue;
@@ -573,13 +683,19 @@ function eachRequiredGenericFiltered(
     const components: unknown[] = new Array(plan.stores.length);
 
     for (let index = 0; index < baseEntities.length; index++) {
+        const baseValue = baseValues[index];
+
+        if (baseValue === undefined) {
+            continue;
+        }
+
         const entity = baseEntities[index]!;
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
 
-        if (!fillComponents(entity, plan.stores, components, baseStore, baseValues[index])) {
+        if (!fillComponents(entity, plan.stores, components, baseStore, baseValue)) {
             continue;
         }
 
@@ -595,8 +711,15 @@ function countRequiredQueryMatches(
     let matches = 0;
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
+    const baseValues = baseStore.values;
 
     for (let index = 0; index < baseEntities.length; index++) {
+        const baseValue = baseValues[index];
+
+        if (baseValue === undefined) {
+            continue;
+        }
+
         const entity = baseEntities[index]!;
 
         if (!hasComponents(entity, plan.stores, baseStore)) {
@@ -621,8 +744,15 @@ function countRequiredQueryMatchesFiltered(
     let matches = 0;
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
+    const baseValues = baseStore.values;
 
     for (let index = 0; index < baseEntities.length; index++) {
+        const baseValue = baseValues[index];
+
+        if (baseValue === undefined) {
+            continue;
+        }
+
         const entity = baseEntities[index]!;
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
@@ -645,125 +775,189 @@ function countRequiredQueryMatchesFiltered(
 
 function* iterateOptional1x1(
     plan: ResolvedOptionalQueryPlan,
-    _changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ): IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>> {
-    const baseStore = currentOptionalBaseStore(plan);
-    const baseEntities = baseStore.entities;
-    const baseValues = baseStore.values;
-    const requiredStore0 = plan.requiredStores[0]!;
-    const optionalStore0 = plan.optionalStores[0];
-    const baseIsRequiredStore0 = requiredStore0 === baseStore;
+    beginIteration();
 
-    for (let index = 0; index < baseEntities.length; index++) {
-        const entity = baseEntities[index]!;
+    try {
+        const baseStore = currentOptionalBaseStore(plan);
+        const baseEntities = baseStore.entities;
+        const baseValues = baseStore.values;
+        const requiredStore0 = plan.requiredStores[0]!;
+        const optionalStore0 = plan.optionalStores[0];
+        const baseIsRequiredStore0 = requiredStore0 === baseStore;
 
-        const requiredValue0 = baseIsRequiredStore0
-            ? baseValues[index]
-            : requiredStore0.get(entity);
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
 
-        if (requiredValue0 === undefined) {
-            continue;
+            const requiredValue0 = baseIsRequiredStore0
+                ? baseValues[index]
+                : requiredStore0.get(entity);
+
+            if (requiredValue0 === undefined) {
+                continue;
+            }
+
+            yield [
+                entity,
+                requiredValue0,
+                optionalStore0?.get(entity),
+            ] as unknown as OptionalQueryRow<
+                readonly AnyComponentType[],
+                readonly AnyComponentType[]
+            >;
         }
-
-        yield [entity, requiredValue0, optionalStore0?.get(entity)] as unknown as OptionalQueryRow<
-            readonly AnyComponentType[],
-            readonly AnyComponentType[]
-        >;
+    } finally {
+        endIteration();
     }
 }
 
 function* iterateOptional1x1Filtered(
     plan: ResolvedOptionalQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ): IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>> {
-    const baseStore = currentOptionalBaseStore(plan);
-    const baseEntities = baseStore.entities;
-    const baseValues = baseStore.values;
-    const requiredStore0 = plan.requiredStores[0]!;
-    const optionalStore0 = plan.optionalStores[0];
-    const baseIsRequiredStore0 = requiredStore0 === baseStore;
+    beginIteration();
 
-    for (let index = 0; index < baseEntities.length; index++) {
-        const entity = baseEntities[index]!;
+    try {
+        const baseStore = currentOptionalBaseStore(plan);
+        const baseEntities = baseStore.entities;
+        const baseValues = baseStore.values;
+        const requiredStore0 = plan.requiredStores[0]!;
+        const optionalStore0 = plan.optionalStores[0];
+        const baseIsRequiredStore0 = requiredStore0 === baseStore;
 
-        if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
-            continue;
+        for (let index = 0; index < baseEntities.length; index++) {
+            const baseValue = baseValues[index];
+
+            if (baseValue === undefined) {
+                continue;
+            }
+
+            const entity = baseEntities[index]!;
+
+            if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
+                continue;
+            }
+
+            const requiredValue0 = baseIsRequiredStore0 ? baseValue : requiredStore0.get(entity);
+
+            if (requiredValue0 === undefined) {
+                continue;
+            }
+
+            yield [
+                entity,
+                requiredValue0,
+                optionalStore0?.get(entity),
+            ] as unknown as OptionalQueryRow<
+                readonly AnyComponentType[],
+                readonly AnyComponentType[]
+            >;
         }
-
-        const requiredValue0 = baseIsRequiredStore0
-            ? baseValues[index]
-            : requiredStore0.get(entity);
-
-        if (requiredValue0 === undefined) {
-            continue;
-        }
-
-        yield [entity, requiredValue0, optionalStore0?.get(entity)] as unknown as OptionalQueryRow<
-            readonly AnyComponentType[],
-            readonly AnyComponentType[]
-        >;
+    } finally {
+        endIteration();
     }
 }
 
 function* iterateOptionalGeneric(
     plan: ResolvedOptionalQueryPlan,
-    _changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ): IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>> {
-    const baseStore = currentOptionalBaseStore(plan);
-    const baseEntities = baseStore.entities;
-    const baseValues = baseStore.values;
-    const components: unknown[] = new Array(
-        plan.requiredStores.length + plan.optionalStores.length
-    );
+    beginIteration();
 
-    for (let index = 0; index < baseEntities.length; index++) {
-        const entity = baseEntities[index]!;
+    try {
+        const baseStore = currentOptionalBaseStore(plan);
+        const baseEntities = baseStore.entities;
+        const baseValues = baseStore.values;
+        const components: unknown[] = new Array(
+            plan.requiredStores.length + plan.optionalStores.length
+        );
 
-        if (
-            !fillComponents(entity, plan.requiredStores, components, baseStore, baseValues[index])
-        ) {
-            continue;
+        for (let index = 0; index < baseEntities.length; index++) {
+            const entity = baseEntities[index]!;
+
+            if (
+                !fillComponents(
+                    entity,
+                    plan.requiredStores,
+                    components,
+                    baseStore,
+                    baseValues[index]
+                )
+            ) {
+                continue;
+            }
+
+            fillOptionalComponents(
+                entity,
+                plan.optionalStores,
+                components,
+                plan.requiredStores.length
+            );
+
+            yield [entity, ...components] as unknown as OptionalQueryRow<
+                readonly AnyComponentType[],
+                readonly AnyComponentType[]
+            >;
         }
-
-        fillOptionalComponents(entity, plan.optionalStores, components, plan.requiredStores.length);
-
-        yield [entity, ...components] as unknown as OptionalQueryRow<
-            readonly AnyComponentType[],
-            readonly AnyComponentType[]
-        >;
+    } finally {
+        endIteration();
     }
 }
 
 function* iterateOptionalGenericFiltered(
     plan: ResolvedOptionalQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ): IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>> {
-    const baseStore = currentOptionalBaseStore(plan);
-    const baseEntities = baseStore.entities;
-    const baseValues = baseStore.values;
-    const components: unknown[] = new Array(
-        plan.requiredStores.length + plan.optionalStores.length
-    );
+    beginIteration();
 
-    for (let index = 0; index < baseEntities.length; index++) {
-        const entity = baseEntities[index]!;
+    try {
+        const baseStore = currentOptionalBaseStore(plan);
+        const baseEntities = baseStore.entities;
+        const baseValues = baseStore.values;
+        const components: unknown[] = new Array(
+            plan.requiredStores.length + plan.optionalStores.length
+        );
 
-        if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
-            continue;
+        for (let index = 0; index < baseEntities.length; index++) {
+            const baseValue = baseValues[index];
+
+            if (baseValue === undefined) {
+                continue;
+            }
+
+            const entity = baseEntities[index]!;
+
+            if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
+                continue;
+            }
+
+            if (!fillComponents(entity, plan.requiredStores, components, baseStore, baseValue)) {
+                continue;
+            }
+
+            fillOptionalComponents(
+                entity,
+                plan.optionalStores,
+                components,
+                plan.requiredStores.length
+            );
+
+            yield [entity, ...components] as unknown as OptionalQueryRow<
+                readonly AnyComponentType[],
+                readonly AnyComponentType[]
+            >;
         }
-
-        if (
-            !fillComponents(entity, plan.requiredStores, components, baseStore, baseValues[index])
-        ) {
-            continue;
-        }
-
-        fillOptionalComponents(entity, plan.optionalStores, components, plan.requiredStores.length);
-
-        yield [entity, ...components] as unknown as OptionalQueryRow<
-            readonly AnyComponentType[],
-            readonly AnyComponentType[]
-        >;
+    } finally {
+        endIteration();
     }
 }
 
@@ -807,15 +1001,19 @@ function eachOptional1x1Filtered(
     const baseIsRequiredStore0 = requiredStore0 === baseStore;
 
     for (let index = 0; index < baseEntities.length; index++) {
+        const baseValue = baseValues[index];
+
+        if (baseValue === undefined) {
+            continue;
+        }
+
         const entity = baseEntities[index]!;
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
 
-        const requiredValue0 = baseIsRequiredStore0
-            ? baseValues[index]
-            : requiredStore0.get(entity);
+        const requiredValue0 = baseIsRequiredStore0 ? baseValue : requiredStore0.get(entity);
 
         if (requiredValue0 === undefined) {
             continue;
@@ -864,15 +1062,19 @@ function eachOptionalGenericFiltered(
     );
 
     for (let index = 0; index < baseEntities.length; index++) {
+        const baseValue = baseValues[index];
+
+        if (baseValue === undefined) {
+            continue;
+        }
+
         const entity = baseEntities[index]!;
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {
             continue;
         }
 
-        if (
-            !fillComponents(entity, plan.requiredStores, components, baseStore, baseValues[index])
-        ) {
+        if (!fillComponents(entity, plan.requiredStores, components, baseStore, baseValue)) {
             continue;
         }
 
@@ -889,8 +1091,15 @@ function countOptionalQueryMatches(
     let matches = 0;
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
+    const baseValues = baseStore.values;
 
     for (let index = 0; index < baseEntities.length; index++) {
+        const baseValue = baseValues[index];
+
+        if (baseValue === undefined) {
+            continue;
+        }
+
         const entity = baseEntities[index]!;
 
         if (!hasComponents(entity, plan.requiredStores, baseStore)) {
@@ -915,8 +1124,15 @@ function countOptionalQueryMatchesFiltered(
     let matches = 0;
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
+    const baseValues = baseStore.values;
 
     for (let index = 0; index < baseEntities.length; index++) {
+        const baseValue = baseValues[index];
+
+        if (baseValue === undefined) {
+            continue;
+        }
+
         const entity = baseEntities[index]!;
 
         if (!plan.matchesFilter(entity, plan, changeDetection, baseStore)) {

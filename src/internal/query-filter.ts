@@ -18,13 +18,32 @@ export type QueryFilterMatcher<TPlan extends FilteredQueryPlan = FilteredQueryPl
 
 /** Selects the cheapest filter matcher once per resolved query plan. */
 export function compileQueryFilterMatcher(
-    filterMode: QueryFilterMode
+    filterMode: QueryFilterMode,
+    filter: ResolvedQueryFilter
 ): QueryFilterMatcher<FilteredQueryPlan> {
     if (filterMode === "unfiltered") {
         return matchUnfilteredFilter;
     }
 
-    return filterMode === "structural" ? matchStructuralPlanFilter : matchChangePlanFilter;
+    if (filterMode === "change") {
+        return matchChangePlanFilter;
+    }
+
+    if (filter.or.length === 0) {
+        if (filter.with.length === 1 && filter.without.length === 1) {
+            return matchStructuralWith1Without1;
+        }
+
+        if (filter.with.length === 1 && filter.without.length === 0) {
+            return matchStructuralWith1;
+        }
+
+        if (filter.with.length === 0 && filter.without.length === 1) {
+            return matchStructuralWithout1;
+        }
+    }
+
+    return matchStructuralPlanFilter;
 }
 
 function matchUnfilteredFilter(): boolean {
@@ -38,6 +57,41 @@ function matchStructuralPlanFilter(
     knownPresentStore?: SparseSet<unknown>
 ): boolean {
     return matchesStructuralFilter(entity, plan.filterStores, knownPresentStore);
+}
+
+function matchStructuralWith1(
+    entity: Entity,
+    plan: FilteredQueryPlan,
+    _changeDetection: ChangeDetectionRange,
+    knownPresentStore?: SparseSet<unknown>
+): boolean {
+    const store = plan.filterStores.with[0]!;
+
+    return store === knownPresentStore || store.has(entity);
+}
+
+function matchStructuralWithout1(
+    entity: Entity,
+    plan: FilteredQueryPlan,
+    _changeDetection: ChangeDetectionRange,
+    _knownPresentStore?: SparseSet<unknown>
+): boolean {
+    return !plan.filterStores.without[0]!.has(entity);
+}
+
+function matchStructuralWith1Without1(
+    entity: Entity,
+    plan: FilteredQueryPlan,
+    _changeDetection: ChangeDetectionRange,
+    knownPresentStore?: SparseSet<unknown>
+): boolean {
+    const filter = plan.filterStores;
+    const withStore = filter.with[0]!;
+
+    return (
+        (withStore === knownPresentStore || withStore.has(entity)) &&
+        !filter.without[0]!.has(entity)
+    );
 }
 
 function matchChangePlanFilter(

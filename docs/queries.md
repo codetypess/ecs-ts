@@ -15,6 +15,12 @@ world.each([Position, Velocity], (_entity, position, velocity) => {
 
 Use `world.query(...)` when you want iterator rows, or `world.each(...)` on hot paths to avoid allocating a row array per match.
 
+## Removal During Iteration
+
+Removing a component or despawning an entity during an active query becomes logically visible immediately. An unvisited entity that no longer matches is skipped, while removing an already visited entity does not reorder dense storage and cannot make a later row disappear. Nested queries also observe the removal.
+
+Physical compaction waits until the outermost query finishes. When manually consuming an iterator, consume it to completion or call `return()` when stopping early. This stability guarantee covers removals; structural additions keep their existing immediate semantics.
+
 ## Filters
 
 `query(...)` and `each(...)` support these filters:

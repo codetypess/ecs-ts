@@ -47,12 +47,13 @@ export function runIfNot(condition: SystemRunCondition): SystemRunCondition {
 
 /** Runs when the source matches at least one entity. */
 export function matchesAny(source: QueryRunIfSource): SystemRunCondition {
-    return (world) => source.matchesAny?.(world) ?? source.iter(world).next().done !== true;
+    return (world) => source.matchesAny?.(world) ?? countIteratorMatches(source.iter(world), 1) > 0;
 }
 
 /** Runs when the source matches no entities. */
 export function matchesNone(source: QueryRunIfSource): SystemRunCondition {
-    return (world) => source.matchesNone?.(world) ?? source.iter(world).next().done === true;
+    return (world) =>
+        source.matchesNone?.(world) ?? countIteratorMatches(source.iter(world), 1) === 0;
 }
 
 /** Runs when the source matches exactly one entity. */
@@ -62,15 +63,32 @@ export function matchesSingle(source: QueryRunIfSource): SystemRunCondition {
             return source.matchesSingle(world);
         }
 
-        const iterator = source.iter(world);
-        const first = iterator.next();
-
-        if (first.done === true) {
-            return false;
-        }
-
-        return iterator.next().done === true;
+        return countIteratorMatches(source.iter(world), 2) === 1;
     };
+}
+
+function countIteratorMatches(iterator: Iterator<unknown>, limit: number): number {
+    let count = 0;
+    let exhausted = false;
+
+    try {
+        while (count < limit) {
+            const result = iterator.next();
+
+            if (result.done === true) {
+                exhausted = true;
+                break;
+            }
+
+            count++;
+        }
+    } finally {
+        if (!exhausted) {
+            iterator.return?.();
+        }
+    }
+
+    return count;
 }
 
 /** Runs when the resource has been inserted into the world. */

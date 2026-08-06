@@ -6,6 +6,7 @@ import { SparseSet } from "../sparse-set.js";
 export interface ComponentStoreContext {
     readonly registry: Registry;
     readonly stores: (SparseSet<unknown> | undefined)[];
+    readonly pendingCompaction: Set<SparseSet<unknown>>;
     storeVersion: number;
 }
 
@@ -14,6 +15,7 @@ export function createComponentStoreContext(registry: Registry): ComponentStoreC
     return {
         registry,
         stores: [],
+        pendingCompaction: new Set(),
         storeVersion: 0,
     };
 }
@@ -42,6 +44,23 @@ export function getComponentStore<T extends object>(
     type: ComponentType<T>
 ): SparseSet<T> | undefined {
     return context.stores[type.id] as SparseSet<T> | undefined;
+}
+
+/** Marks a store whose tombstones must be compacted after active queries finish. */
+export function markComponentStoreForCompaction<T>(
+    context: ComponentStoreContext,
+    store: SparseSet<T>
+): void {
+    context.pendingCompaction.add(store as SparseSet<unknown>);
+}
+
+/** Compacts every store dirtied by logical deletion since the last query boundary. */
+export function compactComponentStores(context: ComponentStoreContext): void {
+    for (const store of context.pendingCompaction) {
+        store.compact();
+    }
+
+    context.pendingCompaction.clear();
 }
 
 /** Looks up the runtime component metadata for a numeric component id. */

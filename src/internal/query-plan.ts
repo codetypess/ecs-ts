@@ -47,7 +47,9 @@ export type QueryEachVisitor = (entity: Entity, ...components: unknown[]) => voi
 
 export type QueryIterateExecutor = (
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ) => IterableIterator<QueryRow<readonly AnyComponentType[]>>;
 
 export type QueryEachExecutor = (
@@ -64,7 +66,9 @@ export type QueryCountExecutor = (
 
 export type OptionalQueryIterateExecutor = (
     plan: ResolvedOptionalQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    beginIteration: () => void,
+    endIteration: () => void
 ) => IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>>;
 
 export type OptionalQueryEachExecutor = (
@@ -398,7 +402,8 @@ function createQueryPlan(
         filterStores,
         filterMode,
         matchesFilter: compileQueryFilterMatcher(
-            filterMode
+            filterMode,
+            filterStores
         ) as QueryFilterMatcher<ResolvedQueryPlan>,
         iterate: compileRequiredQueryIterate(stores.length, filterMode),
         each: compileRequiredQueryEach(stores.length, filterMode),
@@ -420,7 +425,8 @@ function createOptionalQueryPlan(
         filterStores,
         filterMode,
         matchesFilter: compileQueryFilterMatcher(
-            filterMode
+            filterMode,
+            filterStores
         ) as QueryFilterMatcher<ResolvedOptionalQueryPlan>,
         iterate: compileOptionalQueryIterate(
             requiredStores.length,
