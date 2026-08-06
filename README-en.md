@@ -71,7 +71,6 @@ if (world.hasComponent(entity, Element)) {
 - Optional queries plus helpers like `hasAllComponents`, `hasAnyComponents`, `mustGetSingle`, and `getSingle`.
 - `QueryState` for caching repeated query plans.
 - Per-system change detection for components and resources.
-- Removed-component readers and explicit `drainRemoved`.
 - Deferred command queues through `DeferredCommands`.
 - Component lifecycle hooks: source-aware `onAdd` and `onRemove`, plus `onInsert`, `onUnset`, and `onReplace`.
 - Hard component dependencies through `deps`.
@@ -83,7 +82,7 @@ if (world.hasComponent(entity, Element)) {
 
 - The supported public entry point is the package root only: `import { ... } from "@codetypess/ecs-ts"`.
 - `dist/internal/*` is bundled because the runtime uses it internally, but those files are implementation details, not public API, and not covered by semver guarantees.
-- Low-level runtime/storage types such as `EntityManager`, `Messages`, `RemovedComponents`, and `SparseSet` are intentionally kept out of the root export surface.
+- Low-level runtime/storage types such as `EntityManager`, `Messages`, and `SparseSet` are intentionally kept out of the root export surface.
 - Application code, examples, and third-party wrappers should depend on root exports only.
 
 ## Structural Timing Semantics
@@ -99,7 +98,7 @@ If you open the docs first, the project is easier to understand as a set of work
 
 - [Queries](docs/queries.md): how querying, optional components, filters, and `QueryState` fit together.
 - [Scheduler](docs/scheduler.md): how systems are ordered and when they run.
-- [Change Detection](docs/change-detection.md): how `added`, `changed`, removed readers, and message flow behave.
+- [Change Detection](docs/change-detection.md): how `added`, `changed`, and message flow behave.
 - [Component Lifecycle](docs/lifecycle.md): which hooks run for add, unset, replace, remove, and despawn.
 - [Structural Writes](docs/structural-writes.md): when to use direct world writes, `DeferredCommands`, `world.batch(...)`, and `deps`.
 
@@ -120,7 +119,6 @@ npm run example:query-state
 npm run example:changes
 npm run example:per-system-changes
 npm run example:messages
-npm run example:removed
 npm run example:resources
 npm run example:state
 npm run example:observer

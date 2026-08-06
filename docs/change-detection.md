@@ -27,23 +27,6 @@ npm run example:changes
 npm run example:per-system-changes
 ```
 
-## Removed Components
-
-Removed component records support both direct draining and independent readers:
-
-```ts
-const removed = world.drainRemoved(Position);
-const reader = world.removedReader(Position);
-const records = reader.read();
-```
-
-Use `RemovedReader` when multiple systems need to inspect the same removal stream without consuming each other's records. Call `reader.close()` when you no longer need it so fully consumed history can compact promptly.
-`reader.read()` reuses the same output array on each call, so do not hold a reference to a previous result across reads.
-
-```sh
-npm run example:removed
-```
-
 ## Resources
 
 Resources have added/changed detection and explicit `markResourceChanged(...)` support.

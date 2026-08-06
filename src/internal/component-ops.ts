@@ -68,11 +68,6 @@ interface ComponentOpsContextOptions {
             next: T
         ): void;
     };
-    readonly recordRemoved: <T extends object>(
-        type: ComponentType<T>,
-        entity: Entity,
-        component: T
-    ) => void;
 }
 
 /** Shared dependencies for component mutation helpers. */
@@ -239,14 +234,13 @@ export function remove<T extends object>(
 
     context.runComponentHooks(type, "onUnset", entity, component);
     context.runComponentHooks(type, "onRemove", entity, component, "removed");
-    context.recordRemoved(type, entity, component);
     untrackEntityComponent(context.entityComponents, entity, type.id);
     deleteStoredComponent(context, store, entity);
 
     return true;
 }
 
-/** Removes every component on the entity, records removals, and destroys the entity handle. */
+/** Removes every component on the entity and destroys the entity handle. */
 export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
     if (!context.entities.isAlive(entity)) {
         return false;
@@ -265,7 +259,6 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
             if (type !== undefined && component !== undefined) {
                 context.runComponentHooks(type, "onUnset", entity, component);
                 context.runComponentHooks(type, "onRemove", entity, component, "despawned");
-                context.recordRemoved(type, entity, component);
             }
 
             deleteStoredComponent(context, store, entity);
@@ -288,7 +281,6 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
         if (component !== undefined) {
             context.runComponentHooks(type, "onUnset", entity, component);
             context.runComponentHooks(type, "onRemove", entity, component, "despawned");
-            context.recordRemoved(type, entity, component);
         }
 
         deleteStoredComponent(context, store, entity);

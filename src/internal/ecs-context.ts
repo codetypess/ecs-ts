@@ -1,5 +1,4 @@
-import type { ComponentType } from "../component.js";
-import { EntityManager, type Entity } from "../entity.js";
+import { EntityManager } from "../entity.js";
 import type { ChangeDetectionRange } from "../query.js";
 import type { Registry } from "../registry.js";
 import { createComponentOpsContext, type ComponentOpsContext } from "./component-ops.js";
@@ -14,11 +13,6 @@ import {
 } from "./entity-component-index.js";
 import type { QueryExecutorContext } from "./query-executor.js";
 import { createQueryPlanContext } from "./query-plan.js";
-import {
-    createRemovedStoreContext,
-    recordRemoved,
-    type RemovedStoreContext,
-} from "./removed-store.js";
 import { createResourceContext, type ResourceContext } from "./resources.js";
 
 /** Core ECS storage and execution contexts owned by a world. */
@@ -29,7 +23,6 @@ export interface EcsContext {
     readonly components: ComponentOpsContext;
     readonly queries: QueryExecutorContext;
     readonly resources: ResourceContext;
-    readonly removed: RemovedStoreContext;
 }
 
 interface EcsContextOptions {
@@ -45,7 +38,6 @@ export function createEcsContext(options: EcsContextOptions): EcsContext {
     const entities = new EntityManager();
     const componentStores = createComponentStoreContext(registry);
     const entityComponents = createEntityComponentIndexContext();
-    const removed = createRemovedStoreContext({ getChangeTick });
     const resources = createResourceContext({ getChangeTick, getChangeDetectionRange });
     let activeQueryDepth = 0;
 
@@ -57,9 +49,6 @@ export function createEcsContext(options: EcsContextOptions): EcsContext {
         getChangeDetectionRange,
         shouldDeferComponentCompaction: () => activeQueryDepth > 0,
         runComponentHooks,
-        recordRemoved: <T extends object>(type: ComponentType<T>, entity: Entity, component: T) => {
-            recordRemoved(removed, type, entity, component);
-        },
     });
     const queries: QueryExecutorContext = {
         planContext: createQueryPlanContext({
@@ -86,6 +75,5 @@ export function createEcsContext(options: EcsContextOptions): EcsContext {
         components,
         queries,
         resources,
-        removed,
     };
 }

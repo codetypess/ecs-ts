@@ -27,23 +27,6 @@ npm run example:changes
 npm run example:per-system-changes
 ```
 
-## Removed Component
-
-Removed component 记录同时支持直接 drain 和独立 reader：
-
-```ts
-const removed = world.drainRemoved(Position);
-const reader = world.removedReader(Position);
-const records = reader.read();
-```
-
-当多个 system 需要查看同一个 removal stream，并且不能互相消费记录时，使用 `RemovedReader`。当不再需要它时，调用 `reader.close()`，这样已经完全消费的历史可以更快压缩掉。
-`reader.read()` 每次都会复用同一个输出数组，所以不要在多次读取之间长期持有上一次返回值的引用。
-
-```sh
-npm run example:removed
-```
-
 ## Resource
 
 Resource 支持 added/changed 检测，也支持显式调用 `markResourceChanged(...)`。

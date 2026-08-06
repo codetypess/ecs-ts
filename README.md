@@ -74,7 +74,6 @@ if (world.hasComponent(entity, Element)) {
 - Optional query，以及 `hasAllComponents`、`hasAnyComponents`、`mustGetSingle`、`getSingle` 这些常用 helper。
 - `QueryState`，用于缓存重复 query 的解析结果。
 - Per-system 语义的 component/resource change detection。
-- Removed reader 和显式 `drainRemoved`。
 - 通过 `DeferredCommands` 做延迟结构修改。
 - Component lifecycle hooks：带来源信息的 `onAdd`、`onRemove`，以及 `onInsert`、`onUnset`、`onReplace`。
 - 通过 `deps` 表达硬依赖。
@@ -86,7 +85,7 @@ if (world.hasComponent(entity, Element)) {
 
 - 对外支持的入口只有包根：`import { ... } from "@codetypess/ecs-ts"`。
 - `dist/internal/*` 会作为运行时实现细节一起打包，但它们不是公开 API，也不承诺 semver 稳定。
-- 包根导出会刻意避开 `EntityManager`、`Messages`、`RemovedComponents`、`SparseSet` 这类底层 runtime/storage 细节。
+- 包根导出会刻意避开 `EntityManager`、`Messages`、`SparseSet` 这类底层 runtime/storage 细节。
 - 如果你要写应用代码、示例代码或第三方封装，应该只依赖根导出。
 
 ## 结构修改语义
@@ -102,7 +101,7 @@ if (world.hasComponent(entity, Element)) {
 
 - [Queries](docs/zh/queries.md)：query、filter、optional component 和 `QueryState`。
 - [Scheduler](docs/zh/scheduler.md)：system 什么时候跑、怎么排序、怎么组合条件。
-- [Change Detection](docs/zh/change-detection.md)：`added`、`changed`、removed readers 和 message 的行为。
+- [Change Detection](docs/zh/change-detection.md)：`added`、`changed` 和 message 的行为。
 - [组件生命周期](docs/zh/lifecycle.md)：add、unset、replace、remove 和 despawn 分别会触发哪些 hook。
 - [结构修改](docs/zh/structural-writes.md)：直接写 world、`DeferredCommands`、`world.batch(...)` 和 `deps` 的区别。
 
@@ -123,7 +122,6 @@ npm run example:query-state
 npm run example:changes
 npm run example:per-system-changes
 npm run example:messages
-npm run example:removed
 npm run example:resources
 npm run example:state
 npm run example:observer

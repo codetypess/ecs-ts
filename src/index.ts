@@ -12,8 +12,7 @@ export type {
     MessageReaderOptions,
     MessageType,
 } from "./message.js";
-export { RemovedReader } from "./removed.js";
-export type { RemovedComponent, RemovedComponentId, RemovedReaderOptions } from "./removed.js";
+
 export * from "./resource.js";
 export * from "./run-if.js";
 export * from "./state.js";

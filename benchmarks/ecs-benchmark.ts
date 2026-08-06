@@ -1,7 +1,6 @@
 import {
     Entity,
     QueryState,
-    RemovedReader,
     World,
     createRegistry,
     matchesAny,
@@ -40,16 +39,6 @@ interface SkewedQueryStateWorld {
     readonly world: World;
     readonly query: QueryState<readonly [typeof Position, typeof Velocity]>;
     readonly matches: number;
-}
-
-interface RemovedReaderWorld {
-    readonly world: World;
-    readonly reader: RemovedReader<typeof Health>;
-}
-
-interface RemovedSteadyStateWorld {
-    readonly world: World;
-    readonly reader: RemovedReader<typeof Health>;
 }
 
 interface CommandQueueWorld {
@@ -285,29 +274,6 @@ function createSchedulerWorld(enabled: boolean): World {
     }
 
     return world;
-}
-
-function createRemovedReaderWorld(removalCount: number): RemovedReaderWorld {
-    const world = new World(registry);
-    const reader = world.removedReader(Health);
-
-    for (let index = 0; index < removalCount; index++) {
-        const entity = world.spawn(0, withComponent(Health, { value: index }));
-        world.removeComponent(entity, Health);
-    }
-
-    reader.read();
-
-    return { world, reader };
-}
-
-function createRemovedSteadyStateWorld(): RemovedSteadyStateWorld {
-    const world = new World(registry);
-    const reader = world.removedReader(Health);
-
-    reader.read();
-
-    return { world, reader };
 }
 
 function createCommandQueueWorld(): CommandQueueWorld {
@@ -565,7 +531,6 @@ pushPreparedBenchmark(results, "despawn sparse entity with noisy stores", {
             operations++;
         }
 
-        checksum += despawnWorld.world.drainRemoved(Health).length;
         checksum += despawnWorld.world.isAlive(despawnWorld.entities[0]!) ? 1 : 0;
 
         return operations;
@@ -734,42 +699,6 @@ pushPreparedBenchmark(results, "message write+read", {
         checksum += reader.read().length;
 
         return EVENT_COUNT;
-    },
-});
-
-pushPreparedBenchmark(results, "removed reader empty read", {
-    setup: () => createRemovedReaderWorld(EVENT_COUNT),
-    run: (removedReaderWorld) => {
-        let operations = 0;
-
-        for (let index = 0; index < DIRECT_GET_LOOPS * 10; index++) {
-            checksum += removedReaderWorld.reader.read().length;
-            operations++;
-        }
-
-        return operations;
-    },
-});
-
-pushPreparedBenchmark(results, "removed reader steady-state remove+read", {
-    setup: () => createRemovedSteadyStateWorld(),
-    run: (removedSteadyStateWorld) => {
-        let operations = 0;
-
-        for (let loop = 0; loop < QUERY_LOOPS; loop++) {
-            for (let index = 0; index < ENTITY_COUNT; index++) {
-                const entity = removedSteadyStateWorld.world.spawn(
-                    0,
-                    withComponent(Health, { value: index + loop })
-                );
-
-                removedSteadyStateWorld.world.removeComponent(entity, Health);
-                checksum += removedSteadyStateWorld.reader.read().length;
-                operations++;
-            }
-        }
-
-        return operations;
     },
 });
 

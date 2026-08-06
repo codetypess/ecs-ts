@@ -51,10 +51,7 @@ import {
     writeMessage as writeStoredMessage,
     type MessageContext,
 } from "./internal/messages.js";
-import {
-    createRemovedReader as createBoundRemovedReader,
-    drainRemoved as drainRemovedComponents,
-} from "./internal/removed-store.js";
+
 import {
     getResource as getStoredResource,
     hasResource as hasStoredResource,
@@ -101,7 +98,7 @@ import {
 } from "./message.js";
 import type { ChangeDetectionRange, ComponentTuple } from "./query.js";
 import type { Registry } from "./registry.js";
-import type { RemovedComponent, RemovedReader, RemovedReaderOptions } from "./removed.js";
+
 import { assertRegisteredResource, type ResourceType } from "./resource.js";
 import type {
     ScheduleStage,
@@ -409,25 +406,6 @@ export class World extends WorldQueryMethods {
     /** Removes all components from an entity, runs hooks, and destroys the entity handle. */
     despawn(entity: Entity): boolean {
         return despawnEntity(this.ecsContext.components, entity);
-    }
-
-    /** Drains and clears the removed-component buffer for the given component type. */
-    drainRemoved<TComponent extends AnyComponentType>(
-        type: TComponent
-    ): RemovedComponent<TComponent>[] {
-        assertRegisteredComponent(this.registry, type, "read removed");
-
-        return drainRemovedComponents(this.ecsContext.removed, type);
-    }
-
-    /** Creates a removed-component reader bound to this world. */
-    removedReader<TComponent extends AnyComponentType>(
-        type: TComponent,
-        options: RemovedReaderOptions = {}
-    ): RemovedReader<TComponent> {
-        assertRegisteredComponent(this.registry, type, "create removed reader");
-
-        return createBoundRemovedReader(this.ecsContext.removed, type, options);
     }
 
     /** Registers an object-style system or a callback for one schedule stage. */

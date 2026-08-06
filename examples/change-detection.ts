@@ -48,12 +48,6 @@ class ChangeDetectionSystem {
         world.each([Position], { changed: [Position] }, (entity, position) => {
             console.log(`changed ${formatEntity(entity)} -> (${position.x}, ${position.y})`);
         });
-
-        for (const removed of world.drainRemoved(Position)) {
-            console.log(
-                `removed ${formatEntity(removed.entity)} -> (${removed.component.x}, ${removed.component.y})`
-            );
-        }
     }
 }
 
