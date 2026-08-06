@@ -10,7 +10,7 @@ Structural writes are the operations that change visible world state: spawning a
 
 Use direct world methods when you want changes to become visible immediately:
 
-- `world.spawn(...)`
+- `world.spawn(etype, ...)`
 - `world.addComponent(...)`
 - `world.removeComponent(...)`
 - `world.despawn(...)`
@@ -18,9 +18,11 @@ Use direct world methods when you want changes to become visible immediately:
 - `world.setState(...)`
 
 ```ts
-const entity = world.spawn(withComponent(Position, { x: 0, y: 0 }));
+const entity = world.spawn(0, withComponent(Position, { x: 0, y: 0 }));
 world.addComponent(entity, Velocity, { x: 1, y: 1 });
 ```
+
+All three spawn paths require `etype` as the first argument. Pass `0` explicitly when the application does not distinguish entity types.
 
 This is the simplest path for setup code, tests, import tools, and one-off scripts.
 
@@ -34,7 +36,7 @@ This is the simplest path for setup code, tests, import tools, and one-off scrip
 
 ```ts
 const commands = world.commands();
-const entity = commands.spawn(withComponent(Position, { x: 1, y: 2 }));
+const entity = commands.spawn(0, withComponent(Position, { x: 1, y: 2 }));
 
 commands.addComponent(entity, Velocity, { x: 3, y: 4 });
 commands.setState(GameMode, "running");
@@ -43,7 +45,7 @@ commands.flush();
 
 Important details:
 
-- `commands.spawn(...)` returns a reserved entity handle immediately.
+- `commands.spawn(etype, ...)` returns a reserved entity handle immediately.
 - That entity is not live until `flush()` commits the queued work.
 - DeferredCommands run in insertion order.
 - If `flush()` throws, already executed commands stay applied and unexecuted commands stay queued.
@@ -77,7 +79,7 @@ Important details:
 
 - Nested `world.batch(...)` calls are rejected.
 - The batch writer becomes invalid once the callback returns.
-- Batch writers only support `spawn(...)`, `addComponent(...)`, `removeComponent(...)`, and `despawn(...)`.
+- Batch writers only support `spawn(etype, ...)`, `addComponent(...)`, `removeComponent(...)`, and `despawn(...)`.
 - Resource, state, message, and event writes still go through direct `World` calls or `DeferredCommands`.
 - Component hooks observe the committed final diff, not every temporary step inside the callback.
 
@@ -105,7 +107,7 @@ That gives you these guarantees:
 
 - direct writes fail fast if a dependency is missing
 - direct removals fail fast if another visible component still depends on the target
-- `spawn(...)` and `commands.spawn(...)` sort entries so dependencies are inserted first
+- `spawn(etype, ...)` and `commands.spawn(etype, ...)` sort entries so dependencies are inserted first
 - `world.batch(...)` validates the final component set before commit
 
 Once a dependent component is visible, its dependencies are visible too. That is why `mustGetComponent(...)` is safe after checking the dependent component.

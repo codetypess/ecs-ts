@@ -101,8 +101,19 @@ registry.defineComponent<number>("ComponentTypecheckInvalidPrimitive");
 withMarker(Value);
 
 const world = new World(registry);
-const entity = world.spawn(withMarker(Marker), withComponent(Value, { value: 1 }));
+const entity = world.spawn(0, withMarker(Marker), withComponent(Value, { value: 1 }));
 const removedValueReader = world.removedReader(Value);
+
+// @ts-expect-error spawn requires an explicit entity type
+world.spawn(withMarker(Marker));
+
+// @ts-expect-error deferred spawn requires an explicit entity type
+world.commands().spawn(withMarker(Marker));
+
+world.batch((batch) => {
+    // @ts-expect-error batch spawn requires an explicit entity type
+    batch.spawn(withMarker(Marker));
+});
 
 for (const [matched, marker, value] of world.query([Marker, Value])) {
     expectType<number>(matched);

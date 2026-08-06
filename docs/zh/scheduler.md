@@ -21,7 +21,7 @@ Startup 阶段会在第一次 update 前运行一次。`onFixedUpdate` 会按 fi
 
 ```ts
 world.addSystem("update", (world, dt, commands) => {
-    commands.spawn(withMarker(Dirty));
+    commands.spawn(0, withMarker(Dirty));
 });
 ```
 

@@ -16,7 +16,7 @@ class RemovePositionSystem {
     private entity: Entity | undefined;
 
     onStartup(_world: World, _dt: number, commands: DeferredCommands): void {
-        this.entity = commands.spawn(withComponent(Position, { x: 1, y: 2 }));
+        this.entity = commands.spawn(0, withComponent(Position, { x: 1, y: 2 }));
     }
 
     onUpdate(_world: World, _dt: number, commands: DeferredCommands): void {

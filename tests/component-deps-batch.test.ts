@@ -11,7 +11,7 @@ test("world enforces component dependencies on direct writes", () => {
         deps: [Transform],
     });
     const world = new World(registry);
-    const entity = world.spawn();
+    const entity = world.spawn(0);
 
     assert.throws(
         () => world.addComponent(entity, Element, { name: "button" }),
@@ -40,6 +40,7 @@ test("visible dependent components can safely mustGet their dependencies", () =>
     });
     const world = new World(registry);
     const entity = world.spawn(
+        0,
         withComponent(Element, { name: "button" }),
         withComponent(Transform, { x: 4, y: 5 })
     );
@@ -59,11 +60,11 @@ test("failed dependency spawn does not publish an empty entity", () => {
     const world = new World(registry);
 
     assert.throws(
-        () => world.spawn(withComponent(Element, { name: "broken" })),
+        () => world.spawn(0, withComponent(Element, { name: "broken" })),
         /missing dependency Transform/
     );
 
-    const entity = world.spawn();
+    const entity = world.spawn(0);
 
     assert.equal(entityIndex(entity), 0);
     assert.equal(world.isAlive(entity), true);
@@ -93,6 +94,7 @@ test("spawn inserts dependencies before dependents and despawn removes dependent
     });
     const world = new World(registry);
     const entity = world.spawn(
+        0,
         withComponent(Element, { name: "panel" }),
         withComponent(Transform, { x: 3, y: 4 })
     );
@@ -118,6 +120,7 @@ test("dependency sorting preserves duplicate component entry order", () => {
     });
     const world = new World(registry);
     const entity = world.spawn(
+        0,
         withComponent(Element, { name: "first" }),
         withComponent(Transform, { x: 1, y: 2 }),
         withComponent(Element, { name: "second" })
@@ -137,7 +140,7 @@ test("batch validates final component state and returns committed entities", () 
     const world = new World(registry);
 
     const entity = world.batch((batch) => {
-        const entity = batch.spawn();
+        const entity = batch.spawn(0);
 
         batch.addComponent(entity, Element, { name: "button" });
         batch.addComponent(entity, Transform, { x: 10, y: 20 });
@@ -165,7 +168,7 @@ test("batch commit keeps dependency mustGet invariant for hooks and later reads"
     const world = new World(registry);
 
     const entity = world.batch((batch) => {
-        const entity = batch.spawn();
+        const entity = batch.spawn(0);
 
         batch.addComponent(entity, Element, { name: "panel" });
         batch.addComponent(entity, Transform, { x: 7, y: 9 });
@@ -200,7 +203,7 @@ test("batch commits only the final diff for component hooks", () => {
         },
     });
     const world = new World(registry);
-    const transient = world.spawn();
+    const transient = world.spawn(0);
 
     world.batch((batch) => {
         batch.addComponent(transient, Value, { value: 1 });
@@ -209,7 +212,7 @@ test("batch commits only the final diff for component hooks", () => {
 
     assert.deepEqual(events, []);
 
-    const existing = world.spawn(withComponent(Value, { value: 1 }));
+    const existing = world.spawn(0, withComponent(Value, { value: 1 }));
     events.length = 0;
 
     world.batch((batch) => {
@@ -234,7 +237,7 @@ test("batch does not commit when the callback throws or validation fails", () =>
     assert.throws(
         () =>
             world.batch((batch) => {
-                const entity = batch.spawn();
+                const entity = batch.spawn(0);
 
                 batch.addComponent(entity, Transform, { x: 1, y: 2 });
 
@@ -247,7 +250,7 @@ test("batch does not commit when the callback throws or validation fails", () =>
     assert.throws(
         () =>
             world.batch((batch) => {
-                const entity = batch.spawn();
+                const entity = batch.spawn(0);
 
                 batch.addComponent(entity, Element, { name: "broken" });
             }),
@@ -273,7 +276,7 @@ test("batch writer cannot be reused after the callback returns", () => {
     const batch = world.batch((writer) => writer);
 
     assert.throws(
-        () => batch.spawn(),
+        () => batch.spawn(0),
         /Cannot use world\.batch after the callback has already returned/
     );
 });

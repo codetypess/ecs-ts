@@ -21,7 +21,7 @@ For smaller systems, register a callback directly for a stage:
 
 ```ts
 world.addSystem("update", (world, dt, commands) => {
-    commands.spawn(withMarker(Dirty));
+    commands.spawn(0, withMarker(Dirty));
 });
 ```
 

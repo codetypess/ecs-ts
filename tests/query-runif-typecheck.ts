@@ -44,6 +44,7 @@ const Damage = registry.defineMessage<{ target: Entity; amount: number }>("Damag
 
 const world = new World(registry);
 const player = world.spawn(
+    0,
     withMarker(Player),
     withComponent(Position, { x: 1, y: 2 }),
     withComponent(Velocity, { x: 3, y: 4 }),
@@ -120,7 +121,7 @@ world.addSystem(
     (currentWorld, dt, commands) => {
         expectType<World>(currentWorld);
         expectType<number>(dt);
-        commands.spawn(withMarker(Player));
+        commands.spawn(0, withMarker(Player));
     },
     { runIf: matchesAny(moving) }
 );

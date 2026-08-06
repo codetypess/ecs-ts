@@ -50,6 +50,7 @@ const Selected = registry.defineComponent("Selected");
 const world = new World(registry);
 
 const entity = world.spawn(
+    0,
     withComponent(Element, { name: "button" }),
     withComponent(Transform, { x: 40, y: 80 }),
     withMarker(Selected)
@@ -92,7 +93,7 @@ if (world.hasComponent(entity, Element)) {
 
 - `DeferredCommands` 是 deferred queue。命令会在 `flush()` 或 system/observer 结束后统一执行。
 - `world.batch(...)` 会先验证最终 entity/component 结构状态，再一次性提交净变化；它更接近一次 transactional commit。
-- `commands.spawn(...)` 在 flush 前只返回一个保留的 entity handle，不会立刻变成 live entity。
+- `commands.spawn(etype, ...)` 在 flush 前只返回一个保留的 entity handle，不会立刻变成 live entity。
 - `world.shutdown()` 是终态。shutdown 后再次 `update()` 不会继续跑 startup 或 update。
 
 ## 推荐的阅读顺序

@@ -9,6 +9,7 @@ const Selected = registry.defineComponent("Selected");
 
 const world = new World(registry);
 const entity = world.spawn(
+    0,
     withComponent(Position, { x: 1, y: 2 }),
     withComponent(Velocity, { x: 3, y: 4 }),
     withMarker(Selected)

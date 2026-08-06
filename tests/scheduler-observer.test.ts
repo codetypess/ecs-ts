@@ -352,6 +352,7 @@ test("scheduler supports query-backed runIf helpers", () => {
 
     calls.length = 0;
     world.spawn(
+        0,
         withComponent(Position, { x: 0, y: 0 }),
         withComponent(Velocity, { x: 1, y: 0 }),
         withMarker(Player)
@@ -360,12 +361,13 @@ test("scheduler supports query-backed runIf helpers", () => {
     assert.deepEqual(calls, ["move", "single-player"]);
 
     calls.length = 0;
-    world.spawn(withMarker(Player));
+    world.spawn(0, withMarker(Player));
     world.update(0);
     assert.deepEqual(calls, ["move"]);
 
     calls.length = 0;
     world.spawn(
+        0,
         withComponent(Position, { x: 10, y: 0 }),
         withComponent(Velocity, { x: 0, y: 1 }),
         withMarker(Sleeping)
@@ -541,7 +543,7 @@ test("observers dispatch immediate events and can queue commands", () => {
     const Damage = registry.defineEvent<{ target: Entity; amount: number }>("ObserverDamage");
     const Died = registry.defineEvent<{ entity: Entity }>("ObserverDied");
     const world = new World(registry);
-    const enemy = world.spawn(withComponent(Health, { value: 10 }));
+    const enemy = world.spawn(0, withComponent(Health, { value: 10 }));
     const log: string[] = [];
 
     world.observe(Damage, (damage, currentWorld, commands) => {

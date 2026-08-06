@@ -47,6 +47,7 @@ const Selected = registry.defineComponent("Selected");
 const world = new World(registry);
 
 const entity = world.spawn(
+    0,
     withComponent(Element, { name: "button" }),
     withComponent(Transform, { x: 40, y: 80 }),
     withMarker(Selected)
@@ -89,7 +90,7 @@ if (world.hasComponent(entity, Element)) {
 
 - `DeferredCommands` is a deferred queue. Work runs on `flush()` or after a system/observer completes.
 - `world.batch(...)` validates the final entity/component structural state first, then commits the net diff; it is the transactional option.
-- `commands.spawn(...)` returns a reserved entity handle and does not publish a live entity before flush.
+- `commands.spawn(etype, ...)` returns a reserved entity handle and does not publish a live entity before flush.
 - `world.shutdown()` is terminal. Calling `update()` afterward will not run startup or update stages again.
 
 ## A Better Way To Read The Project

@@ -10,12 +10,13 @@ const Enemy = registry.defineComponent("Enemy");
 
 const world = new World(registry);
 const player = world.spawn(
+    0,
     withComponent(Position, { x: 0, y: 0 }),
     withComponent(Velocity, { x: 1, y: 0 }),
     withMarker(Player)
 );
 
-world.spawn(withComponent(Position, { x: 10, y: 0 }), withMarker(Enemy));
+world.spawn(0, withComponent(Position, { x: 10, y: 0 }), withMarker(Enemy));
 
 console.log(`player has movement=${world.hasAllComponents(player, [Position, Velocity])}`);
 console.log(`player has role=${world.hasAnyComponents(player, [Player, Enemy])}`);

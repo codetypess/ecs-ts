@@ -16,7 +16,7 @@ class ChangeDetectionSystem {
     private frame = 0;
 
     onStartup(_world: World, _dt: number, commands: DeferredCommands): void {
-        this.entity = commands.spawn(withComponent(Position, { x: 0, y: 0 }));
+        this.entity = commands.spawn(0, withComponent(Position, { x: 0, y: 0 }));
     }
 
     onUpdate(world: World, _dt: number, commands: DeferredCommands): void {

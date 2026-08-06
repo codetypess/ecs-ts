@@ -23,7 +23,7 @@ class AttackSystem {
 }
 
 const world = new World(registry);
-const enemy = world.spawn(withComponent(Health, { value: 15 }));
+const enemy = world.spawn(0, withComponent(Health, { value: 15 }));
 
 world.observe(Damage, (damage, currentWorld, commands) => {
     const health = currentWorld.getComponent(damage.target, Health);

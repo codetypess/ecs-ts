@@ -26,6 +26,7 @@ test("advanced query filters support or and optional components", () => {
     const world = new World(registry);
 
     world.spawn(
+        0,
         withComponent(Position, { x: 0, y: 0 }),
         withComponent(Velocity, { x: 1, y: 0 }),
         withMarker(Player),
@@ -33,12 +34,14 @@ test("advanced query filters support or and optional components", () => {
     );
 
     world.spawn(
+        0,
         withComponent(Position, { x: 10, y: 0 }),
         withMarker(Npc),
         withComponent(Name, { value: "idle-npc" })
     );
 
     world.spawn(
+        0,
         withComponent(Position, { x: 20, y: 0 }),
         withComponent(Velocity, { x: 0, y: 1 }),
         withMarker(Npc),
@@ -46,6 +49,7 @@ test("advanced query filters support or and optional components", () => {
     );
 
     world.spawn(
+        0,
         withComponent(Position, { x: 30, y: 0 }),
         withComponent(Velocity, { x: -1, y: 0 }),
         withMarker(Player),
@@ -89,11 +93,11 @@ test("single query helpers report none, one, and multiple matches", () => {
     assert.equal(world.getSingle([Position]), undefined);
     assert.throws(() => world.mustGetSingle([Position]), /Expected exactly one query result/);
 
-    const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }), withMarker(Player));
+    const entity = world.spawn(0, withComponent(Position, { x: 1, y: 2 }), withMarker(Player));
 
     assert.equal(world.mustGetSingle([Position])[0], entity);
 
-    world.spawn(withComponent(Position, { x: 3, y: 4 }));
+    world.spawn(0, withComponent(Position, { x: 3, y: 4 }));
 
     assert.throws(() => world.getSingle([Position]), /Expected at most one query result/);
     assert.equal(world.mustGetSingle([Position], { with: [Player] })[0], entity);
@@ -110,11 +114,11 @@ test("query state single helpers report none, one, and multiple matches", () => 
     assert.equal(positions.getSingle(world), undefined);
     assert.throws(() => positions.mustGetSingle(world), /Expected exactly one query result/);
 
-    const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }), withMarker(Player));
+    const entity = world.spawn(0, withComponent(Position, { x: 1, y: 2 }), withMarker(Player));
 
     assert.equal(positions.mustGetSingle(world)[0], entity);
 
-    world.spawn(withComponent(Position, { x: 3, y: 4 }));
+    world.spawn(0, withComponent(Position, { x: 3, y: 4 }));
 
     assert.throws(() => positions.getSingle(world), /Expected at most one query result/);
     assert.equal(players.mustGetSingle(world)[0], entity);
@@ -127,7 +131,7 @@ test("optional query state single helpers return optional rows", () => {
     const Name = registry.defineComponent<Name>("OptionalStateSingleName");
     const world = new World(registry);
     const namedPositions = optionalQueryState([Position], [Name]);
-    const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
+    const entity = world.spawn(0, withComponent(Position, { x: 1, y: 2 }));
 
     assert.deepEqual(namedPositions.mustGetSingle(world), [entity, { x: 1, y: 2 }, undefined]);
 
@@ -139,7 +143,7 @@ test("optional query state single helpers return optional rows", () => {
         { value: "player" },
     ]);
 
-    world.spawn(withComponent(Position, { x: 3, y: 4 }));
+    world.spawn(0, withComponent(Position, { x: 3, y: 4 }));
 
     assert.throws(() => namedPositions.getSingle(world), /Expected at most one query result/);
 });
@@ -160,11 +164,13 @@ test("query state caches resolved stores and invalidates when stores are created
     assert.equal(Array.from(movingPlayers.iter(world)).length, 0);
 
     const active = world.spawn(
+        0,
         withComponent(Position, { x: 0, y: 0 }),
         withComponent(Velocity, { x: 1, y: 0 }),
         withMarker(Player)
     );
     world.spawn(
+        0,
         withComponent(Position, { x: 10, y: 0 }),
         withComponent(Velocity, { x: 1, y: 0 }),
         withMarker(Player),
@@ -201,7 +207,7 @@ test("optional query state sees optional stores created after the cache was reso
     const Name = registry.defineComponent<Name>("OptionalStateName");
     const world = new World(registry);
     const namedPositions = optionalQueryState([Position], [Name]);
-    const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
+    const entity = world.spawn(0, withComponent(Position, { x: 1, y: 2 }));
 
     const beforeName = Array.from(namedPositions.iter(world));
 
@@ -241,19 +247,26 @@ test("query state tracks structural filter changes through cached plans", () => 
         without: [Banned, Excluded],
     });
     const active = world.spawn(
+        0,
         withComponent(Position, { x: 1, y: 2 }),
         withMarker(Required),
         withMarker(OrMatch)
     );
 
     world.spawn(
+        0,
         withComponent(Position, { x: 3, y: 4 }),
         withMarker(Required),
         withMarker(OrMatch),
         withMarker(Excluded)
     );
 
-    world.spawn(withComponent(Position, { x: 5, y: 6 }), withMarker(Required), withMarker(Banned));
+    world.spawn(
+        0,
+        withComponent(Position, { x: 5, y: 6 }),
+        withMarker(Required),
+        withMarker(Banned)
+    );
 
     const matchedEntities = (): (typeof active)[] =>
         Array.from(filtered.iter(world), ([entity]) => entity);
@@ -302,19 +315,20 @@ test("query state refreshes the base store when store sizes skew after cache res
 
     for (let index = 0; index < 5; index++) {
         world.spawn(
+            0,
             withComponent(Position, { x: index, y: index }),
             withComponent(Velocity, { x: 1, y: -1 })
         );
     }
 
     for (let index = 0; index < 50; index++) {
-        world.spawn(withComponent(Velocity, { x: index, y: index }));
+        world.spawn(0, withComponent(Velocity, { x: index, y: index }));
     }
 
     moving.each(world, () => {});
 
     for (let index = 0; index < 100; index++) {
-        world.spawn(withComponent(Position, { x: index, y: index }));
+        world.spawn(0, withComponent(Position, { x: index, y: index }));
     }
 
     const stores = (

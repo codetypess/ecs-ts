@@ -22,7 +22,7 @@ const Value = registry.defineComponent<Value>("Value", {
 });
 
 const world = new World(registry);
-const entity = world.spawn(withComponent(Value, { value: 1 }));
+const entity = world.spawn(0, withComponent(Value, { value: 1 }));
 
 history.length = 0;
 

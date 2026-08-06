@@ -15,6 +15,7 @@ const Name = registry.defineComponent<Name>("Name");
 const world = new World(registry);
 
 world.spawn(
+    0,
     withComponent(Position, { x: 0, y: 0 }),
     withComponent(Velocity, { x: 1, y: 0 }),
     withMarker(Player),
@@ -22,12 +23,14 @@ world.spawn(
 );
 
 world.spawn(
+    0,
     withComponent(Position, { x: 10, y: 0 }),
     withMarker(Npc),
     withComponent(Name, { value: "idle-npc" })
 );
 
 world.spawn(
+    0,
     withComponent(Position, { x: 20, y: 0 }),
     withComponent(Velocity, { x: 0, y: 1 }),
     withMarker(Npc),
@@ -35,6 +38,7 @@ world.spawn(
 );
 
 world.spawn(
+    0,
     withComponent(Position, { x: 30, y: 0 }),
     withComponent(Velocity, { x: -1, y: 0 }),
     withMarker(Player),

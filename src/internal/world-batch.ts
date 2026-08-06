@@ -32,7 +32,6 @@ interface BatchContext {
 
 /** Batched structural edits that are committed together after validation succeeds. */
 export interface WorldBatch {
-    spawn(...entries: AnyComponentEntry[]): Entity;
     spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
     addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this;
     removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): this;
@@ -98,15 +97,8 @@ export function runWorldBatch<T>(runtime: WorldBatchRuntime, run: (batch: WorldB
 }
 
 function createBatchWriter(runtime: WorldBatchRuntime, context: BatchContext) {
-    function spawn(...entries: AnyComponentEntry[]): Entity;
-    function spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
-    function spawn(...args: [EntityType, ...AnyComponentEntry[]] | AnyComponentEntry[]): Entity {
+    function spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity {
         ensureBatchContextOpen(context);
-        const [etype, entries] =
-            args.length > 0 && typeof args[0] !== "object"
-                ? [args[0] as EntityType, args.slice(1) as AnyComponentEntry[]]
-                : [0, args as AnyComponentEntry[]];
-
         return stageBatchSpawn(runtime, context, etype, entries);
     }
 

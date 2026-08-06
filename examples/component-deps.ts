@@ -11,12 +11,13 @@ const Element = registry.defineComponent<Element>("Element", {
 const world = new World(registry);
 
 try {
-    world.spawn(withComponent(Element, { name: "broken" }));
+    world.spawn(0, withComponent(Element, { name: "broken" }));
 } catch (error) {
     console.log(`invalid spawn=${(error as Error).message}`);
 }
 
 const entity = world.spawn(
+    0,
     withComponent(Element, { name: "button" }),
     withComponent(Transform, { x: 40, y: 80 })
 );

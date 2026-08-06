@@ -13,7 +13,7 @@ test("world can register systems, resources, states, and drive updates together"
     class BootstrapSystem {
         onStartup(world: World, _dt: number, commands: DeferredCommands): void {
             world.mustGetResource(Log).push("startup");
-            commands.spawn(withComponent(Position, { x: 0, y: 0 }));
+            commands.spawn(0, withComponent(Position, { x: 0, y: 0 }));
             commands.setState(Mode, "running");
         }
     }

@@ -93,8 +93,8 @@ test("matchesAny returns true when the query has at least one result", () => {
 
     assert.equal(matchesAny(state)(world), false);
 
-    const entity = world.spawn(withMarker(Flag));
-    const entity2 = world.spawn(withMarker(Flag));
+    const entity = world.spawn(0, withMarker(Flag));
+    const entity2 = world.spawn(0, withMarker(Flag));
 
     assert.equal(matchesAny(state)(world), true);
 
@@ -109,7 +109,7 @@ test("matchesNone returns true when the query has no results", () => {
 
     assert.equal(matchesNone(state)(world), true);
 
-    const entity = world.spawn(withMarker(Marker));
+    const entity = world.spawn(0, withMarker(Marker));
 
     assert.equal(matchesNone(state)(world), false);
 
@@ -123,11 +123,11 @@ test("matchesSingle returns true only when exactly one entity matches", () => {
 
     assert.equal(matchesSingle(state)(world), false);
 
-    const a = world.spawn(withMarker(Boss));
+    const a = world.spawn(0, withMarker(Boss));
 
     assert.equal(matchesSingle(state)(world), true);
 
-    const b = world.spawn(withMarker(Boss));
+    const b = world.spawn(0, withMarker(Boss));
 
     assert.equal(matchesSingle(state)(world), false);
 
@@ -138,8 +138,8 @@ test("matchesSingle returns true only when exactly one entity matches", () => {
 test("query-like runIf fallbacks close iterators after early matches", () => {
     const Marker = registry.defineComponent("RunIfIteratorCloseMarker");
     const world = new World(registry);
-    const first = world.spawn(withMarker(Marker));
-    const second = world.spawn(withMarker(Marker));
+    const first = world.spawn(0, withMarker(Marker));
+    const second = world.spawn(0, withMarker(Marker));
     let closed = 0;
     const source = {
         *iter(currentWorld: World): IterableIterator<unknown> {
@@ -282,7 +282,7 @@ test("matchesAny works correctly on a query with filter", () => {
 
     assert.equal(matchesAny(activeItems)(world), false);
 
-    const e = world.spawn(withComponent(Item, { tag: "sword" }), withMarker(Active));
+    const e = world.spawn(0, withComponent(Item, { tag: "sword" }), withMarker(Active));
 
     assert.equal(matchesAny(activeItems)(world), true);
 

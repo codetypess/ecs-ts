@@ -43,7 +43,7 @@ class LifecycleDemoSystem {
 
     onStartup(_world: World, _dt: number, commands: DeferredCommands): void {
         console.log("system onStartup");
-        this.entity = commands.spawn(withComponent(Health, { value: 100 }));
+        this.entity = commands.spawn(0, withComponent(Health, { value: 100 }));
     }
 
     onPostStartup(): void {

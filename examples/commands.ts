@@ -12,7 +12,7 @@ const world = new World(registry);
 world.addMessage(Damage);
 
 const commands = world.commands();
-const entity = commands.spawn(withComponent(Position, { x: 4, y: 8 }));
+const entity = commands.spawn(0, withComponent(Position, { x: 4, y: 8 }));
 
 commands.setResource(Log, ["spawn queued", "resource queued"]);
 commands.setState(Mode, "running");

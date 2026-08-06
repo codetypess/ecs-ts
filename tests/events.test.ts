@@ -25,7 +25,7 @@ test("observer commands are flushed after each observer returns", () => {
     const world = new World(registry);
     const log: string[] = [];
 
-    const target = world.spawn(withComponent(Health, { value: 50 }));
+    const target = world.spawn(0, withComponent(Health, { value: 50 }));
 
     world.observe(Damage, (dmg, currentWorld, commands) => {
         const hp = currentWorld.mustGetComponent(dmg.target, Health);
@@ -133,7 +133,7 @@ test("observer can spawn entities via commands and they are visible after flush"
     const world = new World(registry);
 
     world.observe(SpawnCmd, (_v, _w, commands) => {
-        commands.spawn(withMarker(Tag));
+        commands.spawn(0, withMarker(Tag));
     });
 
     assert.equal(world.getSingle([Tag]), undefined);

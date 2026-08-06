@@ -176,6 +176,7 @@ async function main(): Promise<void> {
     installUiLifecycle(world);
 
     const mainMenu = world.spawn(
+        0,
         withComponent(UiSource, {
             key: "MainMenu",
             props: { title: "ECS UI demo" },
@@ -184,6 +185,7 @@ async function main(): Promise<void> {
     );
 
     const inventory = world.spawn(
+        0,
         withComponent(UiSource, {
             key: "InventoryPanel",
             props: { slots: 24 },

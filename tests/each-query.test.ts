@@ -16,9 +16,9 @@ test("each visits every matching entity", () => {
     const Position = registry.defineComponent<Position>("EachPosition");
     const world = new World(registry);
 
-    const a = world.spawn(withComponent(Position, { x: 1 }));
-    const b = world.spawn(withComponent(Position, { x: 2 }));
-    const c = world.spawn(withComponent(Position, { x: 3 }));
+    const a = world.spawn(0, withComponent(Position, { x: 1 }));
+    const b = world.spawn(0, withComponent(Position, { x: 2 }));
+    const c = world.spawn(0, withComponent(Position, { x: 3 }));
     const seen: number[] = [];
 
     world.each([Position], (_entity, pos) => {
@@ -42,14 +42,23 @@ test("each keeps base-store iteration stable across logical deletion and nested 
     const Velocity = localRegistry.defineComponent<Velocity>("Velocity");
     const moving = queryState([Position, Velocity]);
     const world = new World(localRegistry);
-    const first = world.spawn(withComponent(Position, { x: 1 }), withComponent(Velocity, { x: 1 }));
+    const first = world.spawn(
+        0,
+        withComponent(Position, { x: 1 }),
+        withComponent(Velocity, { x: 1 })
+    );
     const second = world.spawn(
+        0,
         withComponent(Position, { x: 2 }),
         withComponent(Velocity, { x: 2 })
     );
-    const third = world.spawn(withComponent(Position, { x: 3 }), withComponent(Velocity, { x: 3 }));
+    const third = world.spawn(
+        0,
+        withComponent(Position, { x: 3 }),
+        withComponent(Velocity, { x: 3 })
+    );
 
-    world.spawn(withComponent(Position, { x: 4 }));
+    world.spawn(0, withComponent(Position, { x: 4 }));
 
     const seen: (typeof first)[] = [];
     let nestedSeen: (typeof first)[] = [];
@@ -78,11 +87,11 @@ test("each skips an unvisited entity when its base filter component is removed",
     const Position = localRegistry.defineComponent<Position>("Position");
     const Active = localRegistry.defineComponent("Active");
     const world = new World(localRegistry);
-    const first = world.spawn(withComponent(Position, { x: 1 }), withMarker(Active));
-    const removed = world.spawn(withComponent(Position, { x: 2 }), withMarker(Active));
-    const third = world.spawn(withComponent(Position, { x: 3 }), withMarker(Active));
+    const first = world.spawn(0, withComponent(Position, { x: 1 }), withMarker(Active));
+    const removed = world.spawn(0, withComponent(Position, { x: 2 }), withMarker(Active));
+    const third = world.spawn(0, withComponent(Position, { x: 3 }), withMarker(Active));
 
-    world.spawn(withComponent(Position, { x: 4 }));
+    world.spawn(0, withComponent(Position, { x: 4 }));
 
     const seen: (typeof first)[] = [];
 
@@ -102,9 +111,9 @@ test("query iterators defer compaction until iteration completes", () => {
     type Value = { value: number };
     const Value = localRegistry.defineComponent<Value>("Value");
     const world = new World(localRegistry);
-    const first = world.spawn(withComponent(Value, { value: 1 }));
-    const second = world.spawn(withComponent(Value, { value: 2 }));
-    const third = world.spawn(withComponent(Value, { value: 3 }));
+    const first = world.spawn(0, withComponent(Value, { value: 1 }));
+    const second = world.spawn(0, withComponent(Value, { value: 2 }));
+    const third = world.spawn(0, withComponent(Value, { value: 3 }));
     const iterator = world.query([Value]);
     const firstResult = iterator.next();
 
@@ -125,9 +134,9 @@ test("query iterator return releases tracking and compacts tombstones", () => {
     type Value = { value: number };
     const Value = localRegistry.defineComponent<Value>("Value");
     const world = new World(localRegistry);
-    const first = world.spawn(withComponent(Value, { value: 1 }));
-    const second = world.spawn(withComponent(Value, { value: 2 }));
-    const third = world.spawn(withComponent(Value, { value: 3 }));
+    const first = world.spawn(0, withComponent(Value, { value: 1 }));
+    const second = world.spawn(0, withComponent(Value, { value: 2 }));
+    const third = world.spawn(0, withComponent(Value, { value: 3 }));
     const iterator = world.query([Value]);
 
     assert.equal(iterator.next().value?.[0], first);
@@ -144,9 +153,9 @@ test("query iterator throw releases tracking and compacts tombstones", () => {
     type Value = { value: number };
     const Value = localRegistry.defineComponent<Value>("Value");
     const world = new World(localRegistry);
-    const first = world.spawn(withComponent(Value, { value: 1 }));
-    const second = world.spawn(withComponent(Value, { value: 2 }));
-    const third = world.spawn(withComponent(Value, { value: 3 }));
+    const first = world.spawn(0, withComponent(Value, { value: 1 }));
+    const second = world.spawn(0, withComponent(Value, { value: 2 }));
+    const third = world.spawn(0, withComponent(Value, { value: 3 }));
     const iterator = world.query([Value]);
     const expected = new Error("stop iteration");
 
@@ -169,9 +178,9 @@ test("query counts ignore base-store tombstones during an outer iteration", () =
     const Value = localRegistry.defineComponent<Value>("Value");
     const values = queryState([Value]);
     const world = new World(localRegistry);
-    const outer = world.spawn(withMarker(Outer));
-    const removed = world.spawn(withComponent(Value, { value: 1 }));
-    const remaining = world.spawn(withComponent(Value, { value: 2 }));
+    const outer = world.spawn(0, withMarker(Outer));
+    const removed = world.spawn(0, withComponent(Value, { value: 1 }));
+    const remaining = world.spawn(0, withComponent(Value, { value: 2 }));
 
     world.each([Outer], () => {
         assert.equal(world.removeComponent(removed, Value), true);
@@ -189,8 +198,8 @@ test("each skips despawned entities", () => {
     const Marker = registry.defineComponent("EachSkipMarker");
     const world = new World(registry);
 
-    const alive = world.spawn(withMarker(Marker));
-    const dead = world.spawn(withMarker(Marker));
+    const alive = world.spawn(0, withMarker(Marker));
+    const dead = world.spawn(0, withMarker(Marker));
 
     world.despawn(dead);
 
@@ -209,8 +218,8 @@ test("each supports filter argument", () => {
     const Active = registry.defineComponent("EachWhereActive");
     const world = new World(registry);
 
-    const a = world.spawn(withComponent(Position, { x: 1 }), withMarker(Active));
-    const _b = world.spawn(withComponent(Position, { x: 2 }));
+    const a = world.spawn(0, withComponent(Position, { x: 1 }), withMarker(Active));
+    const _b = world.spawn(0, withComponent(Position, { x: 2 }));
     const seen: number[] = [];
 
     world.each([Position], { with: [Active] }, (_entity, pos) => {
@@ -227,8 +236,8 @@ test("each with added filter only visits newly added components", () => {
     const Health = registry.defineComponent<Health>("EachAddedHealth");
     const world = new World(registry);
 
-    const a = world.spawn(withComponent(Health, { value: 10 }));
-    const b = world.spawn(withComponent(Health, { value: 20 }));
+    const a = world.spawn(0, withComponent(Health, { value: 10 }));
+    const b = world.spawn(0, withComponent(Health, { value: 20 }));
     const added: number[] = [];
 
     world.each([Health], { added: [Health] }, (_entity, hp) => {
@@ -250,7 +259,7 @@ test("each with added filter only visits newly added components", () => {
 
     assert.deepEqual(addedAfterUpdate, []);
 
-    const c = world.spawn(withComponent(Health, { value: 30 }));
+    const c = world.spawn(0, withComponent(Health, { value: 30 }));
     const addedNew: number[] = [];
 
     world.each([Health], { added: [Health] }, (_entity, hp) => {
@@ -269,8 +278,8 @@ test("each with changed filter only visits recently changed components", () => {
     const Score = registry.defineComponent<Score>("EachChangedScore");
     const world = new World(registry);
 
-    const a = world.spawn(withComponent(Score, { value: 0 }));
-    const b = world.spawn(withComponent(Score, { value: 0 }));
+    const a = world.spawn(0, withComponent(Score, { value: 0 }));
+    const b = world.spawn(0, withComponent(Score, { value: 0 }));
 
     world.update(0);
 
@@ -298,10 +307,11 @@ test("eachOptional visits all required-matching entities and exposes optional", 
     const world = new World(registry);
 
     const moving = world.spawn(
+        0,
         withComponent(Position, { x: 0 }),
         withComponent(Velocity, { vx: 1 })
     );
-    const still = world.spawn(withComponent(Position, { x: 5 }));
+    const still = world.spawn(0, withComponent(Position, { x: 5 }));
     const rows: { x: number; vx: number | undefined }[] = [];
 
     world.eachOptional([Position], [Velocity], (entity, pos, vel) => {
@@ -325,8 +335,8 @@ test("queryState.each uses a cached query state", () => {
     const state = queryState([Level], { with: [Tag] });
     const world = new World(registry);
 
-    const a = world.spawn(withComponent(Level, { n: 1 }), withMarker(Tag));
-    const _b = world.spawn(withComponent(Level, { n: 2 }));
+    const a = world.spawn(0, withComponent(Level, { n: 1 }), withMarker(Tag));
+    const _b = world.spawn(0, withComponent(Level, { n: 2 }));
     const seen: number[] = [];
 
     state.each(world, (_entity, lvl) => {
@@ -344,7 +354,7 @@ test("queryState.each supports change-detection filters", () => {
     const state = queryState([Score], { changed: [Score] });
     const world = new World(registry);
 
-    const entity = world.spawn(withComponent(Score, { value: 0 }));
+    const entity = world.spawn(0, withComponent(Score, { value: 0 }));
 
     world.update(0);
 
@@ -371,10 +381,11 @@ test("optionalQueryState.each uses a cached optional query state", () => {
     const world = new World(registry);
 
     const withExtra = world.spawn(
+        0,
         withComponent(Base, { id: 1 }),
         withComponent(Extra, { bonus: 10 })
     );
-    const withoutExtra = world.spawn(withComponent(Base, { id: 2 }));
+    const withoutExtra = world.spawn(0, withComponent(Base, { id: 2 }));
     const rows: { id: number; bonus: number | undefined }[] = [];
 
     state.each(world, (_entity, base, extra) => {
@@ -397,7 +408,7 @@ test("queryState.each produces same results as queryState.iter", () => {
     const state = queryState([Value]);
     const world = new World(registry);
 
-    const entities = [1, 2, 3, 4, 5].map((n) => world.spawn(withComponent(Value, { n })));
+    const entities = [1, 2, 3, 4, 5].map((n) => world.spawn(0, withComponent(Value, { n })));
 
     const fromEach: number[] = [];
     state.each(world, (_e, v) => fromEach.push(v.n));

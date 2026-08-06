@@ -35,19 +35,8 @@ export class DeferredCommands {
     }
 
     /** Queues an entity spawn using the same component-entry format as `World.spawn`. */
-    spawn(...entries: AnyComponentEntry[]): Entity;
-    spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
-    spawn(...args: [EntityType, ...AnyComponentEntry[]] | AnyComponentEntry[]): Entity {
-        if (args.length > 0 && typeof args[0] !== "object") {
-            const etype = args[0] as EntityType;
-            const entries = args.slice(1) as AnyComponentEntry[];
-
-            return this.spawnWithEntries(etype, entries);
-        }
-
-        const entries = args as AnyComponentEntry[];
-
-        return this.spawnWithEntries(0, entries);
+    spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity {
+        return this.spawnWithEntries(etype, entries);
     }
 
     /** Queues a component insertion or replacement. */

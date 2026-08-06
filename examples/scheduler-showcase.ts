@@ -50,12 +50,14 @@ class SetupSystem {
 class SpawnSceneSystem {
     onStartup(world: World): void {
         const controlled = world.spawn(
+            0,
             withComponent(Transform, { x: 0, y: 0 }),
             withComponent(Velocity, { x: 1, y: 0 }),
             withMarker(RigidBody)
         );
 
         world.spawn(
+            0,
             withComponent(Transform, { x: 100, y: 0 }),
             withComponent(Velocity, { x: 0, y: 1 }),
             withMarker(RigidBody),

@@ -39,6 +39,7 @@ test("read helpers keep getMany and change detection aligned with entity livenes
     const Velocity = registry.defineComponent<Velocity>("ReadHelperVelocity");
     const world = new World(registry);
     const entity = world.spawn(
+        0,
         withComponent(Position, { x: 1, y: 2 }),
         withComponent(Velocity, { x: 3, y: 4 })
     );
@@ -72,7 +73,7 @@ test("spawn inserts multiple component entries", () => {
     const Health = registry.defineComponent<Health>("TestHealth");
     const world = new World(registry);
 
-    const entity = world.spawn(withMarker(Player), withComponent(Health, { value: 100 }));
+    const entity = world.spawn(0, withMarker(Player), withComponent(Health, { value: 100 }));
 
     assert.equal(world.hasAllComponents(entity, [Player, Health]), true);
     assert.equal(world.removeComponent(entity, Player), true);
@@ -83,15 +84,15 @@ test("spawn inserts multiple component entries", () => {
 test("entities() iterates only currently live entities in storage-index order", () => {
     const Marker = registry.defineComponent("WorldEntitiesMarker");
     const world = new World(registry);
-    const first = world.spawn(withMarker(Marker));
-    const second = world.spawn(withMarker(Marker));
-    const third = world.spawn(withMarker(Marker));
+    const first = world.spawn(0, withMarker(Marker));
+    const second = world.spawn(0, withMarker(Marker));
+    const third = world.spawn(0, withMarker(Marker));
 
     world.despawn(second);
 
     assert.deepEqual(Array.from(world.entities()), [first, third]);
 
-    const reused = world.spawn(withMarker(Marker));
+    const reused = world.spawn(0, withMarker(Marker));
 
     assert.deepEqual(Array.from(world.entities()), [first, reused, third]);
 });
@@ -130,13 +131,13 @@ test("commands spawn does not publish an empty entity when the spawn fails", () 
     });
     const world = new World(commandRegistry);
     const commands = world.commands();
-    const entity = commands.spawn(withComponent(Element, { name: "broken" }));
+    const entity = commands.spawn(0, withComponent(Element, { name: "broken" }));
 
     assert.equal(world.isAlive(entity), false);
     assert.equal(world.entityType(entity), undefined);
     assert.throws(() => commands.flush(), /missing dependency Transform/);
 
-    const next = world.spawn();
+    const next = world.spawn(0);
 
     assert.equal(world.isAlive(entity), false);
     assert.equal(entityIndex(next), 0);
@@ -147,7 +148,7 @@ test("commands queued during flush wait for the next flush", () => {
     const Position = registry.defineComponent<Position>("DeferredCommandPosition");
     const world = new World(registry);
     const commands = world.commands();
-    const entity = world.spawn();
+    const entity = world.spawn(0);
     let ranOuterCommand = false;
 
     commands.run(() => {
@@ -175,9 +176,9 @@ test("commands flush keeps only unexecuted commands queued after a failure", () 
     });
     const world = new World(commandRegistry);
     const commands = world.commands();
-    const first = world.spawn();
-    const second = world.spawn();
-    const third = world.spawn();
+    const first = world.spawn(0);
+    const second = world.spawn(0);
+    const third = world.spawn(0);
 
     commands.addComponent(first, Ready, {});
     commands.addComponent(second, NeedsReady, {});
@@ -234,7 +235,7 @@ test("addSystem accepts stage callbacks with scheduling options", () => {
         "update",
         (_world, _dt, commands) => {
             trace.push("early");
-            commands.spawn(withMarker(CallbackMarker));
+            commands.spawn(0, withMarker(CallbackMarker));
         },
         { label: "early", before: ["late"] }
     );
@@ -260,7 +261,7 @@ test("component lifecycle hooks report operation order and reasons", () => {
     });
     const world = new World(registry);
 
-    const entity = world.spawn(withComponent(Position, { x: 1 }));
+    const entity = world.spawn(0, withComponent(Position, { x: 1 }));
 
     world.addComponent(entity, Position, { x: 2 });
     world.removeComponent(entity, Position);
@@ -296,19 +297,19 @@ test("component lifecycle reasons cover command and batch writes", () => {
     });
     const world = new World(reasonRegistry);
     const commands = world.commands();
-    const commandEntity = commands.spawn(withMarker(Marker));
+    const commandEntity = commands.spawn(0, withMarker(Marker));
 
     commands.flush();
     commands.despawn(commandEntity);
     commands.flush();
 
-    const batchEntity = world.batch((batch) => batch.spawn(withMarker(Marker)));
+    const batchEntity = world.batch((batch) => batch.spawn(0, withMarker(Marker)));
 
     world.batch((batch) => {
         batch.despawn(batchEntity);
     });
 
-    const existingEntity = world.spawn();
+    const existingEntity = world.spawn(0);
 
     world.batch((batch) => {
         batch.addComponent(existingEntity, Marker, {});
@@ -363,7 +364,7 @@ test("component values reject invalid runtime payloads", () => {
     type Position = { x: number; y: number };
     const Position = registry.defineComponent<Position>("InvalidValuePosition");
     const world = new World(registry);
-    const entity = world.spawn();
+    const entity = world.spawn(0);
 
     assert.throws(
         () => withComponent(Position, null as unknown as { x: number; y: number }),
@@ -387,7 +388,7 @@ test("world rejects components from a different registry", () => {
     const otherRegistry = createRegistry("other-world-test");
     const foreign = otherRegistry.defineComponent("ForeignRegistryOnly");
     const world = new World(registry);
-    const entity = world.spawn(withMarker(local));
+    const entity = world.spawn(0, withMarker(local));
 
     assert.throws(
         () => world.addComponent(entity, foreign, {}),
@@ -410,7 +411,7 @@ test("world rejects forged types with the same registry reference", () => {
     const forgedNotice = { ...Notice } as typeof Notice;
     const forgedPing = { ...Ping } as typeof Ping;
     const world = new World(registry);
-    const entity = world.spawn(withComponent(Position, { x: 1, y: 2 }));
+    const entity = world.spawn(0, withComponent(Position, { x: 1, y: 2 }));
 
     assert.throws(
         () => world.hasComponent(entity, forgedPosition),

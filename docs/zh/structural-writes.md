@@ -10,7 +10,7 @@ English: [Structural Writes](../structural-writes.md).
 
 当你希望修改立刻可见时，直接使用 world 方法：
 
-- `world.spawn(...)`
+- `world.spawn(etype, ...)`
 - `world.addComponent(...)`
 - `world.removeComponent(...)`
 - `world.despawn(...)`
@@ -18,9 +18,11 @@ English: [Structural Writes](../structural-writes.md).
 - `world.setState(...)`
 
 ```ts
-const entity = world.spawn(withComponent(Position, { x: 0, y: 0 }));
+const entity = world.spawn(0, withComponent(Position, { x: 0, y: 0 }));
 world.addComponent(entity, Velocity, { x: 1, y: 1 });
 ```
+
+三条 spawn 路径都要求把 `etype` 作为第一个参数传入。如果业务不区分 entity type，也应显式传入 `0`。
 
 这条路径最适合初始化代码、测试、导入工具和一次性的脚本。
 
@@ -34,7 +36,7 @@ world.addComponent(entity, Velocity, { x: 1, y: 1 });
 
 ```ts
 const commands = world.commands();
-const entity = commands.spawn(withComponent(Position, { x: 1, y: 2 }));
+const entity = commands.spawn(0, withComponent(Position, { x: 1, y: 2 }));
 
 commands.addComponent(entity, Velocity, { x: 3, y: 4 });
 commands.setState(GameMode, "running");
@@ -43,7 +45,7 @@ commands.flush();
 
 几个关键点：
 
-- `commands.spawn(...)` 会立即返回一个保留的 entity handle。
+- `commands.spawn(etype, ...)` 会立即返回一个保留的 entity handle。
 - 在 `flush()` 提交之前，这个 entity 还不是 live entity。
 - command 会按入队顺序执行。
 - 如果 `flush()` 抛错，已经执行过的 command 会保留，未执行的 command 会继续留在队列里。
@@ -77,7 +79,7 @@ world.batch((batch) => {
 
 - 不支持嵌套 `world.batch(...)`。
 - callback 返回后，batch writer 就失效了。
-- batch writer 只支持 `spawn(...)`、`addComponent(...)`、`removeComponent(...)` 和 `despawn(...)`。
+- batch writer 只支持 `spawn(etype, ...)`、`addComponent(...)`、`removeComponent(...)` 和 `despawn(...)`。
 - resource、state、message 和 event 的写入仍然通过直接 `World` 调用或 `DeferredCommands` 完成。
 - component hook 看到的是最终提交的净变化，而不是 callback 内部的每个临时步骤。
 
@@ -105,7 +107,7 @@ const Element = registry.defineComponent<Element>("Element", {
 
 - 直接写入时如果依赖缺失，会立刻失败
 - 如果还有可见 dependent component，直接移除 dependency 会立刻失败
-- `spawn(...)` 和 `commands.spawn(...)` 会先插入依赖，再插入 dependent
+- `spawn(etype, ...)` 和 `commands.spawn(etype, ...)` 会先插入依赖，再插入 dependent
 - `world.batch(...)` 会在 commit 前验证最终 component 集合
 
 一旦 dependent component 对外可见，它的依赖也一定可见。所以在先确认 dependent 存在之后，使用 `mustGetComponent(...)` 是安全的。

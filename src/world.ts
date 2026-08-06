@@ -1,4 +1,3 @@
-import { DeferredCommands, type DeferredCommandRuntime } from "./deferred-commands.js";
 import {
     AnyComponentEntry,
     AnyComponentType,
@@ -8,6 +7,7 @@ import {
     ComponentRemoveReason,
     ComponentType,
 } from "./component.js";
+import { DeferredCommands, type DeferredCommandRuntime } from "./deferred-commands.js";
 import { Entity, formatEntity, type EntityType } from "./entity.js";
 import { assertRegisteredEvent, type EventObserver, type EventType } from "./event.js";
 import { runSystemWithDeferredCommands } from "./internal/command-execution.js";
@@ -224,20 +224,21 @@ export class World extends WorldQueryMethods {
         this.messageContext = createMessageContext();
         this.scheduleContext = createScheduleEngineContext();
     }
-    /** Creates a new entity and inserts the provided component entries immediately. */
-    spawn(...entries: AnyComponentEntry[]): Entity;
-    spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
-    spawn(...args: [EntityType, ...AnyComponentEntry[]] | AnyComponentEntry[]): Entity {
-        if (args.length > 0 && typeof args[0] !== "object") {
-            const etype = args[0] as EntityType;
-            const entries = args.slice(1) as AnyComponentEntry[];
 
-            return this.spawnWithEntries(etype, entries);
+    /** Creates a new entity and inserts the provided component entries immediately. */
+    spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity {
+        this.assertEntriesRegistered(entries, "spawn");
+        // Validate dependency closure before creating the entity, so failed spawns leave no shell.
+        const orderedEntries = entriesHaveDependencyChecks(entries)
+            ? (assertSpawnEntriesSatisfied(entries), sortEntriesByDependencies(entries))
+            : entries;
+        const entity = this.ecsContext.entities.create(etype);
+
+        for (const entry of orderedEntries) {
+            insertComponent(this.ecsContext.components, entity, entry.type, entry.value, "spawned");
         }
 
-        const entries = args as AnyComponentEntry[];
-
-        return this.spawnWithEntries(0, entries);
+        return entity;
     }
 
     /** Returns whether the entity handle still points at a live entity. */
@@ -753,21 +754,6 @@ export class World extends WorldQueryMethods {
                 deleteComponent(this.ecsContext.components, entity, type),
             despawnEntity: (entity) => despawnEntity(this.ecsContext.components, entity),
         };
-    }
-
-    private spawnWithEntries(etype: EntityType, entries: readonly AnyComponentEntry[]): Entity {
-        this.assertEntriesRegistered(entries, "spawn");
-        // Validate dependency closure before creating the entity, so failed spawns leave no shell.
-        const orderedEntries = entriesHaveDependencyChecks(entries)
-            ? (assertSpawnEntriesSatisfied(entries), sortEntriesByDependencies(entries))
-            : entries;
-        const entity = this.ecsContext.entities.create(etype);
-
-        for (const entry of orderedEntries) {
-            insertComponent(this.ecsContext.components, entity, entry.type, entry.value, "spawned");
-        }
-
-        return entity;
     }
 
     private addComponentWithReason<T extends object>(

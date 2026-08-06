@@ -225,14 +225,14 @@ function createMovementWorld(count: number): MovementWorld {
 
         if (isPlayer && isSleeping) {
             entities.push(
-                world.spawn(position, velocity, withMarker(Player), withMarker(Sleeping))
+                world.spawn(0, position, velocity, withMarker(Player), withMarker(Sleeping))
             );
         } else if (isPlayer) {
-            entities.push(world.spawn(position, velocity, withMarker(Player)));
+            entities.push(world.spawn(0, position, velocity, withMarker(Player)));
         } else if (isSleeping) {
-            entities.push(world.spawn(position, velocity, withMarker(Sleeping)));
+            entities.push(world.spawn(0, position, velocity, withMarker(Sleeping)));
         } else {
-            entities.push(world.spawn(position, velocity));
+            entities.push(world.spawn(0, position, velocity));
         }
     }
 
@@ -242,7 +242,7 @@ function createMovementWorld(count: number): MovementWorld {
 function createDespawnWorld(count: number): DespawnWorld {
     const world = new World(registry);
     const entities: Entity[] = [];
-    const noiseEntity = world.spawn();
+    const noiseEntity = world.spawn(0);
 
     for (const [index, type] of DespawnNoiseComponents.entries()) {
         world.addComponent(noiseEntity, type, { value: index });
@@ -251,6 +251,7 @@ function createDespawnWorld(count: number): DespawnWorld {
     for (let index = 0; index < count; index++) {
         entities.push(
             world.spawn(
+                0,
                 withComponent(Position, { x: index, y: index }),
                 withComponent(Velocity, { x: 1, y: -1 }),
                 withComponent(Health, { value: 100 + index })
@@ -291,7 +292,7 @@ function createRemovedReaderWorld(removalCount: number): RemovedReaderWorld {
     const reader = world.removedReader(Health);
 
     for (let index = 0; index < removalCount; index++) {
-        const entity = world.spawn(withComponent(Health, { value: index }));
+        const entity = world.spawn(0, withComponent(Health, { value: index }));
         world.removeComponent(entity, Health);
     }
 
@@ -311,7 +312,7 @@ function createRemovedSteadyStateWorld(): RemovedSteadyStateWorld {
 
 function createCommandQueueWorld(): CommandQueueWorld {
     const world = new World(registry);
-    const entity = world.spawn(withComponent(Position, { x: 0, y: 0 }));
+    const entity = world.spawn(0, withComponent(Position, { x: 0, y: 0 }));
 
     return { world, entity };
 }
@@ -325,19 +326,20 @@ function createSkewedQueryStateWorld(count: number): SkewedQueryStateWorld {
 
     for (let index = 0; index < matches; index++) {
         world.spawn(
+            0,
             withComponent(Position, { x: index, y: index }),
             withComponent(Velocity, { x: 1, y: -1 })
         );
     }
 
     for (let index = 0; index < extraVelocityOnly; index++) {
-        world.spawn(withComponent(Velocity, { x: index, y: -index }));
+        world.spawn(0, withComponent(Velocity, { x: index, y: -index }));
     }
 
     moving.each(world, () => {});
 
     for (let index = 0; index < extraPositionOnly; index++) {
-        world.spawn(withComponent(Position, { x: -index, y: index }));
+        world.spawn(0, withComponent(Position, { x: -index, y: index }));
     }
 
     return { world, query: moving, matches };
@@ -354,11 +356,13 @@ function createQueryRunIfSchedulerWorld(matching: boolean): World {
 
     if (matching) {
         world.spawn(
+            0,
             withComponent(Position, { x: 0, y: 0 }),
             withComponent(Velocity, { x: 1, y: 0 })
         );
     } else {
         world.spawn(
+            0,
             withComponent(Position, { x: 0, y: 0 }),
             withComponent(Velocity, { x: 1, y: 0 }),
             withMarker(Sleeping)
@@ -715,7 +719,7 @@ pushPreparedBenchmark(results, "optional query Velocity", {
 pushPreparedBenchmark(results, "message write+read", {
     setup: () => {
         const world = new World(registry);
-        const target = world.spawn(withComponent(Health, { value: 100 }));
+        const target = world.spawn(0, withComponent(Health, { value: 100 }));
 
         world.addMessage(DamageMessage);
         const reader = world.messageReader(DamageMessage);
@@ -755,6 +759,7 @@ pushPreparedBenchmark(results, "removed reader steady-state remove+read", {
         for (let loop = 0; loop < QUERY_LOOPS; loop++) {
             for (let index = 0; index < ENTITY_COUNT; index++) {
                 const entity = removedSteadyStateWorld.world.spawn(
+                    0,
                     withComponent(Health, { value: index + loop })
                 );
 
@@ -771,7 +776,7 @@ pushPreparedBenchmark(results, "removed reader steady-state remove+read", {
 pushPreparedBenchmark(results, "observer trigger", {
     setup: () => {
         const world = new World(registry);
-        const target = world.spawn(withComponent(Health, { value: 100 }));
+        const target = world.spawn(0, withComponent(Health, { value: 100 }));
 
         world.observe(DamageEvent, (damage, currentWorld) => {
             checksum += currentWorld.mustGetComponent(damage.target, Health).value;

@@ -17,7 +17,7 @@ const Damage = registry.defineMessage<{ target: Entity; amount: number }>("Damag
 
 class AttackSystem {
     onStartup(_world: World, _dt: number, commands: DeferredCommands): void {
-        commands.spawn(withMarker(Enemy), withComponent(Health, { value: 100 }));
+        commands.spawn(0, withMarker(Enemy), withComponent(Health, { value: 100 }));
     }
 
     onUpdate(world: World, _dt: number, commands: DeferredCommands): void {

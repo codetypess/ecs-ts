@@ -65,6 +65,7 @@ class NetSyncSystem {
 
             if (entity === undefined || !world.isAlive(entity)) {
                 entity = commands.spawn(
+                    0,
                     withComponent(Unit, { serverId: snapshot.id }),
                     withComponent(Position, { x: snapshot.x, y: snapshot.y }),
                     withComponent(Health, { value: snapshot.hp })

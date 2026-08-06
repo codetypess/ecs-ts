@@ -11,12 +11,14 @@ const Sleeping = registry.defineComponent("Sleeping");
 const world = new World(registry);
 
 world.spawn(
+    0,
     withComponent(Position, { x: 0, y: 0 }),
     withComponent(Velocity, { x: 1, y: 0 }),
     withMarker(Player)
 );
 
 world.spawn(
+    0,
     withComponent(Position, { x: 10, y: 0 }),
     withComponent(Velocity, { x: 0, y: 1 }),
     withMarker(Sleeping)
