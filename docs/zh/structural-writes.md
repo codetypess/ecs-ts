@@ -97,10 +97,13 @@ component 依赖是硬性的运行时约束，不是提示信息。
 type Transform = { x: number; y: number };
 type Element = { name: string };
 
-const Transform = registry.defineComponent<Transform>("Transform");
-const Element = registry.defineComponent<Element>("Element", {
+const Transform = defineComponent<Transform>("Transform");
+const Element = defineComponent<Element>("Element", {
     deps: [Transform],
 });
+
+registry.registerComponent(Transform);
+registry.registerComponent(Element);
 ```
 
 这会带来几条明确保证：

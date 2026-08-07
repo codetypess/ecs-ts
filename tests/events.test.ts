@@ -1,11 +1,20 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { World, createRegistry, withComponent, withMarker, type Entity } from "../src";
+import {
+    defineComponent,
+    defineEvent,
+    defineResource,
+    World,
+    createRegistry,
+    withComponent,
+    withMarker,
+    type Entity,
+} from "../src";
 
 const registry = createRegistry("event-test");
 
 test("multiple observers for the same event all receive the value", () => {
-    const Ping = registry.defineEvent<number>("MultiObserverPing");
+    const Ping = registry.registerEvent(defineEvent<number>("MultiObserverPing"));
     const world = new World(registry);
     const received: number[] = [];
 
@@ -19,9 +28,11 @@ test("multiple observers for the same event all receive the value", () => {
 
 test("observer commands are flushed after each observer returns", () => {
     type Health = { value: number };
-    const Health = registry.defineComponent<Health>("EventHealth");
-    const Damage = registry.defineEvent<{ target: Entity; amount: number }>("EventDamage");
-    const Died = registry.defineEvent<{ entity: Entity }>("EventDied");
+    const Health = registry.registerComponent(defineComponent<Health>("EventHealth"));
+    const Damage = registry.registerEvent(
+        defineEvent<{ target: Entity; amount: number }>("EventDamage")
+    );
+    const Died = registry.registerEvent(defineEvent<{ entity: Entity }>("EventDied"));
     const world = new World(registry);
     const log: string[] = [];
 
@@ -47,8 +58,8 @@ test("observer commands are flushed after each observer returns", () => {
 });
 
 test("observer triggered from within another observer executes after outer observer returns", () => {
-    const Outer = registry.defineEvent<void>("NestedOuter");
-    const Inner = registry.defineEvent<string>("NestedInner");
+    const Outer = registry.registerEvent(defineEvent<void>("NestedOuter"));
+    const Inner = registry.registerEvent(defineEvent<string>("NestedInner"));
     const world = new World(registry);
     const log: string[] = [];
 
@@ -69,14 +80,14 @@ test("observer triggered from within another observer executes after outer obser
 });
 
 test("trigger with no observers is a no-op", () => {
-    const Ghost = registry.defineEvent<number>("GhostEvent");
+    const Ghost = registry.registerEvent(defineEvent<number>("GhostEvent"));
     const world = new World(registry);
 
     assert.doesNotThrow(() => world.trigger(Ghost, 42));
 });
 
 test("multiple unsubscribes do not throw", () => {
-    const Tick = registry.defineEvent<number>("MultiUnsub");
+    const Tick = registry.registerEvent(defineEvent<number>("MultiUnsub"));
     const world = new World(registry);
     const unsub = world.observe(Tick, () => undefined);
 
@@ -85,7 +96,7 @@ test("multiple unsubscribes do not throw", () => {
 });
 
 test("observer unsubscribe during dispatch affects the next trigger only", () => {
-    const Ping = registry.defineEvent<void>("UnsubscribeDuringDispatch");
+    const Ping = registry.registerEvent(defineEvent<void>("UnsubscribeDuringDispatch"));
     const world = new World(registry);
     const log: string[] = [];
     let unsubscribeSecond: () => void = () => undefined;
@@ -105,7 +116,7 @@ test("observer unsubscribe during dispatch affects the next trigger only", () =>
 });
 
 test("observer added during dispatch starts on the next trigger", () => {
-    const Ping = registry.defineEvent<void>("SubscribeDuringDispatch");
+    const Ping = registry.registerEvent(defineEvent<void>("SubscribeDuringDispatch"));
     const world = new World(registry);
     const log: string[] = [];
     let subscribedLate = false;
@@ -128,8 +139,8 @@ test("observer added during dispatch starts on the next trigger", () => {
 });
 
 test("observer can spawn entities via commands and they are visible after flush", () => {
-    const SpawnCmd = registry.defineEvent<void>("SpawnCmdEvent");
-    const Tag = registry.defineComponent("SpawnCmdTag");
+    const SpawnCmd = registry.registerEvent(defineEvent<void>("SpawnCmdEvent"));
+    const Tag = registry.registerComponent(defineComponent("SpawnCmdTag"));
     const world = new World(registry);
 
     world.observe(SpawnCmd, (_v, _w, commands) => {
@@ -144,8 +155,10 @@ test("observer can spawn entities via commands and they are visible after flush"
 });
 
 test("observer receives both the event value and a usable world reference", () => {
-    const Resource = registry.defineResource<{ counter: number }>("EventResource");
-    const Bump = registry.defineEvent<void>("BumpEvent");
+    const Resource = registry.registerResource(
+        defineResource<{ counter: number }>("EventResource")
+    );
+    const Bump = registry.registerEvent(defineEvent<void>("BumpEvent"));
     const world = new World(registry);
 
     world.setResource(Resource, { counter: 0 });

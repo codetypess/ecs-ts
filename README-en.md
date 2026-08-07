@@ -12,7 +12,7 @@ This project is not trying to be a giant engine framework or a maximalist “eve
 
 It is trying to be a solid runtime core with a clear mental model:
 
-- Schema is explicit. Components, resources, states, messages, and events all belong to a registry.
+- Schema is explicit. Components, resources, states, messages, and events can be defined independently, then explicitly registered in a registry.
 - World mutations are explicit. `spawn`, `addComponent`, `removeComponent`, `despawn`, `DeferredCommands`, and `world.batch(...)` each have clear timing semantics.
 - Runtime invariants matter. Cross-registry misuse fails fast. Component dependencies can be enforced. Invalid batch results never become visible.
 - Query ergonomics matter too. Common tasks should feel lightweight in application code.
@@ -31,18 +31,28 @@ That last point is especially important: if `Element` depends on `Transform`, th
 ## Quick Example
 
 ```ts
-import { World, createRegistry, withComponent, withMarker } from "@codetypess/ecs-ts";
+import {
+    World,
+    createRegistry,
+    defineComponent,
+    withComponent,
+    withMarker,
+} from "@codetypess/ecs-ts";
 
 const registry = createRegistry("ui");
 
 type Transform = { x: number; y: number };
 type Element = { name: string };
 
-const Transform = registry.defineComponent<Transform>("Transform");
-const Element = registry.defineComponent<Element>("Element", {
+const Transform = defineComponent<Transform>("Transform");
+const Element = defineComponent<Element>("Element", {
     deps: [Transform],
 });
-const Selected = registry.defineComponent("Selected");
+const Selected = defineComponent("Selected");
+
+registry.registerComponent(Transform);
+registry.registerComponent(Element);
+registry.registerComponent(Selected);
 
 const world = new World(registry);
 

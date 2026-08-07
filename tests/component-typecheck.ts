@@ -1,4 +1,5 @@
 import {
+    defineComponent,
     World,
     createRegistry,
     withComponent,
@@ -13,48 +14,52 @@ function expectType<T>(value: T): void {
     void value;
 }
 
-const Marker = registry.defineComponent("ComponentTypecheckDefaultMarker");
+const Marker = registry.registerComponent(defineComponent("ComponentTypecheckDefaultMarker"));
 type Value = { value: number };
-const Value = registry.defineComponent<Value>("ComponentTypecheckValue");
+const Value = registry.registerComponent(defineComponent<Value>("ComponentTypecheckValue"));
 type Transform = { x: number; y: number };
-const Transform = registry.defineComponent<Transform>("ComponentTypecheckTransform");
+const Transform = registry.registerComponent(
+    defineComponent<Transform>("ComponentTypecheckTransform")
+);
 type SlgTransformFields = { start: number; speed: number };
-const SlgTransform = registry.defineComponent<SlgTransformFields, typeof Transform>(
-    "ComponentTypecheckSlgTransform"
+const SlgTransform = registry.registerComponent(
+    defineComponent<SlgTransformFields, typeof Transform>("ComponentTypecheckSlgTransform")
 );
 type SlgTransformWithLifecycleFields = { start: number; speed: number };
-const SlgTransformWithLifecycle = registry.defineComponent<
-    SlgTransformWithLifecycleFields,
-    typeof Transform
->("ComponentTypecheckSlgTransformWithLifecycle", {
-    onAdd(_entity, transform, _world, reason) {
-        expectType<number>(transform.x);
-        expectType<number>(transform.y);
-        expectType<number>(transform.start);
-        expectType<number>(transform.speed);
-        expectType<"added" | "spawned">(reason);
-    },
-    onUnset(_entity, transform) {
-        expectType<number>(transform.x);
-        expectType<number>(transform.y);
-        expectType<number>(transform.start);
-        expectType<number>(transform.speed);
-    },
-    onReplace(_entity, previous, next) {
-        expectType<number>(previous.x);
-        expectType<number>(previous.y);
-        expectType<number>(previous.start);
-        expectType<number>(previous.speed);
-        expectType<number>(next.x);
-        expectType<number>(next.y);
-        expectType<number>(next.start);
-        expectType<number>(next.speed);
-    },
-    onRemove(_entity, transform, _world, reason) {
-        expectType<number>(transform.x);
-        expectType<"removed" | "despawned">(reason);
-    },
-});
+const SlgTransformWithLifecycle = registry.registerComponent(
+    defineComponent<SlgTransformWithLifecycleFields, typeof Transform>(
+        "ComponentTypecheckSlgTransformWithLifecycle",
+        {
+            onAdd(_entity, transform, _world, reason) {
+                expectType<number>(transform.x);
+                expectType<number>(transform.y);
+                expectType<number>(transform.start);
+                expectType<number>(transform.speed);
+                expectType<"added" | "spawned">(reason);
+            },
+            onUnset(_entity, transform) {
+                expectType<number>(transform.x);
+                expectType<number>(transform.y);
+                expectType<number>(transform.start);
+                expectType<number>(transform.speed);
+            },
+            onReplace(_entity, previous, next) {
+                expectType<number>(previous.x);
+                expectType<number>(previous.y);
+                expectType<number>(previous.start);
+                expectType<number>(previous.speed);
+                expectType<number>(next.x);
+                expectType<number>(next.y);
+                expectType<number>(next.start);
+                expectType<number>(next.speed);
+            },
+            onRemove(_entity, transform, _world, reason) {
+                expectType<number>(transform.x);
+                expectType<"removed" | "despawned">(reason);
+            },
+        }
+    )
+);
 
 expectType<Record<string, never>>({} satisfies ComponentData<typeof Marker>);
 expectType<{
@@ -94,7 +99,7 @@ withComponent(SlgTransform, { start: 0, speed: 1 });
 withComponent(SlgTransform, { x: 0, y: 0 });
 
 // @ts-expect-error component payloads must be objects
-registry.defineComponent<number>("ComponentTypecheckInvalidPrimitive");
+registry.registerComponent(defineComponent<number>("ComponentTypecheckInvalidPrimitive"));
 
 // @ts-expect-error value components are not markers
 withMarker(Value);
@@ -125,7 +130,7 @@ expectType<readonly [Record<string, never>, Value] | undefined>(
 expectType<number | undefined>(world.entityType(entity));
 
 // @ts-expect-error component values cannot be null
-registry.defineComponent<null>("ComponentTypecheckInvalidNull");
+registry.registerComponent(defineComponent<null>("ComponentTypecheckInvalidNull"));
 
 // @ts-expect-error component values cannot include undefined
-registry.defineComponent<string | undefined>("ComponentTypecheckInvalid");
+registry.registerComponent(defineComponent<string | undefined>("ComponentTypecheckInvalid"));

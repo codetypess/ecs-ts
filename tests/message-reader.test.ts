@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { World, createRegistry } from "../src";
+import { defineMessage, World, createRegistry } from "../src";
 
 const registry = createRegistry("message-reader-test");
 
 test("advanceTo rewinds cursor to re-read already-seen messages", () => {
-    const Damage = registry.defineMessage<{ amount: number }>("AdvanceToRewindDamage");
+    const Damage = registry.registerMessage(
+        defineMessage<{ amount: number }>("AdvanceToRewindDamage")
+    );
     const world = new World(registry);
 
     world.addMessage(Damage);
@@ -28,7 +30,7 @@ test("advanceTo rewinds cursor to re-read already-seen messages", () => {
 });
 
 test("advanceTo fast-forwards cursor to skip messages", () => {
-    const Event = registry.defineMessage<{ n: number }>("AdvanceToSkipEvent");
+    const Event = registry.registerMessage(defineMessage<{ n: number }>("AdvanceToSkipEvent"));
     const world = new World(registry);
 
     world.addMessage(Event);
@@ -47,7 +49,7 @@ test("advanceTo fast-forwards cursor to skip messages", () => {
 });
 
 test("advanceTo can be used to start a reader mid-stream", () => {
-    const Cmd = registry.defineMessage<{ seq: number }>("AdvanceToMidStreamCmd");
+    const Cmd = registry.registerMessage(defineMessage<{ seq: number }>("AdvanceToMidStreamCmd"));
     const world = new World(registry);
 
     world.addMessage(Cmd);
@@ -68,7 +70,7 @@ test("advanceTo can be used to start a reader mid-stream", () => {
 });
 
 test("cursor reflects next unread id after reading", () => {
-    const Tick = registry.defineMessage<void>("CursorTick");
+    const Tick = registry.registerMessage(defineMessage<void>("CursorTick"));
     const world = new World(registry);
 
     world.addMessage(Tick);
@@ -90,7 +92,7 @@ test("cursor reflects next unread id after reading", () => {
 });
 
 test("_readBuffer is reused across successive reads", () => {
-    const Blob = registry.defineMessage<{ v: number }>("ReadBufferBlob");
+    const Blob = registry.registerMessage(defineMessage<{ v: number }>("ReadBufferBlob"));
     const world = new World(registry);
 
     world.addMessage(Blob);
@@ -111,7 +113,7 @@ test("_readBuffer is reused across successive reads", () => {
 });
 
 test("empty reads reuse the buffer without advancing the cursor", () => {
-    const Empty = registry.defineMessage<{ v: number }>("EmptyReadBuffer");
+    const Empty = registry.registerMessage(defineMessage<{ v: number }>("EmptyReadBuffer"));
     const world = new World(registry);
 
     world.addMessage(Empty);
@@ -134,7 +136,7 @@ test("empty reads reuse the buffer without advancing the cursor", () => {
 });
 
 test("empty reads reuse the buffer even before the channel exists", () => {
-    const Cold = registry.defineMessage<{ v: number }>("ColdReadBuffer");
+    const Cold = registry.registerMessage(defineMessage<{ v: number }>("ColdReadBuffer"));
     const world = new World(registry);
     const reader = world.messageReader(Cold);
 
@@ -156,7 +158,7 @@ test("empty reads reuse the buffer even before the channel exists", () => {
 });
 
 test("reading after message expiry returns empty result", () => {
-    const Shot = registry.defineMessage<{ dmg: number }>("ExpiryShot");
+    const Shot = registry.registerMessage(defineMessage<{ dmg: number }>("ExpiryShot"));
     const world = new World(registry);
 
     world.addMessage(Shot);

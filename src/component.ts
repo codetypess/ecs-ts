@@ -1,5 +1,4 @@
 import type { Entity } from "./entity.js";
-import type { Registry } from "./registry.js";
 import type { World } from "./world.js";
 
 export { createRegistry, Registry } from "./registry.js";
@@ -70,7 +69,7 @@ export function defineComponent<T extends object>(
 ): ComponentType<T>;
 export function defineComponent<T extends object>(
     name: string,
-    options: ComponentOptions<T> = {} as ComponentOptions<T>
+    options: ComponentOptions<T> = {}
 ): ComponentType<T> {
     if (name.trim().length === 0) {
         throw new Error("Cannot define component: name must be a non-empty string");
@@ -83,14 +82,14 @@ export function defineComponent<T extends object>(
         onUnset: options.onUnset,
         onReplace: options.onReplace,
         onRemove: options.onRemove,
-    });
+    } satisfies ComponentLifecycle<T>);
 
     return Object.freeze({
         key: `component/${name}`,
         name,
         deps,
         lifecycle,
-    });
+    } satisfies ComponentType<T>);
 }
 
 function normalizeComponentDeps(
@@ -151,7 +150,7 @@ export function withComponent<TComponent extends AnyComponentType>(
     value: ComponentData<TComponent>
 ): ComponentEntry<ComponentData<TComponent>> {
     assertComponentValue(type, value);
-    return { type, value };
+    return { type, value } satisfies ComponentEntry<ComponentData<TComponent>>;
 }
 
 /** Creates a marker-component entry using the default `{}` payload. */
@@ -174,7 +173,7 @@ export function assertComponentValue<T extends object>(type: ComponentType<T>, v
 
 /** Throws unless the component belongs to the expected registry. */
 export function assertRegisteredComponent(
-    registry: Registry,
+    registry: { readonly name: string; isRegisteredComponent(type: AnyComponentType): boolean },
     type: AnyComponentType,
     action: string
 ): void {
@@ -189,7 +188,7 @@ export function assertRegisteredComponent(
 
 /** Throws unless every component belongs to the expected registry. */
 export function assertRegisteredComponents(
-    registry: Registry,
+    registry: { readonly name: string; isRegisteredComponent(type: AnyComponentType): boolean },
     types: readonly AnyComponentType[],
     action: string
 ): void {

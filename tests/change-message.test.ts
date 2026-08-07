@@ -1,13 +1,24 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DeferredCommands, Entity, World, createRegistry, withComponent } from "../src";
+import {
+    defineComponent,
+    defineMessage,
+    defineState,
+    DeferredCommands,
+    Entity,
+    World,
+    createRegistry,
+    withComponent,
+} from "../src";
 
 const registry = createRegistry("change-message-test");
 
 test("per-system change detection lets state systems see earlier changes", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("ChangedPosition");
-    const Mode = registry.defineState<"editing" | "watching">("ChangedMode", "editing");
+    const Position = registry.registerComponent(defineComponent<Position>("ChangedPosition"));
+    const Mode = registry.registerState(
+        defineState<"editing" | "watching">("ChangedMode", "editing")
+    );
     const seen: number[] = [];
 
     class MutationSystem {
@@ -55,8 +66,10 @@ test("per-system change detection lets state systems see earlier changes", () =>
 
 test("message readers keep independent cursors", () => {
     type Health = { value: number };
-    const Health = registry.defineComponent<Health>("MessageHealth");
-    const Damage = registry.defineMessage<{ target: Entity; amount: number }>("MessageDamage");
+    const Health = registry.registerComponent(defineComponent<Health>("MessageHealth"));
+    const Damage = registry.registerMessage(
+        defineMessage<{ target: Entity; amount: number }>("MessageDamage")
+    );
     const world = new World(registry);
     const target = world.spawn(0, withComponent(Health, { value: 100 }));
 
@@ -78,7 +91,7 @@ test("message readers keep independent cursors", () => {
 });
 
 test("messages expire after the next message update window", () => {
-    const Damage = registry.defineMessage<{ amount: number }>("ExpiringDamage");
+    const Damage = registry.registerMessage(defineMessage<{ amount: number }>("ExpiringDamage"));
     const world = new World(registry);
 
     world.addMessage(Damage);

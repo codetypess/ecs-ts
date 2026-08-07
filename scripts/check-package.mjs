@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
-import { World, createRegistry, queryState, withComponent, withMarker } from "@codetypess/ecs-ts";
+import {
+    World,
+    createRegistry,
+    defineComponent,
+    queryState,
+    withComponent,
+    withMarker,
+} from "@codetypess/ecs-ts";
 
 const registry = createRegistry("package-smoke");
 
-const Position = registry.defineComponent("Position");
-const Velocity = registry.defineComponent("Velocity");
-const Selected = registry.defineComponent("Selected");
+const Position = registry.registerComponent(defineComponent("Position"));
+const Velocity = registry.registerComponent(defineComponent("Velocity"));
+const Selected = registry.registerComponent(defineComponent("Selected"));
 
 const world = new World(registry);
 const entity = world.spawn(

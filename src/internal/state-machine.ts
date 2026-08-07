@@ -1,6 +1,6 @@
 import { createSystemRunner } from "../scheduler.js";
 import type { SystemRunner } from "../scheduler.js";
-import type { StateType, StateValue } from "../state.js";
+import type { AnyStateType, StateType, StateValue } from "../state.js";
 import type { StateSystem, TransitionSystem } from "../system.js";
 import type { World } from "../world.js";
 import { ensureMapEntry } from "./collection-utils.js";
@@ -19,14 +19,14 @@ export interface StateRecord<T extends StateValue> {
 
 /** Collection of all registered state machines for a world. */
 export interface StateMachineContext {
-    readonly states: Map<number, StateRecord<StateValue>>;
+    readonly states: Map<AnyStateType, StateRecord<StateValue>>;
 }
 
 /** Creates the state-machine context used by a world. */
 export function createStateMachineContext(): StateMachineContext {
     return {
         states: new Map(),
-    };
+    } satisfies StateMachineContext;
 }
 
 /** Ensures a state machine exists and applies the provided initial value on first creation only. */
@@ -43,7 +43,7 @@ export function hasState<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>
 ): boolean {
-    return context.states.has(type.id);
+    return context.states.has(type as AnyStateType);
 }
 
 /** Returns the current value of an initialized state machine. */
@@ -61,7 +61,7 @@ export function matchesState<T extends StateValue>(
     predicate: (value: T, world: World) => boolean,
     world: World
 ): boolean {
-    const state = context.states.get(type.id);
+    const state = context.states.get(type as AnyStateType);
 
     return state !== undefined && predicate((state as StateRecord<T>).current, world);
 }
@@ -179,7 +179,7 @@ function ensureState<T extends StateValue>(
     type: StateType<T>,
     initial = type.initial
 ): StateRecord<T> {
-    return ensureMapEntry(context.states, type.id, () =>
+    return ensureMapEntry(context.states, type as AnyStateType, () =>
         createStateRecord(type, initial)
     ) as StateRecord<T>;
 }
@@ -188,7 +188,7 @@ function requireState<T extends StateValue>(
     context: StateMachineContext,
     type: StateType<T>
 ): StateRecord<T> {
-    const state = context.states.get(type.id);
+    const state = context.states.get(type as AnyStateType);
 
     if (state === undefined) {
         throw new Error(`State is not initialized: ${type.name}`);
@@ -207,7 +207,7 @@ function createStateRecord<T extends StateValue>(type: StateType<T>, initial: T)
         onEnter: new Map(),
         onExit: new Map(),
         onTransition: [],
-    };
+    } satisfies StateRecord<T>;
 }
 
 function getStateSystems<T extends StateValue>(

@@ -1,4 +1,7 @@
 import {
+    defineComponent,
+    defineResource,
+    defineState,
     type DeferredCommands,
     type Entity,
     World,
@@ -13,20 +16,28 @@ import {
 } from "../src";
 
 const registry = createRegistry("example-scheduler-showcase");
-const Log = registry.defineResource<string[]>("SchedulerShowcaseLog");
-const Frame = registry.defineResource<{ value: number }>("SchedulerShowcaseFrame");
-const FeatureFlags = registry.defineResource<{ physicsEnabled: boolean }>("SchedulerShowcaseFlags");
-const ControlledEntity = registry.defineResource<{ value: Entity | undefined }>(
-    "SchedulerShowcaseControlled"
+const Log = registry.registerResource(defineResource<string[]>("SchedulerShowcaseLog"));
+const Frame = registry.registerResource(
+    defineResource<{ value: number }>("SchedulerShowcaseFrame")
 );
-const GameMode = registry.defineState<"running" | "paused">("SchedulerShowcaseMode", "running");
+const FeatureFlags = registry.registerResource(
+    defineResource<{ physicsEnabled: boolean }>("SchedulerShowcaseFlags")
+);
+const ControlledEntity = registry.registerResource(
+    defineResource<{ value: Entity | undefined }>("SchedulerShowcaseControlled")
+);
+const GameMode = registry.registerState(
+    defineState<"running" | "paused">("SchedulerShowcaseMode", "running")
+);
 
 type Transform = { x: number; y: number };
-const Transform = registry.defineComponent<Transform>("SchedulerShowcaseTransform");
+const Transform = registry.registerComponent(
+    defineComponent<Transform>("SchedulerShowcaseTransform")
+);
 type Velocity = { x: number; y: number };
-const Velocity = registry.defineComponent<Velocity>("SchedulerShowcaseVelocity");
-const RigidBody = registry.defineComponent("SchedulerShowcaseRigidBody");
-const Sleeping = registry.defineComponent("SchedulerShowcaseSleeping");
+const Velocity = registry.registerComponent(defineComponent<Velocity>("SchedulerShowcaseVelocity"));
+const RigidBody = registry.registerComponent(defineComponent("SchedulerShowcaseRigidBody"));
+const Sleeping = registry.registerComponent(defineComponent("SchedulerShowcaseSleeping"));
 
 const activeBodies = queryState([Transform, Velocity, RigidBody], {
     without: [Sleeping],

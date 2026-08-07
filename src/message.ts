@@ -1,5 +1,3 @@
-import type { Registry } from "./registry.js";
-
 declare const MessageTypeBrand: unique symbol;
 declare const MessageIdBrand: unique symbol;
 
@@ -8,14 +6,22 @@ export type MessageId<T> = number & { readonly [MessageIdBrand]: T };
 
 /** Runtime handle for a short-lived message channel. */
 export interface MessageType<T> {
-    readonly id: number;
     readonly key: string;
     readonly name: string;
-    readonly registry: Registry;
     readonly [MessageTypeBrand]?: T;
 }
 
 export type AnyMessageType = MessageType<unknown>;
+
+/** Defines a message channel independently from any registry. */
+export function defineMessage<T>(name: string): MessageType<T> {
+    assertMessageName(name);
+
+    return Object.freeze({
+        key: `message/${name}`,
+        name,
+    } satisfies MessageType<T>);
+}
 
 export type MessageData<TMessage extends AnyMessageType> =
     TMessage extends MessageType<infer TData> ? TData : never;
@@ -85,7 +91,7 @@ export class Messages<T> {
     write(value: T): MessageId<T> {
         const id = this.nextMessageId as MessageId<T>;
         this.nextMessageId++;
-        this.buffers[this.currentBuffer].push({ id, value });
+        this.buffers[this.currentBuffer].push({ id, value } satisfies MessageEntry<T>);
 
         return id;
     }
@@ -159,7 +165,7 @@ export class Messages<T> {
 
 /** Throws unless the message channel belongs to the expected registry. */
 export function assertRegisteredMessage(
-    registry: Registry,
+    registry: { readonly name: string; isRegisteredMessage(type: AnyMessageType): boolean },
     type: AnyMessageType,
     action: string
 ): void {
@@ -167,13 +173,13 @@ export function assertRegisteredMessage(
         return;
     }
 
-    if (type.registry === registry) {
-        throw new Error(
-            `Cannot ${action} message ${type.name}: it is not registered in ${registry.name}`
-        );
-    }
-
     throw new Error(
-        `Cannot ${action} message ${type.name}: it is registered in ${type.registry.name}, not ${registry.name}`
+        `Cannot ${action} message ${type.name}: it is not registered in ${registry.name}`
     );
+}
+
+function assertMessageName(name: string): void {
+    if (name.trim().length === 0) {
+        throw new Error("Cannot define message: name must be a non-empty string");
+    }
 }

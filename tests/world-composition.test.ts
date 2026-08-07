@@ -1,14 +1,26 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DeferredCommands, World, createRegistry, withComponent } from "../src";
+import {
+    defineComponent,
+    defineResource,
+    defineState,
+    DeferredCommands,
+    World,
+    createRegistry,
+    withComponent,
+} from "../src";
 
 const registry = createRegistry("world-composition-test");
 
 test("world can register systems, resources, states, and drive updates together", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("WorldCompositionPosition");
-    const Log = registry.defineResource<string[]>("WorldCompositionLog");
-    const Mode = registry.defineState<"boot" | "running">("WorldCompositionMode", "boot");
+    const Position = registry.registerComponent(
+        defineComponent<Position>("WorldCompositionPosition")
+    );
+    const Log = registry.registerResource(defineResource<string[]>("WorldCompositionLog"));
+    const Mode = registry.registerState(
+        defineState<"boot" | "running">("WorldCompositionMode", "boot")
+    );
 
     class BootstrapSystem {
         onStartup(world: World, _dt: number, commands: DeferredCommands): void {
@@ -93,7 +105,9 @@ test("world can register systems, resources, states, and drive updates together"
 });
 
 test("state registration lazily initializes and initState becomes a no-op afterward", () => {
-    const Mode = registry.defineState<"boot" | "running">("WorldCompositionLazyMode", "boot");
+    const Mode = registry.registerState(
+        defineState<"boot" | "running">("WorldCompositionLazyMode", "boot")
+    );
     const log: string[] = [];
     const world = new World(registry);
 
@@ -111,7 +125,7 @@ test("state registration lazily initializes and initState becomes a no-op afterw
 
 test("transition systems observe every state change", () => {
     const transitionRegistry = createRegistry("world-transition-system-test");
-    const Mode = transitionRegistry.defineState<"a" | "b" | "c">("Mode", "a");
+    const Mode = transitionRegistry.registerState(defineState<"a" | "b" | "c">("Mode", "a"));
     const transitions: string[] = [];
     const world = new World(transitionRegistry);
 

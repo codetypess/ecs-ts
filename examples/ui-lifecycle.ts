@@ -1,4 +1,12 @@
-import { DeferredCommands, Entity, World, createRegistry, withComponent } from "../src";
+import {
+    defineComponent,
+    defineResource,
+    DeferredCommands,
+    Entity,
+    World,
+    createRegistry,
+    withComponent,
+} from "../src";
 
 const registry = createRegistry("example-ui-lifecycle");
 
@@ -85,19 +93,23 @@ class UiRuntime {
     }
 }
 
-const UiRuntimeResource = registry.defineResource<UiRuntime>("UiRuntime");
+const UiRuntimeResource = registry.registerResource(defineResource<UiRuntime>("UiRuntime"));
 
-const UiSource = registry.defineComponent<UiSource>("UiSource");
-const UiLoading = registry.defineComponent<UiLoading>("UiLoading", {
-    onRemove(_entity, loading) {
-        loading.abort.abort();
-    },
-});
-const UiInstance = registry.defineComponent<UiInstance>("UiInstance", {
-    onRemove(_entity, instance, world) {
-        world.mustGetResource(UiRuntimeResource).destroy(instance.handle);
-    },
-});
+const UiSource = registry.registerComponent(defineComponent<UiSource>("UiSource"));
+const UiLoading = registry.registerComponent(
+    defineComponent<UiLoading>("UiLoading", {
+        onRemove(_entity, loading) {
+            loading.abort.abort();
+        },
+    })
+);
+const UiInstance = registry.registerComponent(
+    defineComponent<UiInstance>("UiInstance", {
+        onRemove(_entity, instance, world) {
+            world.mustGetResource(UiRuntimeResource).destroy(instance.handle);
+        },
+    })
+);
 
 class UiSystem {
     onStartup(world: World): void {

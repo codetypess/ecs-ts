@@ -1,4 +1,9 @@
 import {
+    defineComponent,
+    defineEvent,
+    defineMessage,
+    defineResource,
+    defineState,
     Entity,
     QueryState,
     World,
@@ -102,22 +107,24 @@ type Velocity = { x: number; y: number };
 type Health = { value: number };
 type DespawnNoise = { value: number };
 
-const Position = registry.defineComponent<Position>("BenchPosition");
-const Velocity = registry.defineComponent<Velocity>("BenchVelocity");
-const Player = registry.defineComponent("BenchPlayer");
-const Sleeping = registry.defineComponent("BenchSleeping");
-const Health = registry.defineComponent<Health>("BenchHealth");
+const Position = registry.registerComponent(defineComponent<Position>("BenchPosition"));
+const Velocity = registry.registerComponent(defineComponent<Velocity>("BenchVelocity"));
+const Player = registry.registerComponent(defineComponent("BenchPlayer"));
+const Sleeping = registry.registerComponent(defineComponent("BenchSleeping"));
+const Health = registry.registerComponent(defineComponent<Health>("BenchHealth"));
 const DespawnNoiseComponents = Array.from({ length: 64 }, (_value, index) =>
-    registry.defineComponent<DespawnNoise>(`BenchDespawnNoise${index}`)
+    registry.registerComponent(defineComponent<DespawnNoise>(`BenchDespawnNoise${index}`))
 );
-const DamageMessage = registry.defineMessage<{ target: Entity; amount: number }>(
-    "BenchDamageMessage"
+const DamageMessage = registry.registerMessage(
+    defineMessage<{ target: Entity; amount: number }>("BenchDamageMessage")
 );
-const DamageEvent = registry.defineEvent<{ target: Entity; amount: number }>("BenchDamageEvent");
-const FeatureFlags = registry.defineResource<{ enabled: boolean; paused: boolean }>(
-    "BenchFeatureFlags"
+const DamageEvent = registry.registerEvent(
+    defineEvent<{ target: Entity; amount: number }>("BenchDamageEvent")
 );
-const Mode = registry.defineState<"running" | "paused">("BenchMode", "running");
+const FeatureFlags = registry.registerResource(
+    defineResource<{ enabled: boolean; paused: boolean }>("BenchFeatureFlags")
+);
+const Mode = registry.registerState(defineState<"running" | "paused">("BenchMode", "running"));
 const QueryRunIf = queryState([Position, Velocity], { without: [Sleeping] });
 
 let checksum = 0;

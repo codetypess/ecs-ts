@@ -216,7 +216,7 @@ export class World extends WorldQueryMethods {
             addSpawnedComponent: (entity, type, value) => {
                 this.addComponentWithReason(entity, type, value, "spawned");
             },
-        };
+        } satisfies DeferredCommandRuntime;
         this.stateContext = createStateMachineContext();
         this.eventContext = createEventContext();
         this.messageContext = createMessageContext();
@@ -544,14 +544,14 @@ export class World extends WorldQueryMethods {
     observe<T>(type: EventType<T>, observer: EventObserver<T>): () => void {
         assertRegisteredEvent(this.registry, type, "observe");
 
-        return observeEvent(this.eventContext, type.id, observer);
+        return observeEvent(this.eventContext, type, observer);
     }
 
     /** Triggers an event immediately; observers run in subscription order. */
     trigger<T>(type: EventType<T>, value: T): this {
         assertRegisteredEvent(this.registry, type, "trigger");
 
-        triggerEvent(this.eventContext, type.id, value, this);
+        triggerEvent(this.eventContext, type, value, this);
         return this;
     }
 
@@ -725,7 +725,7 @@ export class World extends WorldQueryMethods {
             removeComponent: (entity, type) =>
                 deleteComponent(this.ecsContext.components, entity, type),
             despawnEntity: (entity) => despawnEntity(this.ecsContext.components, entity),
-        };
+        } satisfies WorldBatchRuntime;
     }
 
     private addComponentWithReason<T extends object>(
@@ -810,7 +810,7 @@ export class World extends WorldQueryMethods {
             this.activeChangeDetection = {
                 lastRunTick: system.lastRunTick,
                 thisRunTick,
-            };
+            } satisfies ChangeDetectionRange;
 
             try {
                 if (!shouldRunScheduledSystem(this.scheduleContext, system, stage, this)) {

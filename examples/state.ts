@@ -1,7 +1,9 @@
-import { DeferredCommands, World, createRegistry } from "../src";
+import { defineState, DeferredCommands, World, createRegistry } from "../src";
 
 const registry = createRegistry("example-state");
-const GameState = registry.defineState("GameState", "menu" as "menu" | "playing" | "paused");
+const GameState = registry.registerState(
+    defineState("GameState", "menu" as "menu" | "playing" | "paused")
+);
 
 class MenuStateSystem {
     onEnter(): void {

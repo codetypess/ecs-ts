@@ -1,12 +1,14 @@
-import { World, createRegistry, formatEntity, withComponent } from "../src";
+import { defineComponent, World, createRegistry, formatEntity, withComponent } from "../src";
 
 const registry = createRegistry("example-component-deps");
 type Transform = { x: number; y: number };
-const Transform = registry.defineComponent<Transform>("Transform");
+const Transform = registry.registerComponent(defineComponent<Transform>("Transform"));
 type Element = { name: string };
-const Element = registry.defineComponent<Element>("Element", {
-    deps: [Transform],
-});
+const Element = registry.registerComponent(
+    defineComponent<Element>("Element", {
+        deps: [Transform],
+    })
+);
 
 const world = new World(registry);
 

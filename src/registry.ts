@@ -1,10 +1,4 @@
-import { defineComponent as createComponentDefinition } from "./component.js";
-import type {
-    AnyComponentType,
-    ComponentDataWithTemplate,
-    ComponentOptions,
-    ComponentType,
-} from "./component.js";
+import type { AnyComponentType, ComponentType } from "./component.js";
 import type { AnyEventType, EventType } from "./event.js";
 import type { AnyMessageType, MessageType } from "./message.js";
 import type { AnyResourceType, ResourceType } from "./resource.js";
@@ -25,12 +19,7 @@ export type RegistryTypeKey = string;
  * Registry that owns every typed ECS definition for one domain.
  */
 export class Registry {
-    private nextResourceId = 0;
-    private nextStateId = 0;
-    private nextMessageId = 0;
-    private nextEventId = 0;
     private readonly componentTypeTable: AnyComponentType[] = [];
-    private readonly componentOrderByType = new Map<AnyComponentType, number>();
     private readonly resourceTypeTable: AnyResourceType[] = [];
     private readonly stateTypeTable: AnyStateType[] = [];
     private readonly messageTypeTable: AnyMessageType[] = [];
@@ -61,32 +50,8 @@ export class Registry {
         return this;
     }
 
-    /** Defines a marker component whose payload is always `{}`. */
-    defineComponent(
-        name: string,
-        options?: ComponentOptions<Record<string, never>>
-    ): ComponentType<Record<string, never>>;
-
-    /** Defines a component whose payload type reuses another object component's payload. */
-    defineComponent<TOwn extends object, TTemplate extends ComponentType<object>>(
-        name: string,
-        options?: ComponentOptions<ComponentDataWithTemplate<TOwn, TTemplate>>
-    ): ComponentType<ComponentDataWithTemplate<TOwn, TTemplate>>;
-
-    /** Defines a component type and freezes its runtime metadata. */
-    defineComponent<T extends object>(
-        name: string,
-        options?: ComponentOptions<T>
-    ): ComponentType<T>;
-    defineComponent<T extends object>(
-        name: string,
-        options: ComponentOptions<T> = {} as ComponentOptions<T>
-    ): ComponentType<T> {
-        return this.registerComponent(createComponentDefinition(name, options));
-    }
-
     registerComponent<T extends object>(component: ComponentType<T>): ComponentType<T> {
-        this.assertCanDefine("component", component.name, this.componentTypesByName);
+        this.assertCanRegister("component", component.name, this.componentTypesByName);
 
         for (const dep of component.deps) {
             if (!this.isRegisteredComponent(dep)) {
@@ -97,79 +62,45 @@ export class Registry {
         }
 
         this.componentTypeTable.push(component);
-        this.componentOrderByType.set(component, this.componentTypeTable.length - 1);
         this.componentTypesByName.set(component.name, component);
         this.typesByKey.set(component.key, component);
 
         return component;
     }
 
-    /** Defines a singleton resource slot. */
-    defineResource<T>(name: string): ResourceType<T> {
-        this.assertCanDefine("resource", name, this.resourceTypesByName);
-        const resource = Object.freeze({
-            id: this.nextResourceId++,
-            key: this.typeKey("resource", name),
-            name,
-            registry: this,
-        }) satisfies ResourceType<T>;
-
-        this.resourceTypeTable[resource.id] = resource;
+    /** Registers a singleton resource type. */
+    registerResource<T>(resource: ResourceType<T>): ResourceType<T> {
+        this.assertCanRegister("resource", resource.name, this.resourceTypesByName);
+        this.resourceTypeTable.push(resource);
         this.resourceTypesByName.set(resource.name, resource);
         this.typesByKey.set(resource.key, resource);
-
         return resource;
     }
 
-    /** Defines a named state machine slot with its default value. */
-    defineState<T extends StateValue>(name: string, initial: T): StateType<T> {
-        this.assertCanDefine("state", name, this.stateTypesByName);
-        const state = Object.freeze({
-            id: this.nextStateId++,
-            key: this.typeKey("state", name),
-            name,
-            registry: this,
-            initial,
-        }) satisfies StateType<T>;
-
-        this.stateTypeTable[state.id] = state;
+    /** Registers a named state machine type. */
+    registerState<T extends StateValue>(state: StateType<T>): StateType<T> {
+        this.assertCanRegister("state", state.name, this.stateTypesByName);
+        this.stateTypeTable.push(state);
         this.stateTypesByName.set(state.name, state);
         this.typesByKey.set(state.key, state);
-
         return state;
     }
 
-    /** Defines a queued message channel. */
-    defineMessage<T>(name: string): MessageType<T> {
-        this.assertCanDefine("message", name, this.messageTypesByName);
-        const message = Object.freeze({
-            id: this.nextMessageId++,
-            key: this.typeKey("message", name),
-            name,
-            registry: this,
-        }) satisfies MessageType<T>;
-
-        this.messageTypeTable[message.id] = message;
+    /** Registers a queued message channel. */
+    registerMessage<T>(message: MessageType<T>): MessageType<T> {
+        this.assertCanRegister("message", message.name, this.messageTypesByName);
+        this.messageTypeTable.push(message);
         this.messageTypesByName.set(message.name, message);
         this.typesByKey.set(message.key, message);
-
         return message;
     }
 
-    /** Defines an immediate observer-style event channel. */
-    defineEvent<T>(name: string): EventType<T> {
-        this.assertCanDefine("event", name, this.eventTypesByName);
-        const event = Object.freeze({
-            id: this.nextEventId++,
-            key: this.typeKey("event", name),
-            name,
-            registry: this,
-        }) satisfies EventType<T>;
-
-        this.eventTypeTable[event.id] = event;
+    /** Registers an immediate observer-style event channel. */
+    registerEvent<T>(event: EventType<T>): EventType<T> {
+        this.assertCanRegister("event", event.name, this.eventTypesByName);
+        this.eventTypeTable.push(event);
         this.eventTypesByName.set(event.name, event);
         this.typesByKey.set(event.key, event);
-
         return event;
     }
 
@@ -191,27 +122,22 @@ export class Registry {
 
     /** Returns whether the resource belongs to this registry. */
     isRegisteredResource(type: AnyResourceType): boolean {
-        return type.registry === this && this.resourceTypeTable[type.id] === type;
+        return this.resourceTypesByName.get(type.name) === type;
     }
 
     /** Returns whether the state machine belongs to this registry. */
     isRegisteredState(type: AnyStateType): boolean {
-        return type.registry === this && this.stateTypeTable[type.id] === type;
+        return this.stateTypesByName.get(type.name) === type;
     }
 
     /** Returns whether the message channel belongs to this registry. */
     isRegisteredMessage(type: AnyMessageType): boolean {
-        return type.registry === this && this.messageTypeTable[type.id] === type;
+        return this.messageTypesByName.get(type.name) === type;
     }
 
     /** Returns whether the event channel belongs to this registry. */
     isRegisteredEvent(type: AnyEventType): boolean {
-        return type.registry === this && this.eventTypeTable[type.id] === type;
-    }
-
-    /** Resolves the internal definition-order slot for component lifecycle ordering. */
-    componentOrder(type: AnyComponentType): number | undefined {
-        return this.componentOrderByType.get(type);
+        return this.eventTypesByName.get(type.name) === type;
     }
 
     /** Returns every registered component in definition order. */
@@ -224,11 +150,6 @@ export class Registry {
         return this.componentTypesByName.get(name);
     }
 
-    /** Looks up the resource registered for the numeric id. */
-    resourceType(id: number): AnyResourceType | undefined {
-        return this.resourceTypeTable[id];
-    }
-
     /** Returns every registered resource in definition order. */
     resourceTypes(): readonly AnyResourceType[] {
         return [...this.resourceTypeTable];
@@ -237,11 +158,6 @@ export class Registry {
     /** Looks up the resource registered for the name. */
     resourceTypeByName(name: string): AnyResourceType | undefined {
         return this.resourceTypesByName.get(name);
-    }
-
-    /** Looks up the state machine registered for the numeric id. */
-    stateType(id: number): AnyStateType | undefined {
-        return this.stateTypeTable[id];
     }
 
     /** Returns every registered state in definition order. */
@@ -254,11 +170,6 @@ export class Registry {
         return this.stateTypesByName.get(name);
     }
 
-    /** Looks up the message channel registered for the numeric id. */
-    messageType(id: number): AnyMessageType | undefined {
-        return this.messageTypeTable[id];
-    }
-
     /** Returns every registered message in definition order. */
     messageTypes(): readonly AnyMessageType[] {
         return [...this.messageTypeTable];
@@ -267,11 +178,6 @@ export class Registry {
     /** Looks up the message channel registered for the name. */
     messageTypeByName(name: string): AnyMessageType | undefined {
         return this.messageTypesByName.get(name);
-    }
-
-    /** Looks up the event channel registered for the numeric id. */
-    eventType(id: number): AnyEventType | undefined {
-        return this.eventTypeTable[id];
     }
 
     /** Returns every registered event in definition order. */
@@ -289,7 +195,7 @@ export class Registry {
         return this.typesByKey.get(key);
     }
 
-    private assertCanDefine<TType>(
+    private assertCanRegister<TType>(
         kind: RegistryTypeKind,
         name: string,
         typesByName: ReadonlyMap<string, TType>
@@ -297,16 +203,14 @@ export class Registry {
         assertTypeName(kind, name);
 
         if (this.sealed) {
-            throw new Error(`Cannot define ${kind} ${name} in ${this.name}: registry is sealed`);
+            throw new Error(`Cannot register ${kind} ${name} in ${this.name}: registry is sealed`);
         }
 
         if (typesByName.has(name)) {
-            throw new Error(`Cannot define ${kind} ${name} in ${this.name}: name is already used`);
+            throw new Error(
+                `Cannot register ${kind} ${name} in ${this.name}: name is already used`
+            );
         }
-    }
-
-    private typeKey(kind: RegistryTypeKind, name: string): RegistryTypeKey {
-        return `${this.name}/${kind}/${name}`;
     }
 }
 

@@ -45,7 +45,7 @@ export function createScheduleEngineContext(): ScheduleEngineContext {
         systemSetsByStage: createSystemSetStageConfigs(),
         schedules: createSchedules(),
         sortedSchedules: createScheduleCacheEntries(),
-    };
+    } satisfies ScheduleEngineContext;
 }
 
 /** Applies a global configuration to a system set and invalidates sorted schedules. */

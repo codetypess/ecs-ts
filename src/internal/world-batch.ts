@@ -177,7 +177,11 @@ function stageBatchAddKnownComponent<T extends object>(
         );
     }
 
-    entityState.componentStates.set(type, { type, present: true, value });
+    entityState.componentStates.set(type, {
+        type,
+        present: true,
+        value,
+    } satisfies BatchComponentState);
 }
 
 function stageBatchRemoveComponent<T extends object>(
@@ -200,7 +204,11 @@ function stageBatchRemoveComponent<T extends object>(
         return;
     }
 
-    entityState.componentStates.set(type, { type, present: false, value: undefined });
+    entityState.componentStates.set(type, {
+        type,
+        present: false,
+        value: undefined,
+    } satisfies BatchComponentState);
 }
 
 function stageBatchDespawn(

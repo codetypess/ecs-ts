@@ -7,7 +7,7 @@ export interface EntityComponentIndexContext {
 }
 
 export function createEntityComponentIndexContext(): EntityComponentIndexContext {
-    return { componentTypesByEntity: [] };
+    return { componentTypesByEntity: [] } satisfies EntityComponentIndexContext;
 }
 
 export function trackEntityComponent(

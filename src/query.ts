@@ -302,7 +302,7 @@ function cloneQueryFilter(filter: QueryFilter): QueryFilter {
         or: cloneFilterTypes(filter.or),
         added: cloneFilterTypes(filter.added),
         changed: cloneFilterTypes(filter.changed),
-    });
+    } satisfies QueryFilter);
 }
 
 function cloneFilterTypes(

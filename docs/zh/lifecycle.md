@@ -32,7 +32,7 @@ component lifecycle hook 是可选的，而且是按操作路径触发的。一�
 ```ts
 type Health = { value: number };
 
-const Health = registry.defineComponent<Health>("Health", {
+const Health = defineComponent<Health>("Health", {
     onUnset(entity, health) {
         console.log("unset", entity, health.value);
     },
@@ -43,6 +43,7 @@ const Health = registry.defineComponent<Health>("Health", {
         console.log(reason, entity, health.value);
     },
 });
+registry.registerComponent(Health);
 ```
 
 运行示例：

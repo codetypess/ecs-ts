@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+    defineComponent,
+    defineResource,
+    defineState,
     World,
     createRegistry,
     matchesAny,
@@ -87,7 +90,7 @@ test("runIfNot inverts the underlying condition", () => {
 // ---------------------------------------------------------------------------
 
 test("matchesAny returns true when the query has at least one result", () => {
-    const Flag = registry.defineComponent("RunIfAnyFlag");
+    const Flag = registry.registerComponent(defineComponent("RunIfAnyFlag"));
     const state = queryState([Flag]);
     const world = new World(registry);
 
@@ -103,7 +106,7 @@ test("matchesAny returns true when the query has at least one result", () => {
 });
 
 test("matchesNone returns true when the query has no results", () => {
-    const Marker = registry.defineComponent("RunIfNoMarker");
+    const Marker = registry.registerComponent(defineComponent("RunIfNoMarker"));
     const state = queryState([Marker]);
     const world = new World(registry);
 
@@ -117,7 +120,7 @@ test("matchesNone returns true when the query has no results", () => {
 });
 
 test("matchesSingle returns true only when exactly one entity matches", () => {
-    const Boss = registry.defineComponent("RunIfSingleBoss");
+    const Boss = registry.registerComponent(defineComponent("RunIfSingleBoss"));
     const state = queryState([Boss]);
     const world = new World(registry);
 
@@ -136,7 +139,7 @@ test("matchesSingle returns true only when exactly one entity matches", () => {
 });
 
 test("query-like runIf fallbacks close iterators after early matches", () => {
-    const Marker = registry.defineComponent("RunIfIteratorCloseMarker");
+    const Marker = registry.registerComponent(defineComponent("RunIfIteratorCloseMarker"));
     const world = new World(registry);
     const first = world.spawn(0, withMarker(Marker));
     const second = world.spawn(0, withMarker(Marker));
@@ -169,7 +172,7 @@ test("query-like runIf fallbacks close iterators after early matches", () => {
 // ---------------------------------------------------------------------------
 
 test("resourceExists returns false before the resource is set", () => {
-    const Config = registry.defineResource<{ value: number }>("RunIfConfig");
+    const Config = registry.registerResource(defineResource<{ value: number }>("RunIfConfig"));
     const world = new World(registry);
 
     assert.equal(resourceExists(Config)(world), false);
@@ -180,7 +183,7 @@ test("resourceExists returns false before the resource is set", () => {
 });
 
 test("resourceAdded is true in the frame the resource is set", () => {
-    const Score = registry.defineResource<{ n: number }>("RunIfScore");
+    const Score = registry.registerResource(defineResource<{ n: number }>("RunIfScore"));
     const world = new World(registry);
 
     assert.equal(resourceAdded(Score)(world), false);
@@ -195,7 +198,7 @@ test("resourceAdded is true in the frame the resource is set", () => {
 });
 
 test("resourceChanged is true when marked changed and false after update", () => {
-    const Speed = registry.defineResource<{ v: number }>("RunIfSpeed");
+    const Speed = registry.registerResource(defineResource<{ v: number }>("RunIfSpeed"));
     const world = new World(registry);
 
     world.setResource(Speed, { v: 5 });
@@ -214,7 +217,7 @@ test("resourceChanged is true when marked changed and false after update", () =>
 });
 
 test("resourceMatches evaluates the predicate against the resource value", () => {
-    const Level = registry.defineResource<{ n: number }>("RunIfLevel");
+    const Level = registry.registerResource(defineResource<{ n: number }>("RunIfLevel"));
     const world = new World(registry);
 
     world.setResource(Level, { n: 3 });
@@ -224,7 +227,7 @@ test("resourceMatches evaluates the predicate against the resource value", () =>
 });
 
 test("resourceMatches returns false when resource is absent", () => {
-    const Missing = registry.defineResource<{ x: number }>("RunIfMissing");
+    const Missing = registry.registerResource(defineResource<{ x: number }>("RunIfMissing"));
     const world = new World(registry);
 
     assert.equal(resourceMatches(Missing, () => true)(world), false);
@@ -235,7 +238,7 @@ test("resourceMatches returns false when resource is absent", () => {
 // ---------------------------------------------------------------------------
 
 test("stateIs matches only the exact state value", () => {
-    const Mode = registry.defineState<"a" | "b" | "c">("RunIfMode", "a");
+    const Mode = registry.registerState(defineState<"a" | "b" | "c">("RunIfMode", "a"));
     const world = new World(registry);
 
     world.initState(Mode);
@@ -251,14 +254,14 @@ test("stateIs matches only the exact state value", () => {
 });
 
 test("stateIs returns false when state is not initialized", () => {
-    const Ghost = registry.defineState<"on" | "off">("RunIfGhostState", "on");
+    const Ghost = registry.registerState(defineState<"on" | "off">("RunIfGhostState", "on"));
     const world = new World(registry);
 
     assert.equal(stateIs(Ghost, "on")(world), false);
 });
 
 test("stateMatches evaluates a predicate over the current state", () => {
-    const Counter = registry.defineState<number>("RunIfCounterState", 0);
+    const Counter = registry.registerState(defineState<number>("RunIfCounterState", 0));
     const world = new World(registry);
 
     world.initState(Counter);
@@ -275,8 +278,8 @@ test("stateMatches evaluates a predicate over the current state", () => {
 
 test("matchesAny works correctly on a query with filter", () => {
     type Item = { tag: string };
-    const Item = registry.defineComponent<Item>("RunIfItem");
-    const Active = registry.defineComponent("RunIfActive");
+    const Item = registry.registerComponent(defineComponent<Item>("RunIfItem"));
+    const Active = registry.registerComponent(defineComponent("RunIfActive"));
     const activeItems = queryState([Item], { with: [Active] });
     const world = new World(registry);
 

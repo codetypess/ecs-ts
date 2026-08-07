@@ -1,12 +1,19 @@
-import { World, createRegistry, formatEntity, withComponent, withMarker } from "../src";
+import {
+    defineComponent,
+    World,
+    createRegistry,
+    formatEntity,
+    withComponent,
+    withMarker,
+} from "../src";
 
 const registry = createRegistry("example-query-ergonomics");
 type Position = { x: number; y: number };
-const Position = registry.defineComponent<Position>("Position");
+const Position = registry.registerComponent(defineComponent<Position>("Position"));
 type Velocity = { x: number; y: number };
-const Velocity = registry.defineComponent<Velocity>("Velocity");
-const Player = registry.defineComponent("Player");
-const Enemy = registry.defineComponent("Enemy");
+const Velocity = registry.registerComponent(defineComponent<Velocity>("Velocity"));
+const Player = registry.registerComponent(defineComponent("Player"));
+const Enemy = registry.registerComponent(defineComponent("Enemy"));
 
 const world = new World(registry);
 const player = world.spawn(

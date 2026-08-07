@@ -1,4 +1,6 @@
 import {
+    defineComponent,
+    defineEvent,
     DeferredCommands,
     Entity,
     World,
@@ -10,9 +12,9 @@ import {
 type Health = { value: number };
 
 const registry = createRegistry("example-observer");
-const Health = registry.defineComponent<Health>("Health");
-const Damage = registry.defineEvent<{ target: Entity; amount: number }>("Damage");
-const Died = registry.defineEvent<{ entity: Entity }>("Died");
+const Health = registry.registerComponent(defineComponent<Health>("Health"));
+const Damage = registry.registerEvent(defineEvent<{ target: Entity; amount: number }>("Damage"));
+const Died = registry.registerEvent(defineEvent<{ entity: Entity }>("Died"));
 
 class AttackSystem {
     constructor(private readonly target: Entity) {}

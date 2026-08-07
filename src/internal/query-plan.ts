@@ -140,7 +140,7 @@ export function createQueryPlanContext(options: QueryPlanContextOptions): QueryP
         queryStateCaches: new WeakMap(),
         optionalQueryStateCaches: new WeakMap(),
         ...options,
-    };
+    } satisfies QueryPlanContext;
 }
 
 /** Resolves a direct query request into concrete stores and a scan strategy. */
@@ -318,7 +318,7 @@ function resolveFilterStores(
         or: orStores,
         added: addedStores,
         changed: changedStores,
-    };
+    } satisfies ResolvedQueryFilter;
 }
 
 /**
@@ -408,7 +408,7 @@ function createQueryPlan(
         iterate: compileRequiredQueryIterate(stores.length, filterMode),
         each: compileRequiredQueryEach(stores.length, filterMode),
         countMatches: compileRequiredQueryCount(filterMode),
-    };
+    } satisfies ResolvedQueryPlan;
 }
 
 /** Packages the resolved plan for optional queries. */
@@ -435,7 +435,7 @@ function createOptionalQueryPlan(
         ),
         each: compileOptionalQueryEach(requiredStores.length, optionalStores.length, filterMode),
         countMatches: compileOptionalQueryCount(filterMode),
-    };
+    } satisfies ResolvedOptionalQueryPlan;
 }
 function assertRegisteredQueryComponent(registry: Registry, type: AnyComponentType): void {
     if (registry.isRegisteredComponent(type)) {

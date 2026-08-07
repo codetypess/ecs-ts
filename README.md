@@ -12,7 +12,7 @@ English README: [README-en.md](README-en.md).
 
 它更像一个有明确边界的 runtime core：
 
-- Schema 是显式的。Component、resource、state、message 和 event 都归属于一个 registry。
+- Schema 是显式的。Component、resource、state、message 和 event 可以先独立定义，再由 registry 显式注册。
 - World 修改是显式的。`spawn`、`addComponent`、`removeComponent`、`despawn`、`DeferredCommands` 和 `world.batch(...)` 都有明确语义。
 - 运行时不变量是认真的。跨 registry 误用会立刻失败，component 依赖可以被强约束，非法 batch 结果不会对外可见。
 - 易用性也要保留。常见 query、change detection、scheduler 和 lifecycle 场景不该写得很累。
@@ -34,18 +34,28 @@ English README: [README-en.md](README-en.md).
 ## 快速示例
 
 ```ts
-import { World, createRegistry, withComponent, withMarker } from "@codetypess/ecs-ts";
+import {
+    World,
+    createRegistry,
+    defineComponent,
+    withComponent,
+    withMarker,
+} from "@codetypess/ecs-ts";
 
 const registry = createRegistry("ui");
 
 type Transform = { x: number; y: number };
 type Element = { name: string };
 
-const Transform = registry.defineComponent<Transform>("Transform");
-const Element = registry.defineComponent<Element>("Element", {
+const Transform = defineComponent<Transform>("Transform");
+const Element = defineComponent<Element>("Element", {
     deps: [Transform],
 });
-const Selected = registry.defineComponent("Selected");
+const Selected = defineComponent("Selected");
+
+registry.registerComponent(Transform);
+registry.registerComponent(Element);
+registry.registerComponent(Selected);
 
 const world = new World(registry);
 

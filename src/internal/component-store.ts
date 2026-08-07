@@ -10,7 +10,12 @@ export interface ComponentStoreContext {
 }
 
 export function createComponentStoreContext(registry: Registry): ComponentStoreContext {
-    return { registry, stores: new Map(), pendingCompaction: new Set(), storeVersion: 0 };
+    return {
+        registry,
+        stores: new Map(),
+        pendingCompaction: new Set(),
+        storeVersion: 0,
+    } satisfies ComponentStoreContext;
 }
 
 export function ensureComponentStore<T extends object>(

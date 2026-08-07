@@ -1,4 +1,4 @@
-import type { EventObserver } from "../event.js";
+import type { AnyEventType, EventObserver, EventType } from "../event.js";
 import type { World } from "../world.js";
 import { runEventObserverWithDeferredCommands } from "./command-execution.js";
 
@@ -7,25 +7,25 @@ interface EventObserverList {
     dispatchDepth: number;
 }
 
-/** Observer registry keyed by event type id. */
+/** Observer registry keyed by event type identity. */
 export interface EventContext {
-    readonly observers: Map<number, EventObserverList>;
+    readonly observers: Map<AnyEventType, EventObserverList>;
 }
 
 /** Creates the event context used by a world. */
 export function createEventContext(): EventContext {
     return {
         observers: new Map(),
-    };
+    } satisfies EventContext;
 }
 
 /** Registers an observer and returns an unsubscribe callback. */
 export function observeEvent<T>(
     context: EventContext,
-    typeId: number,
+    type: EventType<T>,
     observer: EventObserver<T>
 ): () => void {
-    const list = ensureEventObserverList(context, typeId);
+    const list = ensureEventObserverList(context, type);
     const observers = mutableEventObservers(list);
 
     observers.push(observer as EventObserver<unknown>);
@@ -38,8 +38,8 @@ export function observeEvent<T>(
             currentObservers.splice(index, 1);
         }
 
-        if (currentObservers.length === 0 && context.observers.get(typeId) === list) {
-            context.observers.delete(typeId);
+        if (currentObservers.length === 0 && context.observers.get(type as AnyEventType) === list) {
+            context.observers.delete(type as AnyEventType);
         }
     };
 }
@@ -47,11 +47,11 @@ export function observeEvent<T>(
 /** Triggers observers immediately, isolating each one behind a fresh command queue. */
 export function triggerEvent<T>(
     context: EventContext,
-    typeId: number,
+    type: EventType<T>,
     value: T,
     world: World
 ): void {
-    const list = context.observers.get(typeId);
+    const list = context.observers.get(type as AnyEventType);
 
     if (list === undefined || list.observers.length === 0) {
         return;
@@ -69,8 +69,11 @@ export function triggerEvent<T>(
     }
 }
 
-function ensureEventObserverList(context: EventContext, typeId: number): EventObserverList {
-    const existing = context.observers.get(typeId);
+function ensureEventObserverList(
+    context: EventContext,
+    type: EventType<unknown>
+): EventObserverList {
+    const existing = context.observers.get(type);
 
     if (existing !== undefined) {
         return existing;
@@ -81,7 +84,7 @@ function ensureEventObserverList(context: EventContext, typeId: number): EventOb
         dispatchDepth: 0,
     };
 
-    context.observers.set(typeId, created);
+    context.observers.set(type, created);
 
     return created;
 }

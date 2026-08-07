@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+    defineComponent,
     World,
     createRegistry,
     optionalQueryState,
@@ -13,7 +14,7 @@ const registry = createRegistry("each-query-test");
 
 test("each visits every matching entity", () => {
     type Position = { x: number };
-    const Position = registry.defineComponent<Position>("EachPosition");
+    const Position = registry.registerComponent(defineComponent<Position>("EachPosition"));
     const world = new World(registry);
 
     const a = world.spawn(0, withComponent(Position, { x: 1 }));
@@ -37,9 +38,9 @@ test("each visits every matching entity", () => {
 test("each keeps base-store iteration stable across logical deletion and nested queries", () => {
     const localRegistry = createRegistry("stable-each-removal-test");
     type Position = { x: number };
-    const Position = localRegistry.defineComponent<Position>("Position");
+    const Position = localRegistry.registerComponent(defineComponent<Position>("Position"));
     type Velocity = { x: number };
-    const Velocity = localRegistry.defineComponent<Velocity>("Velocity");
+    const Velocity = localRegistry.registerComponent(defineComponent<Velocity>("Velocity"));
     const moving = queryState([Position, Velocity]);
     const world = new World(localRegistry);
     const first = world.spawn(
@@ -84,8 +85,8 @@ test("each keeps base-store iteration stable across logical deletion and nested 
 test("each skips an unvisited entity when its base filter component is removed", () => {
     const localRegistry = createRegistry("stable-filter-base-removal-test");
     type Position = { x: number };
-    const Position = localRegistry.defineComponent<Position>("Position");
-    const Active = localRegistry.defineComponent("Active");
+    const Position = localRegistry.registerComponent(defineComponent<Position>("Position"));
+    const Active = localRegistry.registerComponent(defineComponent("Active"));
     const world = new World(localRegistry);
     const first = world.spawn(0, withComponent(Position, { x: 1 }), withMarker(Active));
     const removed = world.spawn(0, withComponent(Position, { x: 2 }), withMarker(Active));
@@ -109,7 +110,7 @@ test("each skips an unvisited entity when its base filter component is removed",
 test("query iterators defer compaction until iteration completes", () => {
     const localRegistry = createRegistry("stable-query-iterator-removal-test");
     type Value = { value: number };
-    const Value = localRegistry.defineComponent<Value>("Value");
+    const Value = localRegistry.registerComponent(defineComponent<Value>("Value"));
     const world = new World(localRegistry);
     const first = world.spawn(0, withComponent(Value, { value: 1 }));
     const second = world.spawn(0, withComponent(Value, { value: 2 }));
@@ -132,7 +133,7 @@ test("query iterators defer compaction until iteration completes", () => {
 test("query iterator return releases tracking and compacts tombstones", () => {
     const localRegistry = createRegistry("stable-query-iterator-return-test");
     type Value = { value: number };
-    const Value = localRegistry.defineComponent<Value>("Value");
+    const Value = localRegistry.registerComponent(defineComponent<Value>("Value"));
     const world = new World(localRegistry);
     const first = world.spawn(0, withComponent(Value, { value: 1 }));
     const second = world.spawn(0, withComponent(Value, { value: 2 }));
@@ -151,7 +152,7 @@ test("query iterator return releases tracking and compacts tombstones", () => {
 test("query iterator throw releases tracking and compacts tombstones", () => {
     const localRegistry = createRegistry("stable-query-iterator-throw-test");
     type Value = { value: number };
-    const Value = localRegistry.defineComponent<Value>("Value");
+    const Value = localRegistry.registerComponent(defineComponent<Value>("Value"));
     const world = new World(localRegistry);
     const first = world.spawn(0, withComponent(Value, { value: 1 }));
     const second = world.spawn(0, withComponent(Value, { value: 2 }));
@@ -173,9 +174,9 @@ test("query iterator throw releases tracking and compacts tombstones", () => {
 
 test("query counts ignore base-store tombstones during an outer iteration", () => {
     const localRegistry = createRegistry("stable-query-count-removal-test");
-    const Outer = localRegistry.defineComponent("Outer");
+    const Outer = localRegistry.registerComponent(defineComponent("Outer"));
     type Value = { value: number };
-    const Value = localRegistry.defineComponent<Value>("Value");
+    const Value = localRegistry.registerComponent(defineComponent<Value>("Value"));
     const values = queryState([Value]);
     const world = new World(localRegistry);
     const outer = world.spawn(0, withMarker(Outer));
@@ -195,7 +196,7 @@ test("query counts ignore base-store tombstones during an outer iteration", () =
 });
 
 test("each skips despawned entities", () => {
-    const Marker = registry.defineComponent("EachSkipMarker");
+    const Marker = registry.registerComponent(defineComponent("EachSkipMarker"));
     const world = new World(registry);
 
     const alive = world.spawn(0, withMarker(Marker));
@@ -214,8 +215,8 @@ test("each skips despawned entities", () => {
 
 test("each supports filter argument", () => {
     type Position = { x: number };
-    const Position = registry.defineComponent<Position>("EachWherePosition");
-    const Active = registry.defineComponent("EachWhereActive");
+    const Position = registry.registerComponent(defineComponent<Position>("EachWherePosition"));
+    const Active = registry.registerComponent(defineComponent("EachWhereActive"));
     const world = new World(registry);
 
     const a = world.spawn(0, withComponent(Position, { x: 1 }), withMarker(Active));
@@ -233,7 +234,7 @@ test("each supports filter argument", () => {
 
 test("each with added filter only visits newly added components", () => {
     type Health = { value: number };
-    const Health = registry.defineComponent<Health>("EachAddedHealth");
+    const Health = registry.registerComponent(defineComponent<Health>("EachAddedHealth"));
     const world = new World(registry);
 
     const a = world.spawn(0, withComponent(Health, { value: 10 }));
@@ -275,7 +276,7 @@ test("each with added filter only visits newly added components", () => {
 
 test("each with changed filter only visits recently changed components", () => {
     type Score = { value: number };
-    const Score = registry.defineComponent<Score>("EachChangedScore");
+    const Score = registry.registerComponent(defineComponent<Score>("EachChangedScore"));
     const world = new World(registry);
 
     const a = world.spawn(0, withComponent(Score, { value: 0 }));
@@ -301,9 +302,9 @@ test("each with changed filter only visits recently changed components", () => {
 
 test("eachOptional visits all required-matching entities and exposes optional", () => {
     type Position = { x: number };
-    const Position = registry.defineComponent<Position>("EachOptionalPosition");
+    const Position = registry.registerComponent(defineComponent<Position>("EachOptionalPosition"));
     type Velocity = { vx: number };
-    const Velocity = registry.defineComponent<Velocity>("EachOptionalVelocity");
+    const Velocity = registry.registerComponent(defineComponent<Velocity>("EachOptionalVelocity"));
     const world = new World(registry);
 
     const moving = world.spawn(
@@ -329,9 +330,9 @@ test("eachOptional visits all required-matching entities and exposes optional", 
 });
 
 test("queryState.each uses a cached query state", () => {
-    const Tag = registry.defineComponent("EachWithStateTag");
+    const Tag = registry.registerComponent(defineComponent("EachWithStateTag"));
     type Level = { n: number };
-    const Level = registry.defineComponent<Level>("EachWithStateLevel");
+    const Level = registry.registerComponent(defineComponent<Level>("EachWithStateLevel"));
     const state = queryState([Level], { with: [Tag] });
     const world = new World(registry);
 
@@ -350,7 +351,7 @@ test("queryState.each uses a cached query state", () => {
 
 test("queryState.each supports change-detection filters", () => {
     type Score = { value: number };
-    const Score = registry.defineComponent<Score>("EachStateChangedScore");
+    const Score = registry.registerComponent(defineComponent<Score>("EachStateChangedScore"));
     const state = queryState([Score], { changed: [Score] });
     const world = new World(registry);
 
@@ -374,9 +375,9 @@ test("queryState.each supports change-detection filters", () => {
 
 test("optionalQueryState.each uses a cached optional query state", () => {
     type Base = { id: number };
-    const Base = registry.defineComponent<Base>("EachOptStateBase");
+    const Base = registry.registerComponent(defineComponent<Base>("EachOptStateBase"));
     type Extra = { bonus: number };
-    const Extra = registry.defineComponent<Extra>("EachOptStateExtra");
+    const Extra = registry.registerComponent(defineComponent<Extra>("EachOptStateExtra"));
     const state = optionalQueryState([Base], [Extra]);
     const world = new World(registry);
 
@@ -404,7 +405,7 @@ test("optionalQueryState.each uses a cached optional query state", () => {
 
 test("queryState.each produces same results as queryState.iter", () => {
     type Value = { n: number };
-    const Value = registry.defineComponent<Value>("EachVsQueryValue");
+    const Value = registry.registerComponent(defineComponent<Value>("EachVsQueryValue"));
     const state = queryState([Value]);
     const world = new World(registry);
 

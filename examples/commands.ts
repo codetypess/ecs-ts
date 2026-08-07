@@ -1,11 +1,23 @@
-import { type Entity, World, createRegistry, formatEntity, withComponent } from "../src";
+import {
+    defineComponent,
+    defineMessage,
+    defineResource,
+    defineState,
+    type Entity,
+    World,
+    createRegistry,
+    formatEntity,
+    withComponent,
+} from "../src";
 
 const registry = createRegistry("example-commands");
 type Position = { x: number; y: number };
-const Position = registry.defineComponent<Position>("Position");
-const Log = registry.defineResource<string[]>("Log");
-const Mode = registry.defineState<"boot" | "running">("Mode", "boot");
-const Damage = registry.defineMessage<{ target: Entity; amount: number }>("Damage");
+const Position = registry.registerComponent(defineComponent<Position>("Position"));
+const Log = registry.registerResource(defineResource<string[]>("Log"));
+const Mode = registry.registerState(defineState<"boot" | "running">("Mode", "boot"));
+const Damage = registry.registerMessage(
+    defineMessage<{ target: Entity; amount: number }>("Damage")
+);
 
 const world = new World(registry);
 

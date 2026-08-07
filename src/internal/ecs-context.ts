@@ -75,5 +75,5 @@ export function createEcsContext(options: EcsContextOptions): EcsContext {
         components,
         queries,
         resources,
-    };
+    } satisfies EcsContext;
 }

@@ -1,4 +1,5 @@
 import {
+    defineComponent,
     DeferredCommands,
     Entity,
     World,
@@ -9,29 +10,31 @@ import {
 
 const registry = createRegistry("example-lifecycle");
 type Health = { value: number };
-const Health = registry.defineComponent<Health>("Health", {
-    onAdd(entity, health, _world, reason) {
-        console.log(
-            `component onAdd(${reason}) Health(${health.value}) -> ${formatEntity(entity)}`
-        );
-    },
-    onInsert(entity, health) {
-        console.log(`component onInsert Health(${health.value}) -> ${formatEntity(entity)}`);
-    },
-    onUnset(entity, health) {
-        console.log(`component onUnset Health(${health.value}) -> ${formatEntity(entity)}`);
-    },
-    onReplace(entity, previous, next) {
-        console.log(
-            `component onReplace Health(${previous.value} -> ${next.value}) -> ${formatEntity(entity)}`
-        );
-    },
-    onRemove(entity, health, _world, reason) {
-        console.log(
-            `component onRemove(${reason}) Health(${health.value}) -> ${formatEntity(entity)}`
-        );
-    },
-});
+const Health = registry.registerComponent(
+    defineComponent<Health>("Health", {
+        onAdd(entity, health, _world, reason) {
+            console.log(
+                `component onAdd(${reason}) Health(${health.value}) -> ${formatEntity(entity)}`
+            );
+        },
+        onInsert(entity, health) {
+            console.log(`component onInsert Health(${health.value}) -> ${formatEntity(entity)}`);
+        },
+        onUnset(entity, health) {
+            console.log(`component onUnset Health(${health.value}) -> ${formatEntity(entity)}`);
+        },
+        onReplace(entity, previous, next) {
+            console.log(
+                `component onReplace Health(${previous.value} -> ${next.value}) -> ${formatEntity(entity)}`
+            );
+        },
+        onRemove(entity, health, _world, reason) {
+            console.log(
+                `component onRemove(${reason}) Health(${health.value}) -> ${formatEntity(entity)}`
+            );
+        },
+    })
+);
 
 class LifecycleDemoSystem {
     private entity: Entity | undefined;

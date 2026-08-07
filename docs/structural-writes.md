@@ -97,10 +97,13 @@ Component dependencies are hard runtime constraints, not hints.
 type Transform = { x: number; y: number };
 type Element = { name: string };
 
-const Transform = registry.defineComponent<Transform>("Transform");
-const Element = registry.defineComponent<Element>("Element", {
+const Transform = defineComponent<Transform>("Transform");
+const Element = defineComponent<Element>("Element", {
     deps: [Transform],
 });
+
+registry.registerComponent(Transform);
+registry.registerComponent(Element);
 ```
 
 That gives you these guarantees:

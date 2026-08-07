@@ -246,11 +246,7 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
     const trackedTypes = takeEntityComponents(context.entityComponents, entity);
     const componentTypes = despawnNeedsDependencyOrder(trackedTypes)
         ? sortComponentTypesByDependencies(trackedTypes, "dependentsFirst")
-        : trackedTypes.sort(
-              (left, right) =>
-                  context.componentStores.registry.componentOrder(left)! -
-                  context.componentStores.registry.componentOrder(right)!
-          );
+        : trackedTypes;
 
     for (const type of componentTypes) {
         const store = getComponentStore(context.componentStores, type);

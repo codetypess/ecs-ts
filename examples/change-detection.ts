@@ -1,4 +1,5 @@
 import {
+    defineComponent,
     DeferredCommands,
     Entity,
     World,
@@ -9,7 +10,7 @@ import {
 
 const registry = createRegistry("example-change-detection");
 type Position = { x: number; y: number };
-const Position = registry.defineComponent<Position>("Position");
+const Position = registry.registerComponent(defineComponent<Position>("Position"));
 
 class ChangeDetectionSystem {
     private entity: Entity | undefined;

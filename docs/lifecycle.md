@@ -32,7 +32,7 @@ Lifecycle hooks are part of the component metadata passed to `defineComponent(..
 ```ts
 type Health = { value: number };
 
-const Health = registry.defineComponent<Health>("Health", {
+const Health = defineComponent<Health>("Health", {
     onUnset(entity, health) {
         console.log("unset", entity, health.value);
     },
@@ -43,6 +43,7 @@ const Health = registry.defineComponent<Health>("Health", {
         console.log(reason, entity, health.value);
     },
 });
+registry.registerComponent(Health);
 ```
 
 Run the example:

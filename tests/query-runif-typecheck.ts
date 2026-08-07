@@ -1,4 +1,8 @@
 import {
+    defineComponent,
+    defineMessage,
+    defineResource,
+    defineState,
     World,
     createRegistry,
     matchesAny,
@@ -32,15 +36,19 @@ function expectType<T>(value: T): void {
 
 const registry = createRegistry("query-runif-typecheck");
 type Position = { x: number; y: number };
-const Position = registry.defineComponent<Position>("Position");
+const Position = registry.registerComponent(defineComponent<Position>("Position"));
 type Velocity = { x: number; y: number };
-const Velocity = registry.defineComponent<Velocity>("Velocity");
+const Velocity = registry.registerComponent(defineComponent<Velocity>("Velocity"));
 type Name = { value: string };
-const Name = registry.defineComponent<Name>("Name");
-const Player = registry.defineComponent("Player");
-const Flags = registry.defineResource<{ enabled: boolean; paused: boolean }>("Flags");
-const Mode = registry.defineState<"boot" | "running" | "paused">("Mode", "boot");
-const Damage = registry.defineMessage<{ target: Entity; amount: number }>("Damage");
+const Name = registry.registerComponent(defineComponent<Name>("Name"));
+const Player = registry.registerComponent(defineComponent("Player"));
+const Flags = registry.registerResource(
+    defineResource<{ enabled: boolean; paused: boolean }>("Flags")
+);
+const Mode = registry.registerState(defineState<"boot" | "running" | "paused">("Mode", "boot"));
+const Damage = registry.registerMessage(
+    defineMessage<{ target: Entity; amount: number }>("Damage")
+);
 
 const world = new World(registry);
 const player = world.spawn(

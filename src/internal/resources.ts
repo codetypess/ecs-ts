@@ -1,6 +1,6 @@
 import type { ChangeDetectionRange } from "../query.js";
 import { isTickInRange } from "../query.js";
-import type { ResourceType } from "../resource.js";
+import type { AnyResourceType, ResourceType } from "../resource.js";
 import type { World } from "../world.js";
 
 /** Stored resource value plus its change-detection metadata. */
@@ -17,7 +17,7 @@ interface ResourceContextOptions {
 
 /** Resource storage plus callbacks needed for change tracking. */
 export interface ResourceContext extends ResourceContextOptions {
-    readonly resources: Map<number, ResourceEntry<unknown>>;
+    readonly resources: Map<AnyResourceType, ResourceEntry<unknown>>;
 }
 
 /** Creates the resource context used by a world. */
@@ -25,7 +25,7 @@ export function createResourceContext(options: ResourceContextOptions): Resource
     return {
         resources: new Map(),
         ...options,
-    };
+    } satisfies ResourceContext;
 }
 
 /** Inserts or replaces a resource, updating change ticks in place on replacement. */
@@ -40,16 +40,19 @@ export function setResource<T>(context: ResourceContext, type: ResourceType<T>, 
 
     const tick = context.getChangeTick();
 
-    context.resources.set(type.id, {
-        value,
-        addedTick: tick,
-        changedTick: tick,
-    } satisfies ResourceEntry<T> as ResourceEntry<unknown>);
+    context.resources.set(
+        type as AnyResourceType,
+        {
+            value,
+            addedTick: tick,
+            changedTick: tick,
+        } satisfies ResourceEntry<T> as ResourceEntry<unknown>
+    );
 }
 
 /** Returns whether the resource exists. */
 export function hasResource<T>(context: ResourceContext, type: ResourceType<T>): boolean {
-    return context.resources.has(type.id);
+    return context.resources.has(type as AnyResourceType);
 }
 
 /** Returns the resource value, or `undefined` when missing. */
@@ -72,7 +75,7 @@ export function matchesResource<T>(
 /** Removes a resource and returns the previous value, if any. */
 export function removeResource<T>(context: ResourceContext, type: ResourceType<T>): T | undefined {
     const value = getResourceEntry(context, type)?.value;
-    context.resources.delete(type.id);
+    context.resources.delete(type as AnyResourceType);
 
     return value;
 }
@@ -110,5 +113,5 @@ function getResourceEntry<T>(
     context: ResourceContext,
     type: ResourceType<T>
 ): ResourceEntry<T> | undefined {
-    return context.resources.get(type.id) as ResourceEntry<T> | undefined;
+    return context.resources.get(type as AnyResourceType) as ResourceEntry<T> | undefined;
 }

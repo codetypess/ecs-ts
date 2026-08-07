@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+    defineComponent,
+    defineEvent,
+    defineResource,
+    defineState,
     Entity,
     World,
     createRegistry,
@@ -281,7 +285,7 @@ test("scheduler applies stage-specific set ordering in shutdown", () => {
 });
 
 test("scheduler combines multiple sets for ordering and runIf", () => {
-    const Gate = registry.defineResource<{ enabled: boolean }>("SchedulerGate");
+    const Gate = registry.registerResource(defineResource<{ enabled: boolean }>("SchedulerGate"));
     const calls: string[] = [];
 
     class NamedSystem {
@@ -318,11 +322,11 @@ test("scheduler combines multiple sets for ordering and runIf", () => {
 
 test("scheduler supports query-backed runIf helpers", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("RunIfQueryPosition");
+    const Position = registry.registerComponent(defineComponent<Position>("RunIfQueryPosition"));
     type Velocity = { x: number; y: number };
-    const Velocity = registry.defineComponent<Velocity>("RunIfQueryVelocity");
-    const Player = registry.defineComponent("RunIfQueryPlayer");
-    const Sleeping = registry.defineComponent("RunIfQuerySleeping");
+    const Velocity = registry.registerComponent(defineComponent<Velocity>("RunIfQueryVelocity"));
+    const Player = registry.registerComponent(defineComponent("RunIfQueryPlayer"));
+    const Sleeping = registry.registerComponent(defineComponent("RunIfQuerySleeping"));
     const moving = queryState([Position, Velocity], { without: [Sleeping] });
     const players = queryState([Player]);
     const calls: string[] = [];
@@ -430,8 +434,12 @@ test("scheduler invalidates stage-specific set ordering cache when reconfigured"
 });
 
 test("scheduler composes runIf helpers for resources and state", () => {
-    const Flags = registry.defineResource<{ enabled: boolean; paused: boolean }>("SchedulerFlags");
-    const Mode = registry.defineState<"boot" | "running" | "paused">("SchedulerMode", "boot");
+    const Flags = registry.registerResource(
+        defineResource<{ enabled: boolean; paused: boolean }>("SchedulerFlags")
+    );
+    const Mode = registry.registerState(
+        defineState<"boot" | "running" | "paused">("SchedulerMode", "boot")
+    );
     const calls: string[] = [];
 
     class NamedSystem {
@@ -476,7 +484,7 @@ test("scheduler composes runIf helpers for resources and state", () => {
 });
 
 test("scheduler runIf resource helpers respect per-system change detection", () => {
-    const Tick = registry.defineResource<{ value: number }>("SchedulerTick");
+    const Tick = registry.registerResource(defineResource<{ value: number }>("SchedulerTick"));
     const calls: string[] = [];
 
     class SeedSystem {
@@ -539,9 +547,11 @@ test("scheduler rejects ambiguous system and set labels inside a stage", () => {
 
 test("observers dispatch immediate events and can queue commands", () => {
     type Health = { value: number };
-    const Health = registry.defineComponent<Health>("ObserverHealth");
-    const Damage = registry.defineEvent<{ target: Entity; amount: number }>("ObserverDamage");
-    const Died = registry.defineEvent<{ entity: Entity }>("ObserverDied");
+    const Health = registry.registerComponent(defineComponent<Health>("ObserverHealth"));
+    const Damage = registry.registerEvent(
+        defineEvent<{ target: Entity; amount: number }>("ObserverDamage")
+    );
+    const Died = registry.registerEvent(defineEvent<{ entity: Entity }>("ObserverDied"));
     const world = new World(registry);
     const enemy = world.spawn(0, withComponent(Health, { value: 10 }));
     const log: string[] = [];
@@ -570,7 +580,7 @@ test("observers dispatch immediate events and can queue commands", () => {
 });
 
 test("observer unsubscribe removes the registered callback", () => {
-    const Ping = registry.defineEvent<number>("ObserverPing");
+    const Ping = registry.registerEvent(defineEvent<number>("ObserverPing"));
     const world = new World(registry);
     let count = 0;
     const unsubscribe = world.observe(Ping, (value) => {

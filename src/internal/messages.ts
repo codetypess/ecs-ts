@@ -1,18 +1,18 @@
 import { MessageReader, Messages } from "../message.js";
-import type { MessageId, MessageReaderOptions, MessageType } from "../message.js";
+import type { AnyMessageType, MessageId, MessageReaderOptions, MessageType } from "../message.js";
 
 /** Indexed storage for every registered message channel. */
 export interface MessageContext {
-    readonly messageStores: (Messages<unknown> | undefined)[];
+    readonly messageStores: Map<AnyMessageType, Messages<unknown>>;
     readonly registeredStores: Messages<unknown>[];
 }
 
 /** Creates the message context used by a world. */
 export function createMessageContext(): MessageContext {
     return {
-        messageStores: [],
+        messageStores: new Map(),
         registeredStores: [],
-    };
+    } satisfies MessageContext;
 }
 
 /** Ensures a message channel exists before the first write. */
@@ -41,7 +41,7 @@ export function writeMessage<T>(
     type: MessageType<T>,
     value: T
 ): MessageId<T> {
-    const existing = context.messageStores[type.id] as Messages<T> | undefined;
+    const existing = context.messageStores.get(type as AnyMessageType) as Messages<T> | undefined;
 
     if (existing !== undefined) {
         return existing.write(value);
@@ -52,7 +52,9 @@ export function writeMessage<T>(
 
 /** Reads unread messages for the given reader. */
 export function readMessages<T>(context: MessageContext, reader: MessageReader<T>): readonly T[] {
-    const messages = context.messageStores[reader.type.id] as Messages<T> | undefined;
+    const messages = context.messageStores.get(reader.type as AnyMessageType) as
+        | Messages<T>
+        | undefined;
 
     if (messages === undefined) {
         reader._readBuffer.length = 0;
@@ -64,14 +66,14 @@ export function readMessages<T>(context: MessageContext, reader: MessageReader<T
 
 /** Returns and clears all buffered messages for the channel. */
 export function drainMessages<T>(context: MessageContext, type: MessageType<T>): T[] {
-    const messages = context.messageStores[type.id] as Messages<T> | undefined;
+    const messages = context.messageStores.get(type as AnyMessageType) as Messages<T> | undefined;
 
     return messages?.drain() ?? [];
 }
 
 /** Clears all buffered messages for the channel. */
 export function clearMessages<T>(context: MessageContext, type: MessageType<T>): void {
-    (context.messageStores[type.id] as Messages<T> | undefined)?.clear();
+    (context.messageStores.get(type as AnyMessageType) as Messages<T> | undefined)?.clear();
 }
 
 /** Rotates every message buffer once per frame. */
@@ -82,14 +84,14 @@ export function updateMessages(context: MessageContext): void {
 }
 
 function ensureMessageStore<T>(context: MessageContext, type: MessageType<T>): Messages<T> {
-    const existing = context.messageStores[type.id] as Messages<T> | undefined;
+    const existing = context.messageStores.get(type as AnyMessageType) as Messages<T> | undefined;
 
     if (existing !== undefined) {
         return existing;
     }
 
     const created = new Messages<unknown>();
-    context.messageStores[type.id] = created;
+    context.messageStores.set(type as AnyMessageType, created);
     context.registeredStores.push(created);
 
     return created as unknown as Messages<T>;

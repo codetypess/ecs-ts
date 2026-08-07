@@ -84,7 +84,7 @@ export function createSystemRunner(run: SystemCallback, options: SystemOptions =
         after: cloneSystemLabels(options.after),
         runIf: options.runIf,
         lastRunTick: 0,
-    };
+    } satisfies SystemRunner;
 }
 
 function normalizeSystemSets(
@@ -107,7 +107,7 @@ export function createSystemSetConfig(options: SystemSetOptions): SystemSetConfi
         before: cloneSystemLabels(options.before),
         after: cloneSystemLabels(options.after),
         runIf: options.runIf,
-    });
+    } satisfies SystemSetConfig);
 }
 
 function cloneSystemLabels(labels: readonly SystemLabel[] | undefined): readonly SystemLabel[] {
@@ -363,5 +363,7 @@ export function createSchedules(): Record<ScheduleStage, SystemRunner[]> {
 
 /** Creates per-stage cache entries for lazily sorted schedules. */
 export function createScheduleCacheEntries(): Record<ScheduleStage, ScheduleCacheEntry> {
-    return createStageRecord(() => ({ dirty: true, systems: undefined }));
+    return createStageRecord(
+        () => ({ dirty: true, systems: undefined }) satisfies ScheduleCacheEntry
+    );
 }

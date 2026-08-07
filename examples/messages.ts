@@ -1,4 +1,6 @@
 import {
+    defineComponent,
+    defineMessage,
     DeferredCommands,
     Entity,
     MessageReader,
@@ -10,10 +12,12 @@ import {
 } from "../src";
 
 const registry = createRegistry("example-messages");
-const Enemy = registry.defineComponent("Enemy");
+const Enemy = registry.registerComponent(defineComponent("Enemy"));
 type Health = { value: number };
-const Health = registry.defineComponent<Health>("Health");
-const Damage = registry.defineMessage<{ target: Entity; amount: number }>("Damage");
+const Health = registry.registerComponent(defineComponent<Health>("Health"));
+const Damage = registry.registerMessage(
+    defineMessage<{ target: Entity; amount: number }>("Damage")
+);
 
 class AttackSystem {
     onStartup(_world: World, _dt: number, commands: DeferredCommands): void {

@@ -1,11 +1,19 @@
-import { World, createRegistry, formatEntity, queryState, withComponent, withMarker } from "../src";
+import {
+    defineComponent,
+    World,
+    createRegistry,
+    formatEntity,
+    queryState,
+    withComponent,
+    withMarker,
+} from "../src";
 
 const registry = createRegistry("example-query-state");
 type Position = { x: number; y: number };
-const Position = registry.defineComponent<Position>("Position");
+const Position = registry.registerComponent(defineComponent<Position>("Position"));
 type Velocity = { x: number; y: number };
-const Velocity = registry.defineComponent<Velocity>("Velocity");
-const Sleeping = registry.defineComponent("Sleeping");
+const Velocity = registry.registerComponent(defineComponent<Velocity>("Velocity"));
+const Sleeping = registry.registerComponent(defineComponent("Sleeping"));
 
 class MovementSystem {
     private readonly moving = queryState([Position, Velocity], {

@@ -1,9 +1,20 @@
-import { World, createRegistry, resourceMatches, runIfAll, runIfNot, stateIs } from "../src";
+import {
+    defineResource,
+    defineState,
+    World,
+    createRegistry,
+    resourceMatches,
+    runIfAll,
+    runIfNot,
+    stateIs,
+} from "../src";
 
 const registry = createRegistry("example-scheduler");
-const Log = registry.defineResource<string[]>("Log");
-const FeatureEnabled = registry.defineResource<{ value: boolean }>("FeatureEnabled");
-const GameMode = registry.defineState<"running" | "paused">("GameMode", "running");
+const Log = registry.registerResource(defineResource<string[]>("Log"));
+const FeatureEnabled = registry.registerResource(
+    defineResource<{ value: boolean }>("FeatureEnabled")
+);
+const GameMode = registry.registerState(defineState<"running" | "paused">("GameMode", "running"));
 
 class SetupSystem {
     onStartup(world: World): void {

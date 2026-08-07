@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+    defineEvent,
+    defineMessage,
+    defineResource,
+    defineState,
     World,
     createRegistry,
     defineComponent,
@@ -28,9 +32,52 @@ test("shared component definitions use independent World stores", () => {
     assert.deepEqual(secondWorld.getComponent(secondEntity, Position), { x: 2 });
 });
 
+test("shared non-component definitions use independent World stores", () => {
+    const Settings = defineResource<{ value: number }>("SharedWorldSettings");
+    const Mode = defineState<"first" | "second">("SharedWorldMode", "first");
+    const Notice = defineMessage<{ value: number }>("SharedWorldNotice");
+    const Ping = defineEvent<{ value: number }>("SharedWorldPing");
+    const firstRegistry = createRegistry("shared-non-component-first");
+    const secondRegistry = createRegistry("shared-non-component-second");
+
+    for (const currentRegistry of [firstRegistry, secondRegistry]) {
+        currentRegistry.registerResource(Settings);
+        currentRegistry.registerState(Mode);
+        currentRegistry.registerMessage(Notice);
+        currentRegistry.registerEvent(Ping);
+    }
+
+    const firstWorld = new World(firstRegistry);
+    const secondWorld = new World(secondRegistry);
+    firstWorld.setResource(Settings, { value: 1 });
+    secondWorld.setResource(Settings, { value: 2 });
+    firstWorld.initState(Mode, "first");
+    secondWorld.initState(Mode, "second");
+
+    assert.deepEqual(firstWorld.getResource(Settings), { value: 1 });
+    assert.deepEqual(secondWorld.getResource(Settings), { value: 2 });
+    assert.equal(firstWorld.getState(Mode), "first");
+    assert.equal(secondWorld.getState(Mode), "second");
+
+    const firstReader = firstWorld.messageReader(Notice);
+    const secondReader = secondWorld.messageReader(Notice);
+    firstWorld.writeMessage(Notice, { value: 3 });
+    secondWorld.writeMessage(Notice, { value: 4 });
+    assert.deepEqual(firstReader.read(), [{ value: 3 }]);
+    assert.deepEqual(secondReader.read(), [{ value: 4 }]);
+
+    let firstEvents = 0;
+    firstWorld.observe(Ping, () => {
+        firstEvents++;
+    });
+    firstWorld.trigger(Ping, { value: 5 });
+    secondWorld.trigger(Ping, { value: 6 });
+    assert.equal(firstEvents, 1);
+});
+
 test("entity generation prevents stale handles from reading recycled entities", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("TestPosition");
+    const Position = registry.registerComponent(defineComponent<Position>("TestPosition"));
     const world = new World(registry);
 
     const first = world.spawn(11, withComponent(Position, { x: 1, y: 2 }));
@@ -51,9 +98,9 @@ test("entity generation prevents stale handles from reading recycled entities", 
 
 test("read helpers keep getMany and change detection aligned with entity liveness", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("ReadHelperPosition");
+    const Position = registry.registerComponent(defineComponent<Position>("ReadHelperPosition"));
     type Velocity = { x: number; y: number };
-    const Velocity = registry.defineComponent<Velocity>("ReadHelperVelocity");
+    const Velocity = registry.registerComponent(defineComponent<Velocity>("ReadHelperVelocity"));
     const world = new World(registry);
     const entity = world.spawn(
         0,
@@ -85,9 +132,9 @@ test("read helpers keep getMany and change detection aligned with entity livenes
 });
 
 test("spawn inserts multiple component entries", () => {
-    const Player = registry.defineComponent("TestPlayer");
+    const Player = registry.registerComponent(defineComponent("TestPlayer"));
     type Health = { value: number };
-    const Health = registry.defineComponent<Health>("TestHealth");
+    const Health = registry.registerComponent(defineComponent<Health>("TestHealth"));
     const world = new World(registry);
 
     const entity = world.spawn(0, withMarker(Player), withComponent(Health, { value: 100 }));
@@ -99,7 +146,7 @@ test("spawn inserts multiple component entries", () => {
 });
 
 test("entities() iterates only currently live entities in storage-index order", () => {
-    const Marker = registry.defineComponent("WorldEntitiesMarker");
+    const Marker = registry.registerComponent(defineComponent("WorldEntitiesMarker"));
     const world = new World(registry);
     const first = world.spawn(0, withMarker(Marker));
     const second = world.spawn(0, withMarker(Marker));
@@ -116,9 +163,9 @@ test("entities() iterates only currently live entities in storage-index order", 
 
 test("commands flush queued structural edits in order", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("CommandPosition");
+    const Position = registry.registerComponent(defineComponent<Position>("CommandPosition"));
     type Velocity = { x: number; y: number };
-    const Velocity = registry.defineComponent<Velocity>("CommandVelocity");
+    const Velocity = registry.registerComponent(defineComponent<Velocity>("CommandVelocity"));
     const world = new World(registry);
     const commands = world.commands();
     const entity = commands.spawn(2, withComponent(Position, { x: 1, y: 2 }));
@@ -141,11 +188,13 @@ test("commands flush queued structural edits in order", () => {
 test("commands spawn does not publish an empty entity when the spawn fails", () => {
     const commandRegistry = createRegistry("world-command-failed-spawn-test");
     type Transform = { x: number; y: number };
-    const Transform = commandRegistry.defineComponent<Transform>("Transform");
+    const Transform = commandRegistry.registerComponent(defineComponent<Transform>("Transform"));
     type Element = { name: string };
-    const Element = commandRegistry.defineComponent<Element>("Element", {
-        deps: [Transform],
-    });
+    const Element = commandRegistry.registerComponent(
+        defineComponent<Element>("Element", {
+            deps: [Transform],
+        })
+    );
     const world = new World(commandRegistry);
     const commands = world.commands();
     const entity = commands.spawn(0, withComponent(Element, { name: "broken" }));
@@ -162,7 +211,9 @@ test("commands spawn does not publish an empty entity when the spawn fails", () 
 
 test("commands queued during flush wait for the next flush", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("DeferredCommandPosition");
+    const Position = registry.registerComponent(
+        defineComponent<Position>("DeferredCommandPosition")
+    );
     const world = new World(registry);
     const commands = world.commands();
     const entity = world.spawn(0);
@@ -187,10 +238,12 @@ test("commands queued during flush wait for the next flush", () => {
 
 test("commands flush keeps only unexecuted commands queued after a failure", () => {
     const commandRegistry = createRegistry("world-command-flush-failure-test");
-    const Ready = commandRegistry.defineComponent("Ready");
-    const NeedsReady = commandRegistry.defineComponent("NeedsReady", {
-        deps: [Ready],
-    });
+    const Ready = commandRegistry.registerComponent(defineComponent("Ready"));
+    const NeedsReady = commandRegistry.registerComponent(
+        defineComponent("NeedsReady", {
+            deps: [Ready],
+        })
+    );
     const world = new World(commandRegistry);
     const commands = world.commands();
     const first = world.spawn(0);
@@ -237,7 +290,7 @@ test("shutdown is terminal and later updates stay inert", () => {
 });
 
 test("addSystem accepts stage callbacks with scheduling options", () => {
-    const CallbackMarker = registry.defineComponent("CallbackSystemMarker");
+    const CallbackMarker = registry.registerComponent(defineComponent("CallbackSystemMarker"));
     const world = new World(registry);
     const trace: string[] = [];
 
@@ -266,16 +319,18 @@ test("addSystem accepts stage callbacks with scheduling options", () => {
 test("component lifecycle hooks report operation order and reasons", () => {
     const events: string[] = [];
     type Position = { x: number };
-    const Position = registry.defineComponent<Position>("LifecycleHookPosition", {
-        onAdd: (_entity, position, _world, reason) =>
-            events.push(`type:add:${reason}:${position.x}`),
-        onInsert: (_entity, position) => events.push(`type:insert:${position.x}`),
-        onUnset: (_entity, position) => events.push(`type:unset:${position.x}`),
-        onReplace: (_entity, previous, next) =>
-            events.push(`type:replace:${previous.x}->${next.x}`),
-        onRemove: (_entity, position, _world, reason) =>
-            events.push(`type:remove:${reason}:${position.x}`),
-    });
+    const Position = registry.registerComponent(
+        defineComponent<Position>("LifecycleHookPosition", {
+            onAdd: (_entity, position, _world, reason) =>
+                events.push(`type:add:${reason}:${position.x}`),
+            onInsert: (_entity, position) => events.push(`type:insert:${position.x}`),
+            onUnset: (_entity, position) => events.push(`type:unset:${position.x}`),
+            onReplace: (_entity, previous, next) =>
+                events.push(`type:replace:${previous.x}->${next.x}`),
+            onRemove: (_entity, position, _world, reason) =>
+                events.push(`type:remove:${reason}:${position.x}`),
+        })
+    );
     const world = new World(registry);
 
     const entity = world.spawn(0, withComponent(Position, { x: 1 }));
@@ -304,14 +359,16 @@ test("component lifecycle hooks report operation order and reasons", () => {
 test("component lifecycle reasons cover command and batch writes", () => {
     const reasonRegistry = createRegistry("component-lifecycle-reason-test");
     const events: string[] = [];
-    const Marker = reasonRegistry.defineComponent("ReasonMarker", {
-        onAdd(_entity, _marker, _world, reason) {
-            events.push(`add:${reason}`);
-        },
-        onRemove(_entity, _marker, _world, reason) {
-            events.push(`remove:${reason}`);
-        },
-    });
+    const Marker = reasonRegistry.registerComponent(
+        defineComponent("ReasonMarker", {
+            onAdd(_entity, _marker, _world, reason) {
+                events.push(`add:${reason}`);
+            },
+            onRemove(_entity, _marker, _world, reason) {
+                events.push(`remove:${reason}`);
+            },
+        })
+    );
     const world = new World(reasonRegistry);
     const commands = world.commands();
     const commandEntity = commands.spawn(0, withMarker(Marker));
@@ -346,8 +403,10 @@ test("component lifecycle reasons cover command and batch writes", () => {
 });
 
 test("resource and state getters expose optional and required variants", () => {
-    const Settings = registry.defineResource<{ volume: number }>("GetterSettings");
-    const Mode = registry.defineState<"boot" | "running">("GetterMode", "boot");
+    const Settings = registry.registerResource(
+        defineResource<{ volume: number }>("GetterSettings")
+    );
+    const Mode = registry.registerState(defineState<"boot" | "running">("GetterMode", "boot"));
     const world = new World(registry);
 
     assert.equal(world.getResource(Settings), undefined);
@@ -379,7 +438,7 @@ test("entity type rejects invalid runtime values", () => {
 
 test("component values reject invalid runtime payloads", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("InvalidValuePosition");
+    const Position = registry.registerComponent(defineComponent<Position>("InvalidValuePosition"));
     const world = new World(registry);
     const entity = world.spawn(0);
 
@@ -401,9 +460,9 @@ test("component values reject invalid runtime payloads", () => {
 });
 
 test("world rejects components from a different registry", () => {
-    const local = registry.defineComponent("LocalRegistryOnly");
+    const local = registry.registerComponent(defineComponent("LocalRegistryOnly"));
     const otherRegistry = createRegistry("other-world-test");
-    const foreign = otherRegistry.defineComponent("ForeignRegistryOnly");
+    const foreign = otherRegistry.registerComponent(defineComponent("ForeignRegistryOnly"));
     const world = new World(registry);
     const entity = world.spawn(0, withMarker(local));
 
@@ -414,11 +473,11 @@ test("world rejects components from a different registry", () => {
 
 test("world rejects forged types with the same registry reference", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("ForgedPosition");
-    const Settings = registry.defineResource<{ value: number }>("ForgedSettings");
-    const Mode = registry.defineState("ForgedMode", "idle" as "idle" | "running");
-    const Notice = registry.defineMessage<{ value: number }>("ForgedNotice");
-    const Ping = registry.defineEvent<{ value: number }>("ForgedPing");
+    const Position = registry.registerComponent(defineComponent<Position>("ForgedPosition"));
+    const Settings = registry.registerResource(defineResource<{ value: number }>("ForgedSettings"));
+    const Mode = registry.registerState(defineState("ForgedMode", "idle" as "idle" | "running"));
+    const Notice = registry.registerMessage(defineMessage<{ value: number }>("ForgedNotice"));
+    const Ping = registry.registerEvent(defineEvent<{ value: number }>("ForgedPing"));
     const forgedPosition = { ...Position } as typeof Position;
     const forgedSettings = { ...Settings } as typeof Settings;
     const forgedMode = { ...Mode } as typeof Mode;
@@ -452,26 +511,34 @@ test("world rejects forged types with the same registry reference", () => {
 
 test("world rejects registry-owned non-component types from a different registry", () => {
     const otherRegistry = createRegistry("other-world-owned-types-test");
-    const foreignResource = otherRegistry.defineResource<{ value: number }>("ForeignResource");
-    const foreignState = otherRegistry.defineState("ForeignState", "idle" as "idle" | "running");
-    const foreignMessage = otherRegistry.defineMessage<{ value: number }>("ForeignMessage");
-    const foreignEvent = otherRegistry.defineEvent<{ value: number }>("ForeignEvent");
+    const foreignResource = otherRegistry.registerResource(
+        defineResource<{ value: number }>("ForeignResource")
+    );
+    const foreignState = otherRegistry.registerState(
+        defineState("ForeignState", "idle" as "idle" | "running")
+    );
+    const foreignMessage = otherRegistry.registerMessage(
+        defineMessage<{ value: number }>("ForeignMessage")
+    );
+    const foreignEvent = otherRegistry.registerEvent(
+        defineEvent<{ value: number }>("ForeignEvent")
+    );
     const world = new World(registry);
 
     assert.throws(
         () => world.setResource(foreignResource, { value: 1 }),
-        /ForeignResource.*other-world-owned-types-test, not world-test/
+        /ForeignResource.*not registered in world-test/
     );
     assert.throws(
         () => world.initState(foreignState),
-        /ForeignState.*other-world-owned-types-test, not world-test/
+        /ForeignState.*not registered in world-test/
     );
     assert.throws(
         () => world.writeMessage(foreignMessage, { value: 1 }),
-        /ForeignMessage.*other-world-owned-types-test, not world-test/
+        /ForeignMessage.*not registered in world-test/
     );
     assert.throws(
         () => world.observe(foreignEvent, () => undefined),
-        /ForeignEvent.*other-world-owned-types-test, not world-test/
+        /ForeignEvent.*not registered in world-test/
     );
 });

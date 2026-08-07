@@ -1,25 +1,27 @@
-import { World, createRegistry, withComponent } from "../src";
+import { defineComponent, World, createRegistry, withComponent } from "../src";
 
 const registry = createRegistry("example-world-batch");
 const history: string[] = [];
 type Value = { value: number };
-const Value = registry.defineComponent<Value>("Value", {
-    onAdd(_entity, value) {
-        history.push(`onAdd:${value.value}`);
-    },
-    onUnset(_entity, value) {
-        history.push(`onUnset:${value.value}`);
-    },
-    onReplace(_entity, previous, next) {
-        history.push(`onReplace:${previous.value}->${next.value}`);
-    },
-    onInsert(_entity, value) {
-        history.push(`onInsert:${value.value}`);
-    },
-    onRemove(_entity, value) {
-        history.push(`onRemove:${value.value}`);
-    },
-});
+const Value = registry.registerComponent(
+    defineComponent<Value>("Value", {
+        onAdd(_entity, value) {
+            history.push(`onAdd:${value.value}`);
+        },
+        onUnset(_entity, value) {
+            history.push(`onUnset:${value.value}`);
+        },
+        onReplace(_entity, previous, next) {
+            history.push(`onReplace:${previous.value}->${next.value}`);
+        },
+        onInsert(_entity, value) {
+            history.push(`onInsert:${value.value}`);
+        },
+        onRemove(_entity, value) {
+            history.push(`onRemove:${value.value}`);
+        },
+    })
+);
 
 const world = new World(registry);
 const entity = world.spawn(0, withComponent(Value, { value: 1 }));

@@ -3,7 +3,7 @@ export * from "./component.js";
 export type { Entity, EntityType } from "./entity.js";
 export { entityGeneration, entityIndex, formatEntity } from "./entity.js";
 export * from "./event.js";
-export { MessageReader } from "./message.js";
+export { defineMessage, MessageReader } from "./message.js";
 export type {
     AnyMessageType,
     MessageData,

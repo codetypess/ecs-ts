@@ -1,4 +1,6 @@
 import {
+    defineComponent,
+    defineResource,
     DeferredCommands,
     Entity,
     World,
@@ -37,15 +39,17 @@ class NetEntityMap {
 }
 
 type Unit = { serverId: number };
-const Unit = registry.defineComponent<Unit>("Unit");
+const Unit = registry.registerComponent(defineComponent<Unit>("Unit"));
 type Position = { x: number; y: number };
-const Position = registry.defineComponent<Position>("Position");
+const Position = registry.registerComponent(defineComponent<Position>("Position"));
 type Health = { value: number };
-const Health = registry.defineComponent<Health>("Health");
+const Health = registry.registerComponent(defineComponent<Health>("Health"));
 
-const NetEntities = registry.defineResource<NetEntityMap>("NetEntities");
-const SnapshotFrames = registry.defineResource<UnitSnapshot[][]>("SnapshotFrames");
-const Log = registry.defineResource<string[]>("NetLog");
+const NetEntities = registry.registerResource(defineResource<NetEntityMap>("NetEntities"));
+const SnapshotFrames = registry.registerResource(
+    defineResource<UnitSnapshot[][]>("SnapshotFrames")
+);
+const Log = registry.registerResource(defineResource<string[]>("NetLog"));
 
 class NetSyncSystem {
     onUpdate(world: World, _dt: number, commands: DeferredCommands): void {

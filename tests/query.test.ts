@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+    defineComponent,
     World,
     createRegistry,
     optionalQueryState,
@@ -14,15 +15,15 @@ const registry = createRegistry("query-test");
 
 test("advanced query filters support or and optional components", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("QueryPosition");
+    const Position = registry.registerComponent(defineComponent<Position>("QueryPosition"));
     type Velocity = { x: number; y: number };
-    const Velocity = registry.defineComponent<Velocity>("QueryVelocity");
-    const Player = registry.defineComponent("QueryPlayer");
-    const Npc = registry.defineComponent("QueryNpc");
-    const Sleeping = registry.defineComponent("QuerySleeping");
-    const Frozen = registry.defineComponent("QueryFrozen");
+    const Velocity = registry.registerComponent(defineComponent<Velocity>("QueryVelocity"));
+    const Player = registry.registerComponent(defineComponent("QueryPlayer"));
+    const Npc = registry.registerComponent(defineComponent("QueryNpc"));
+    const Sleeping = registry.registerComponent(defineComponent("QuerySleeping"));
+    const Frozen = registry.registerComponent(defineComponent("QueryFrozen"));
     type Name = { value: string };
-    const Name = registry.defineComponent<Name>("QueryName");
+    const Name = registry.registerComponent(defineComponent<Name>("QueryName"));
     const world = new World(registry);
 
     world.spawn(
@@ -86,8 +87,8 @@ test("advanced query filters support or and optional components", () => {
 
 test("single query helpers report none, one, and multiple matches", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("SinglePosition");
-    const Player = registry.defineComponent("SinglePlayer");
+    const Position = registry.registerComponent(defineComponent<Position>("SinglePosition"));
+    const Player = registry.registerComponent(defineComponent("SinglePlayer"));
     const world = new World(registry);
 
     assert.equal(world.getSingle([Position]), undefined);
@@ -105,8 +106,8 @@ test("single query helpers report none, one, and multiple matches", () => {
 
 test("query state single helpers report none, one, and multiple matches", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("StateSinglePosition");
-    const Player = registry.defineComponent("StateSinglePlayer");
+    const Position = registry.registerComponent(defineComponent<Position>("StateSinglePosition"));
+    const Player = registry.registerComponent(defineComponent("StateSinglePlayer"));
     const world = new World(registry);
     const positions = queryState([Position]);
     const players = queryState([Position], { with: [Player] });
@@ -126,9 +127,11 @@ test("query state single helpers report none, one, and multiple matches", () => 
 
 test("optional query state single helpers return optional rows", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("OptionalStateSinglePosition");
+    const Position = registry.registerComponent(
+        defineComponent<Position>("OptionalStateSinglePosition")
+    );
     type Name = { value: string };
-    const Name = registry.defineComponent<Name>("OptionalStateSingleName");
+    const Name = registry.registerComponent(defineComponent<Name>("OptionalStateSingleName"));
     const world = new World(registry);
     const namedPositions = optionalQueryState([Position], [Name]);
     const entity = world.spawn(0, withComponent(Position, { x: 1, y: 2 }));
@@ -150,11 +153,11 @@ test("optional query state single helpers return optional rows", () => {
 
 test("query state caches resolved stores and invalidates when stores are created", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("QueryStatePosition");
+    const Position = registry.registerComponent(defineComponent<Position>("QueryStatePosition"));
     type Velocity = { x: number; y: number };
-    const Velocity = registry.defineComponent<Velocity>("QueryStateVelocity");
-    const Player = registry.defineComponent("QueryStatePlayer");
-    const Sleeping = registry.defineComponent("QueryStateSleeping");
+    const Velocity = registry.registerComponent(defineComponent<Velocity>("QueryStateVelocity"));
+    const Player = registry.registerComponent(defineComponent("QueryStatePlayer"));
+    const Sleeping = registry.registerComponent(defineComponent("QueryStateSleeping"));
     const world = new World(registry);
     const movingPlayers = queryState([Position, Velocity], {
         or: [Player],
@@ -202,9 +205,9 @@ test("query state caches resolved stores and invalidates when stores are created
 
 test("optional query state sees optional stores created after the cache was resolved", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("OptionalStatePosition");
+    const Position = registry.registerComponent(defineComponent<Position>("OptionalStatePosition"));
     type Name = { value: string };
-    const Name = registry.defineComponent<Name>("OptionalStateName");
+    const Name = registry.registerComponent(defineComponent<Name>("OptionalStateName"));
     const world = new World(registry);
     const namedPositions = optionalQueryState([Position], [Name]);
     const entity = world.spawn(0, withComponent(Position, { x: 1, y: 2 }));
@@ -232,9 +235,11 @@ test("optional query state sees optional stores created after the cache was reso
 
 test("query state tracks structural filter changes through cached plans", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("SignatureStatePosition");
+    const Position = registry.registerComponent(
+        defineComponent<Position>("SignatureStatePosition")
+    );
     const markers = Array.from({ length: 40 }, (_value, index) =>
-        registry.defineComponent(`SignatureStateMarker${index}`)
+        registry.registerComponent(defineComponent(`SignatureStateMarker${index}`))
     );
     const Required = markers[35]!;
     const OrMatch = markers[36]!;
@@ -307,9 +312,9 @@ test("query state tracks structural filter changes through cached plans", () => 
 
 test("query state refreshes the base store when store sizes skew after cache resolution", () => {
     type Position = { x: number; y: number };
-    const Position = registry.defineComponent<Position>("SkewedBasePosition");
+    const Position = registry.registerComponent(defineComponent<Position>("SkewedBasePosition"));
     type Velocity = { x: number; y: number };
-    const Velocity = registry.defineComponent<Velocity>("SkewedBaseVelocity");
+    const Velocity = registry.registerComponent(defineComponent<Velocity>("SkewedBaseVelocity"));
     const moving = queryState([Position, Velocity]);
     const world = new World(registry);
 
