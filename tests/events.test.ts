@@ -79,6 +79,42 @@ test("observer triggered from within another observer executes after outer obser
     assert.deepEqual(log, ["outer:before", "outer:after", "inner:hello"]);
 });
 
+test("event dispatch rejects direct recursion and restores the dispatch stack", () => {
+    const Recursive = registry.registerEvent(defineEvent<void>("RecursiveEvent"));
+    const world = new World(registry);
+    let recurse = true;
+
+    world.observe(Recursive, (_value, currentWorld) => {
+        if (recurse) currentWorld.trigger(Recursive, undefined);
+    });
+
+    assert.throws(
+        () => world.trigger(Recursive, undefined),
+        /Event dispatch cycle detected: RecursiveEvent -> RecursiveEvent/
+    );
+
+    recurse = false;
+    assert.doesNotThrow(() => world.trigger(Recursive, undefined));
+});
+
+test("deferred event dispatch rejects indirect recursion", () => {
+    const First = registry.registerEvent(defineEvent<void>("EventCycleFirst"));
+    const Second = registry.registerEvent(defineEvent<void>("EventCycleSecond"));
+    const world = new World(registry);
+
+    world.observe(First, (_value, _currentWorld, commands) => {
+        commands.trigger(Second, undefined);
+    });
+    world.observe(Second, (_value, _currentWorld, commands) => {
+        commands.trigger(First, undefined);
+    });
+
+    assert.throws(
+        () => world.trigger(First, undefined),
+        /Event dispatch cycle detected: EventCycleFirst -> EventCycleSecond -> EventCycleFirst/
+    );
+});
+
 test("trigger with no observers is a no-op", () => {
     const Ghost = registry.registerEvent(defineEvent<number>("GhostEvent"));
     const world = new World(registry);

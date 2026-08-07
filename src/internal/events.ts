@@ -10,12 +10,14 @@ interface EventObserverList {
 /** Observer registry keyed by event type identity. */
 export interface EventContext {
     readonly observers: Map<AnyEventType, EventObserverList>;
+    readonly dispatchStack: AnyEventType[];
 }
 
 /** Creates the event context used by a world. */
 export function createEventContext(): EventContext {
     return {
         observers: new Map(),
+        dispatchStack: [],
     } satisfies EventContext;
 }
 
@@ -44,20 +46,32 @@ export function observeEvent<T>(
     };
 }
 
-/** Triggers observers immediately, isolating each one behind a fresh command queue. */
+/** Triggers observers immediately and rejects cycles in the active dispatch chain. */
 export function triggerEvent<T>(
     context: EventContext,
     type: EventType<T>,
     value: T,
     world: World
 ): void {
-    const list = context.observers.get(type as AnyEventType);
+    const eventType = type as AnyEventType;
+    const list = context.observers.get(eventType);
 
     if (list === undefined || list.observers.length === 0) {
         return;
     }
 
+    const cycleStart = context.dispatchStack.indexOf(eventType);
+
+    if (cycleStart !== -1) {
+        const cycle = [...context.dispatchStack.slice(cycleStart), eventType]
+            .map((current) => current.name)
+            .join(" -> ");
+
+        throw new Error(`Event dispatch cycle detected: ${cycle}`);
+    }
+
     const observers = list.observers as EventObserver<T>[];
+    context.dispatchStack.push(eventType);
     list.dispatchDepth++;
 
     try {
@@ -66,6 +80,7 @@ export function triggerEvent<T>(
         }
     } finally {
         list.dispatchDepth--;
+        context.dispatchStack.pop();
     }
 }
 

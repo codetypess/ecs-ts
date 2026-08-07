@@ -547,7 +547,7 @@ export class World extends WorldQueryMethods {
         return observeEvent(this.eventContext, type, observer);
     }
 
-    /** Triggers an event immediately; observers run in subscription order. */
+    /** Triggers an event immediately; observers run in subscription order and recursive cycles throw. */
     trigger<T>(type: EventType<T>, value: T): this {
         assertRegisteredEvent(this.registry, type, "trigger");
 
