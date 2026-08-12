@@ -1,6 +1,6 @@
-import type { AnyComponentType } from "../component.js";
-import { entityIndex } from "../entity.js";
-import type { Entity } from "../entity.js";
+import type { AnyComponentType } from "../component";
+import type { Entity } from "../entity";
+import { entityIndex } from "../entity";
 
 export interface EntityComponentIndexContext {
     readonly componentTypesByEntity: (AnyComponentType[] | undefined)[];

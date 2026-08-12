@@ -1,7 +1,7 @@
-import type { ResourceType } from "./resource.js";
-import type { SystemRunCondition } from "./scheduler.js";
-import type { StateType, StateValue } from "./state.js";
-import type { World } from "./world.js";
+import type { ResourceType } from "./resource";
+import type { SystemRunCondition } from "./scheduler";
+import type { StateType, StateValue } from "./state";
+import type { World } from "./world";
 
 /** Predicate used by `runIf` helpers that need access to a concrete value and the world. */
 export type RunIfPredicate<T> = (value: T, world: World) => boolean;

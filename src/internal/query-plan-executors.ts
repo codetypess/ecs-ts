@@ -1,8 +1,8 @@
-import type { AnyComponentType } from "../component.js";
-import type { ChangeDetectionRange, OptionalQueryRow, QueryRow } from "../query.js";
-import { chooseSmallestStore } from "../query.js";
-import { SparseSet } from "../sparse-set.js";
-import { fillComponents, fillOptionalComponents, hasComponents } from "./query-components.js";
+import type { AnyComponentType } from "../component";
+import type { ChangeDetectionRange, OptionalQueryRow, QueryRow } from "../query";
+import { chooseSmallestStore } from "../query";
+import { SparseSet } from "../sparse-set";
+import { fillComponents, fillOptionalComponents, hasComponents } from "./query-components";
 import type {
     OptionalQueryCountExecutor,
     OptionalQueryEachExecutor,
@@ -14,7 +14,7 @@ import type {
     QueryIterateExecutor,
     ResolvedOptionalQueryPlan,
     ResolvedQueryPlan,
-} from "./query-plan.js";
+} from "./query-plan";
 
 // These loops are intentionally specialised rather than shared through helpers.
 // Query iteration is hot enough that the duplicated 1/2/3-component paths matter.

@@ -4,13 +4,13 @@ import {
     type AnyComponentType,
     type ComponentAddReason,
     type ComponentType,
-} from "../component.js";
-import { formatEntity, type Entity, type EntityType } from "../entity.js";
+} from "../component";
+import { formatEntity, type Entity, type EntityType } from "../entity";
 import {
     assertComponentSetDepsSatisfied,
     currentEntityComponentTypes,
     sortComponentTypesByDependencies,
-} from "./component-dependencies.js";
+} from "./component-dependencies";
 
 interface BatchComponentState {
     readonly type: AnyComponentType;

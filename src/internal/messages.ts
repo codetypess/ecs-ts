@@ -1,5 +1,5 @@
-import { MessageReader, Messages } from "../message.js";
-import type { AnyMessageType, MessageId, MessageReaderOptions, MessageType } from "../message.js";
+import type { AnyMessageType, MessageId, MessageReaderOptions, MessageType } from "../message";
+import { MessageReader, Messages } from "../message";
 
 /** Indexed storage for every registered message channel. */
 export interface MessageContext {

@@ -4,32 +4,32 @@ import type {
     ComponentLifecycleStage,
     ComponentRemoveReason,
     ComponentType,
-} from "../component.js";
-import { assertComponentValue } from "../component.js";
-import type { Entity } from "../entity.js";
-import { EntityManager, formatEntity } from "../entity.js";
-import type { ChangeDetectionRange, ComponentTuple } from "../query.js";
-import type { SparseSet } from "../sparse-set.js";
-import { sortComponentTypesByDependencies } from "./component-dependencies.js";
+} from "../component";
+import { assertComponentValue } from "../component";
+import type { Entity } from "../entity";
+import { EntityManager, formatEntity } from "../entity";
+import type { ChangeDetectionRange, ComponentTuple } from "../query";
+import type { SparseSet } from "../sparse-set";
+import { sortComponentTypesByDependencies } from "./component-dependencies";
 import {
     getManyComponents,
     hasAllComponents,
     hasAnyComponents,
     isComponentAdded,
     isComponentChanged,
-} from "./component-read.js";
+} from "./component-read";
 import {
     ensureComponentStore,
     getComponentStore,
     markComponentStoreForCompaction,
     type ComponentStoreContext,
-} from "./component-store.js";
+} from "./component-store";
 import {
     takeEntityComponents,
     trackEntityComponent,
     untrackEntityComponent,
     type EntityComponentIndexContext,
-} from "./entity-component-index.js";
+} from "./entity-component-index";
 
 interface ComponentOpsContextOptions {
     readonly entities: EntityManager;

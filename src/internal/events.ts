@@ -1,6 +1,6 @@
-import type { AnyEventType, EventObserver, EventType } from "../event.js";
-import type { World } from "../world.js";
-import { runEventObserverWithDeferredCommands } from "./command-execution.js";
+import type { AnyEventType, EventObserver, EventType } from "../event";
+import type { World } from "../world";
+import { runEventObserverWithDeferredCommands } from "./command-execution";
 
 interface EventObserverList {
     observers: EventObserver<unknown>[];

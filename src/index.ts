@@ -1,9 +1,9 @@
-export * from "./deferred-commands.js";
-export * from "./component.js";
-export type { Entity, EntityType } from "./entity.js";
-export { entityGeneration, entityIndex, formatEntity } from "./entity.js";
-export * from "./event.js";
-export { defineMessage, MessageReader } from "./message.js";
+export * from "./component";
+export * from "./deferred-commands";
+export { entityGeneration, entityIndex, formatEntity } from "./entity";
+export type { Entity, EntityType } from "./entity";
+export * from "./event";
+export { defineMessage, MessageReader } from "./message";
 export type {
     AnyMessageType,
     MessageData,
@@ -11,10 +11,10 @@ export type {
     MessageId,
     MessageReaderOptions,
     MessageType,
-} from "./message.js";
+} from "./message";
 
-export * from "./resource.js";
-export * from "./run-if.js";
-export * from "./state.js";
-export * from "./system.js";
-export * from "./world.js";
+export * from "./resource";
+export * from "./run-if";
+export * from "./state";
+export * from "./system";
+export * from "./world";

@@ -6,11 +6,11 @@ import {
     ComponentAddReason,
     ComponentRemoveReason,
     ComponentType,
-} from "./component.js";
-import { DeferredCommands, type DeferredCommandRuntime } from "./deferred-commands.js";
-import { Entity, formatEntity, type EntityType } from "./entity.js";
-import { assertRegisteredEvent, type EventObserver, type EventType } from "./event.js";
-import { runSystemWithDeferredCommands } from "./internal/command-execution.js";
+} from "./component";
+import { DeferredCommands, type DeferredCommandRuntime } from "./deferred-commands";
+import { Entity, formatEntity, type EntityType } from "./entity";
+import { assertRegisteredEvent, type EventObserver, type EventType } from "./event";
+import { runSystemWithDeferredCommands } from "./internal/command-execution";
 import {
     assertComponentDepsPresent,
     assertComponentHasNoDependents,
@@ -18,30 +18,30 @@ import {
     currentEntityComponentTypes,
     entriesHaveDependencyChecks,
     sortEntriesByDependencies,
-} from "./internal/component-dependencies.js";
+} from "./internal/component-dependencies";
 import {
     remove as deleteComponent,
     despawn as despawnEntity,
     add as insertComponent,
     addValidated as insertValidatedComponent,
     markChanged as markStoredComponentChanged,
-} from "./internal/component-ops.js";
-import { getComponentStore } from "./internal/component-store.js";
+} from "./internal/component-ops";
 import {
     getManyComponents,
     hasAllComponents,
     hasAnyComponents,
     isComponentAdded,
     isComponentChanged,
-} from "./internal/component-read.js";
-import { createEcsContext, type EcsContext } from "./internal/ecs-context.js";
-import { getEntityComponents } from "./internal/entity-component-index.js";
+} from "./internal/component-read";
+import { getComponentStore } from "./internal/component-store";
+import { createEcsContext, type EcsContext } from "./internal/ecs-context";
+import { getEntityComponents } from "./internal/entity-component-index";
 import {
     createEventContext,
     observeEvent,
     triggerEvent,
     type EventContext,
-} from "./internal/events.js";
+} from "./internal/events";
 import {
     addMessageType,
     clearMessages as clearStoredMessages,
@@ -51,8 +51,7 @@ import {
     updateMessages as updateStoredMessages,
     writeMessage as writeStoredMessage,
     type MessageContext,
-} from "./internal/messages.js";
-
+} from "./internal/messages";
 import {
     getResource as getStoredResource,
     hasResource as hasStoredResource,
@@ -62,7 +61,7 @@ import {
     matchesResource as matchesStoredResource,
     removeResource as removeStoredResource,
     setResource as setStoredResource,
-} from "./internal/resources.js";
+} from "./internal/resources";
 import {
     addSystemRunner as addScheduledSystemRunner,
     configureSet as configureScheduleSet,
@@ -74,7 +73,7 @@ import {
     setMaxFixedStepsPerFrame as setScheduleMaxFixedStepsPerFrame,
     shouldRunSystem as shouldRunScheduledSystem,
     type ScheduleEngineContext,
-} from "./internal/schedule-engine.js";
+} from "./internal/schedule-engine";
 import {
     addStateSystem as addStateLifecycleSystem,
     addTransitionSystem as addStateTransitionSystem,
@@ -87,20 +86,19 @@ import {
     runInitialEnters,
     setState,
     type StateMachineContext,
-} from "./internal/state-machine.js";
-import { runWorldBatch, type WorldBatch, type WorldBatchRuntime } from "./internal/world-batch.js";
-import { WorldQueryMethods } from "./internal/world-query-methods.js";
+} from "./internal/state-machine";
+import { runWorldBatch, type WorldBatch, type WorldBatchRuntime } from "./internal/world-batch";
+import { WorldQueryMethods } from "./internal/world-query-methods";
 import {
     assertRegisteredMessage,
     type MessageId,
     type MessageReader,
     type MessageReaderOptions,
     type MessageType,
-} from "./message.js";
-import type { ChangeDetectionRange, ComponentTuple } from "./query.js";
-import type { Registry } from "./registry.js";
-
-import { assertRegisteredResource, type ResourceType } from "./resource.js";
+} from "./message";
+import type { ChangeDetectionRange, ComponentTuple } from "./query";
+import type { Registry } from "./registry";
+import { assertRegisteredResource, type ResourceType } from "./resource";
 import type {
     ScheduleStage,
     SystemCallback,
@@ -108,14 +106,14 @@ import type {
     SystemRunner,
     SystemSetLabel,
     SystemSetOptions,
-} from "./scheduler.js";
-import { createSystemRunner, scheduleStageDefinitions } from "./scheduler.js";
-import { assertRegisteredState, type StateType, type StateValue } from "./state.js";
-import type { StateSystem, System, TransitionSystem } from "./system.js";
+} from "./scheduler";
+import { createSystemRunner, scheduleStageDefinitions } from "./scheduler";
+import { assertRegisteredState, type StateType, type StateValue } from "./state";
+import type { StateSystem, System, TransitionSystem } from "./system";
 
-export { DeferredCommands } from "./deferred-commands.js";
-export type { WorldBatch } from "./internal/world-batch.js";
-export { optionalQueryState, queryState } from "./query.js";
+export { DeferredCommands } from "./deferred-commands";
+export type { WorldBatch } from "./internal/world-batch";
+export { optionalQueryState, queryState } from "./query";
 export type {
     ComponentTuple,
     OptionalComponentTuple,
@@ -124,8 +122,8 @@ export type {
     QueryFilter,
     QueryRow,
     QueryState,
-} from "./query.js";
-export { scheduleStages } from "./scheduler.js";
+} from "./query";
+export { scheduleStages } from "./scheduler";
 export type {
     ScheduleStage,
     SystemLabel,
@@ -133,8 +131,8 @@ export type {
     SystemRunCondition,
     SystemSetLabel,
     SystemSetOptions,
-} from "./scheduler.js";
-export type { StateSystem, System, TransitionSystem } from "./system.js";
+} from "./scheduler";
+export type { StateSystem, System, TransitionSystem } from "./system";
 
 /**
  * Central ECS runtime.

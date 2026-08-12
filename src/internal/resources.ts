@@ -1,7 +1,7 @@
-import type { ChangeDetectionRange } from "../query.js";
-import { isTickInRange } from "../query.js";
-import type { AnyResourceType, ResourceType } from "../resource.js";
-import type { World } from "../world.js";
+import type { ChangeDetectionRange } from "../query";
+import { isTickInRange } from "../query";
+import type { AnyResourceType, ResourceType } from "../resource";
+import type { World } from "../world";
 
 /** Stored resource value plus its change-detection metadata. */
 export interface ResourceEntry<T> {

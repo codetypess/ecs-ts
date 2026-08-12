@@ -1,5 +1,5 @@
-import type { DeferredCommands } from "./deferred-commands.js";
-import type { World } from "./world.js";
+import type { DeferredCommands } from "./deferred-commands";
+import type { World } from "./world";
 
 /** Ordered scheduler stages supported by object-style systems. */
 export const scheduleStageDefinitions = [

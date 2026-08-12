@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { Entity } from "../src";
-import { SparseSet } from "../src/sparse-set.js";
+import { SparseSet } from "../src/sparse-set";
 
 test("sparse set compacts deferred holes without sorting deletion indices", () => {
     const store = new SparseSet<{ value: number }>();

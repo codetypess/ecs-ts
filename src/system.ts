@@ -1,6 +1,6 @@
-import type { StateValue } from "./state.js";
-import type { DeferredCommands } from "./deferred-commands.js";
-import type { World } from "./world.js";
+import type { DeferredCommands } from "./deferred-commands";
+import type { StateValue } from "./state";
+import type { World } from "./world";
 
 /** Object-style system whose lifecycle methods are attached to scheduler stages. */
 export interface System {

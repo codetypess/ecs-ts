@@ -1,9 +1,9 @@
-import { createSystemRunner } from "../scheduler.js";
-import type { SystemRunner } from "../scheduler.js";
-import type { AnyStateType, StateType, StateValue } from "../state.js";
-import type { StateSystem, TransitionSystem } from "../system.js";
-import type { World } from "../world.js";
-import { ensureMapEntry } from "./collection-utils.js";
+import type { SystemRunner } from "../scheduler";
+import { createSystemRunner } from "../scheduler";
+import type { AnyStateType, StateType, StateValue } from "../state";
+import type { StateSystem, TransitionSystem } from "../system";
+import type { World } from "../world";
+import { ensureMapEntry } from "./collection-utils";
 
 /** Runtime record for a single registered state machine. */
 export interface StateRecord<T extends StateValue> {

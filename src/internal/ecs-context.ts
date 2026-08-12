@@ -1,19 +1,19 @@
-import { EntityManager } from "../entity.js";
-import type { ChangeDetectionRange } from "../query.js";
-import type { Registry } from "../registry.js";
-import { createComponentOpsContext, type ComponentOpsContext } from "./component-ops.js";
+import { EntityManager } from "../entity";
+import type { ChangeDetectionRange } from "../query";
+import type { Registry } from "../registry";
+import { createComponentOpsContext, type ComponentOpsContext } from "./component-ops";
 import {
     compactComponentStores,
     createComponentStoreContext,
     type ComponentStoreContext,
-} from "./component-store.js";
+} from "./component-store";
 import {
     createEntityComponentIndexContext,
     type EntityComponentIndexContext,
-} from "./entity-component-index.js";
-import type { QueryExecutorContext } from "./query-executor.js";
-import { createQueryPlanContext } from "./query-plan.js";
-import { createResourceContext, type ResourceContext } from "./resources.js";
+} from "./entity-component-index";
+import type { QueryExecutorContext } from "./query-executor";
+import { createQueryPlanContext } from "./query-plan";
+import { createResourceContext, type ResourceContext } from "./resources";
 
 /** Core ECS storage and execution contexts owned by a world. */
 export interface EcsContext {

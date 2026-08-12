@@ -1,5 +1,5 @@
-import type { AnyComponentType } from "../component.js";
-import type { Entity } from "../entity.js";
+import type { AnyComponentType } from "../component";
+import type { Entity } from "../entity";
 import type {
     ChangeDetectionRange,
     ComponentTuple,
@@ -9,7 +9,7 @@ import type {
     QueryFilter,
     QueryRow,
     QueryState,
-} from "../query.js";
+} from "../query";
 import {
     resolveOptionalQueryPlan,
     resolveOptionalQueryStateCache,
@@ -18,7 +18,7 @@ import {
     type QueryPlanContext,
     type ResolvedOptionalQueryPlan,
     type ResolvedQueryPlan,
-} from "./query-plan.js";
+} from "./query-plan";
 
 /** Inputs needed to execute resolved query plans. */
 export interface QueryExecutorContext {

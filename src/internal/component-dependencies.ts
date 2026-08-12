@@ -1,5 +1,5 @@
-import type { AnyComponentEntry, AnyComponentType } from "../component.js";
-import { formatEntity, type Entity } from "../entity.js";
+import type { AnyComponentEntry, AnyComponentType } from "../component";
+import { formatEntity, type Entity } from "../entity";
 
 type DependencyOrder = "dependenciesFirst" | "dependentsFirst";
 type DependencyRank = Map<AnyComponentType, number>;

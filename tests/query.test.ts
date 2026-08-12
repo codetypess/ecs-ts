@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-    defineComponent,
-    World,
     createRegistry,
+    defineComponent,
     optionalQueryState,
     queryState,
     withComponent,
     withMarker,
+    World,
 } from "../src";
-import { SparseSet } from "../src/sparse-set.js";
+import { SparseSet } from "../src/sparse-set";
 
 const registry = createRegistry("query-test");
 

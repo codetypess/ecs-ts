@@ -1,6 +1,6 @@
-import type { AnyComponentType, ComponentData } from "./component.js";
-import type { EcsContext } from "./internal/ecs-context.js";
-import type { Entity } from "./entity.js";
+import type { AnyComponentType, ComponentData } from "./component";
+import type { Entity } from "./entity";
+import type { EcsContext } from "./internal/ecs-context";
 import {
     eachOptionalWithState as eachOptionalQueryWithState,
     eachWithState as eachQueryWithState,
@@ -10,10 +10,10 @@ import {
     matchesSingleWithState as matchesSingleQueryWithState,
     queryOptionalWithState as runOptionalQueryWithState,
     queryWithState as runQueryWithState,
-} from "./internal/query-executor.js";
-import { getSingleResult, mustGetSingleResult } from "./internal/query-single.js";
-import type { SparseSet } from "./sparse-set.js";
-import type { World } from "./world.js";
+} from "./internal/query-executor";
+import { getSingleResult, mustGetSingleResult } from "./internal/query-single";
+import type { SparseSet } from "./sparse-set";
+import type { World } from "./world";
 
 /** Maps a component-type tuple to the tuple of resolved component payload types. */
 export type ComponentTuple<TComponents extends readonly AnyComponentType[]> = {

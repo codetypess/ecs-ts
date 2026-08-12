@@ -1,8 +1,8 @@
-import type { Entity } from "./entity.js";
-import type { World } from "./world.js";
+import type { Entity } from "./entity";
+import type { World } from "./world";
 
-export { createRegistry, Registry } from "./registry.js";
-export type { AnyRegistryType } from "./registry.js";
+export { createRegistry, Registry } from "./registry";
+export type { AnyRegistryType } from "./registry";
 
 /** Callback used by component lifecycle hooks. */
 export type ComponentHook<T> = {

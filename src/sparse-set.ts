@@ -1,4 +1,4 @@
-import { Entity, entityIndex } from "./entity.js";
+import { Entity, entityIndex } from "./entity";
 
 const MISSING = -1;
 

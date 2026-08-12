@@ -1,5 +1,5 @@
-import type { AnyComponentType } from "../component.js";
-import type { Entity } from "../entity.js";
+import type { AnyComponentType } from "../component";
+import type { Entity } from "../entity";
 import type {
     ChangeDetectionRange,
     ComponentTuple,
@@ -7,15 +7,15 @@ import type {
     OptionalQueryRow,
     QueryFilter,
     QueryRow,
-} from "../query.js";
-import type { EcsContext } from "./ecs-context.js";
-import { getSingleResult, mustGetSingleResult } from "./query-single.js";
+} from "../query";
+import type { EcsContext } from "./ecs-context";
 import {
     eachOptional as eachOptionalQuery,
     each as eachQuery,
     queryOptional as runOptionalQuery,
     query as runQuery,
-} from "./query-executor.js";
+} from "./query-executor";
+import { getSingleResult, mustGetSingleResult } from "./query-single";
 
 /** Shared public query API for world instances. */
 export abstract class WorldQueryMethods {
