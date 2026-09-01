@@ -5,7 +5,6 @@ import { SparseSet } from "../sparse-set";
 export interface ComponentStoreContext {
     readonly registry: Registry;
     readonly stores: Map<AnyComponentType, SparseSet<unknown>>;
-    readonly pendingCompaction: Set<SparseSet<unknown>>;
     storeVersion: number;
 }
 
@@ -13,7 +12,6 @@ export function createComponentStoreContext(registry: Registry): ComponentStoreC
     return {
         registry,
         stores: new Map(),
-        pendingCompaction: new Set(),
         storeVersion: 0,
     } satisfies ComponentStoreContext;
 }
@@ -46,18 +44,7 @@ export function getComponentStore<T extends object>(
     return store;
 }
 
-export function markComponentStoreForCompaction<T>(
-    context: ComponentStoreContext,
-    store: SparseSet<T>
-): void {
-    context.pendingCompaction.add(store as SparseSet<unknown>);
-}
-
-export function compactComponentStores(context: ComponentStoreContext): void {
-    for (const store of context.pendingCompaction) store.compact();
-    context.pendingCompaction.clear();
-}
-
+/** Iterates every registered component store. */
 export function* getComponentStoreEntries(
     context: ComponentStoreContext
 ): IterableIterator<[AnyComponentType, SparseSet<unknown>]> {

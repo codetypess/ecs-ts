@@ -16,15 +16,13 @@ const MISSING = -1;
 export class SparseSet<T> {
     private readonly sparse: number[] = [];
     private readonly denseEntities: Entity[] = [];
-    private readonly denseValues: (T | undefined)[] = [];
+    private readonly denseValues: T[] = [];
     private readonly addedTicks: number[] = [];
     private readonly changedTicks: number[] = [];
-    private readonly deletedIndices: number[] = [];
-    private liveSize = 0;
 
     /** Number of live values stored in the dense arrays. */
     get size(): number {
-        return this.liveSize;
+        return this.denseEntities.length;
     }
 
     /** Dense entity array used as the main iteration source. */
@@ -33,7 +31,7 @@ export class SparseSet<T> {
     }
 
     /** Dense value array kept in lockstep with {@link entities}. */
-    get values(): readonly (T | undefined)[] {
+    get values(): readonly T[] {
         return this.denseValues;
     }
 
@@ -81,7 +79,7 @@ export class SparseSet<T> {
         const existingIndex = this.denseIndexOf(entity);
 
         if (existingIndex !== MISSING) {
-            const previous = this.denseValues[existingIndex]!;
+            const previous = this.denseValues[existingIndex];
             this.denseValues[existingIndex] = value;
             this.changedTicks[existingIndex] = tick;
 
@@ -94,72 +92,18 @@ export class SparseSet<T> {
         this.denseValues.push(value);
         this.addedTicks.push(tick);
         this.changedTicks.push(tick);
-        this.liveSize++;
 
         return undefined;
     }
 
-    /** Logically removes a value and optionally defers physical compaction. */
-    delete(entity: Entity, deferCompaction = false): boolean {
+    /** Removes a value with swap-remove to keep dense iteration compact. */
+    delete(entity: Entity): boolean {
         const denseIndex = this.denseIndexOf(entity);
 
         if (denseIndex === MISSING) {
             return false;
         }
 
-        if (!deferCompaction && this.deletedIndices.length === 0) {
-            this.swapRemove(denseIndex, entity);
-            return true;
-        }
-
-        this.sparse[entityIndex(entity)] = MISSING;
-        this.denseValues[denseIndex] = undefined;
-        this.deletedIndices.push(denseIndex);
-        this.liveSize--;
-
-        if (!deferCompaction) {
-            this.compact();
-        }
-
-        return true;
-    }
-
-    /** Fills deleted dense slots from the live tail and truncates all aligned arrays. */
-    compact(): void {
-        if (this.deletedIndices.length === 0) {
-            return;
-        }
-
-        const newLength = this.liveSize;
-        let tail = this.denseValues.length - 1;
-
-        for (const deletedIndex of this.deletedIndices) {
-            if (deletedIndex >= newLength) {
-                continue;
-            }
-
-            while (tail >= newLength && this.denseValues[tail] === undefined) {
-                tail--;
-            }
-
-            const movedEntity = this.denseEntities[tail]!;
-
-            this.denseEntities[deletedIndex] = movedEntity;
-            this.denseValues[deletedIndex] = this.denseValues[tail]!;
-            this.addedTicks[deletedIndex] = this.addedTicks[tail]!;
-            this.changedTicks[deletedIndex] = this.changedTicks[tail]!;
-            this.sparse[entityIndex(movedEntity)] = deletedIndex;
-            tail--;
-        }
-
-        this.denseEntities.length = newLength;
-        this.denseValues.length = newLength;
-        this.addedTicks.length = newLength;
-        this.changedTicks.length = newLength;
-        this.deletedIndices.length = 0;
-    }
-
-    private swapRemove(denseIndex: number, entity: Entity): void {
         const lastIndex = this.denseEntities.length - 1;
 
         if (denseIndex !== lastIndex) {
@@ -177,7 +121,8 @@ export class SparseSet<T> {
         this.addedTicks.pop();
         this.changedTicks.pop();
         this.sparse[entityIndex(entity)] = MISSING;
-        this.liveSize--;
+
+        return true;
     }
 
     private denseIndexOf(entity: Entity): number {

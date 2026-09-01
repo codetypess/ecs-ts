@@ -2,11 +2,7 @@ import { EntityManager } from "../entity";
 import type { ChangeDetectionRange } from "../query";
 import type { Registry } from "../registry";
 import { createComponentOpsContext, type ComponentOpsContext } from "./component-ops";
-import {
-    compactComponentStores,
-    createComponentStoreContext,
-    type ComponentStoreContext,
-} from "./component-store";
+import { createComponentStoreContext, type ComponentStoreContext } from "./component-store";
 import {
     createEntityComponentIndexContext,
     type EntityComponentIndexContext,
@@ -39,7 +35,6 @@ export function createEcsContext(options: EcsContextOptions): EcsContext {
     const componentStores = createComponentStoreContext(registry);
     const entityComponents = createEntityComponentIndexContext();
     const resources = createResourceContext({ getChangeTick, getChangeDetectionRange });
-    let activeQueryDepth = 0;
 
     const components = createComponentOpsContext({
         entities,
@@ -47,7 +42,6 @@ export function createEcsContext(options: EcsContextOptions): EcsContext {
         entityComponents,
         getChangeTick,
         getChangeDetectionRange,
-        shouldDeferComponentCompaction: () => activeQueryDepth > 0,
         runComponentHooks,
     });
     const queries: QueryExecutorContext = {
@@ -56,16 +50,6 @@ export function createEcsContext(options: EcsContextOptions): EcsContext {
             stores: componentStores.stores,
             getStoreVersion: () => componentStores.storeVersion,
         }),
-        beginIteration: () => {
-            activeQueryDepth++;
-        },
-        endIteration: () => {
-            activeQueryDepth--;
-
-            if (activeQueryDepth === 0) {
-                compactComponentStores(componentStores);
-            }
-        },
     };
 
     return {

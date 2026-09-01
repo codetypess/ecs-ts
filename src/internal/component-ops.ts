@@ -9,7 +9,6 @@ import { assertComponentValue } from "../component";
 import type { Entity } from "../entity";
 import { EntityManager, formatEntity } from "../entity";
 import type { ChangeDetectionRange, ComponentTuple } from "../query";
-import type { SparseSet } from "../sparse-set";
 import { sortComponentTypesByDependencies } from "./component-dependencies";
 import {
     getManyComponents,
@@ -21,7 +20,6 @@ import {
 import {
     ensureComponentStore,
     getComponentStore,
-    markComponentStoreForCompaction,
     type ComponentStoreContext,
 } from "./component-store";
 import {
@@ -37,7 +35,6 @@ interface ComponentOpsContextOptions {
     readonly entityComponents: EntityComponentIndexContext;
     readonly getChangeTick: () => number;
     readonly getChangeDetectionRange: () => ChangeDetectionRange;
-    readonly shouldDeferComponentCompaction: () => boolean;
     readonly runComponentHooks: {
         <T extends object>(
             type: ComponentType<T>,
@@ -234,7 +231,7 @@ export function remove<T extends object>(
     context.runComponentHooks(type, "onUnset", entity, component);
     context.runComponentHooks(type, "onRemove", entity, component, "removed");
     untrackEntityComponent(context.entityComponents, entity, type);
-    deleteStoredComponent(context, store, entity);
+    store.delete(entity);
 
     return true;
 }
@@ -257,29 +254,10 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
             context.runComponentHooks(type, "onRemove", entity, component, "despawned");
         }
 
-        deleteStoredComponent(context, store, entity);
+        store?.delete(entity);
     }
 
     return context.entities.destroy(entity);
-}
-
-function deleteStoredComponent<T>(
-    context: ComponentOpsContext,
-    store: SparseSet<T> | undefined,
-    entity: Entity
-): boolean {
-    if (store === undefined) {
-        return false;
-    }
-
-    const deferCompaction = context.shouldDeferComponentCompaction();
-    const deleted = store.delete(entity, deferCompaction);
-
-    if (deleted && deferCompaction) {
-        markComponentStoreForCompaction(context.componentStores, store);
-    }
-
-    return deleted;
 }
 
 /** Writes exactly one component store and runs the appropriate lifecycle hooks around it. */

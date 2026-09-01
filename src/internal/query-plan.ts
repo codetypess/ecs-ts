@@ -47,9 +47,7 @@ export type QueryEachVisitor = (entity: Entity, ...components: unknown[]) => voi
 
 export type QueryIterateExecutor = (
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange,
-    beginIteration: () => void,
-    endIteration: () => void
+    changeDetection: ChangeDetectionRange
 ) => IterableIterator<QueryRow<readonly AnyComponentType[]>>;
 
 export type QueryEachExecutor = (
@@ -66,9 +64,7 @@ export type QueryCountExecutor = (
 
 export type OptionalQueryIterateExecutor = (
     plan: ResolvedOptionalQueryPlan,
-    changeDetection: ChangeDetectionRange,
-    beginIteration: () => void,
-    endIteration: () => void
+    changeDetection: ChangeDetectionRange
 ) => IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>>;
 
 export type OptionalQueryEachExecutor = (

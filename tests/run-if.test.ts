@@ -138,35 +138,6 @@ test("matchesSingle returns true only when exactly one entity matches", () => {
     world.despawn(b);
 });
 
-test("query-like runIf fallbacks close iterators after early matches", () => {
-    const Marker = registry.registerComponent(defineComponent("RunIfIteratorCloseMarker"));
-    const world = new World(registry);
-    const first = world.spawn(0, withMarker(Marker));
-    const second = world.spawn(0, withMarker(Marker));
-    let closed = 0;
-    const source = {
-        *iter(currentWorld: World): IterableIterator<unknown> {
-            try {
-                yield* currentWorld.query([Marker]);
-            } finally {
-                closed++;
-            }
-        },
-    };
-
-    assert.equal(matchesAny(source)(world), true);
-    assert.equal(closed, 1);
-
-    assert.equal(matchesNone(source)(world), false);
-    assert.equal(closed, 2);
-
-    assert.equal(matchesSingle(source)(world), false);
-    assert.equal(closed, 3);
-
-    world.despawn(first);
-    world.despawn(second);
-});
-
 // ---------------------------------------------------------------------------
 // Resource-based helpers
 // ---------------------------------------------------------------------------

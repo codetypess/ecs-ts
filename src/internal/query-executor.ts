@@ -23,8 +23,6 @@ import {
 /** Inputs needed to execute resolved query plans. */
 export interface QueryExecutorContext {
     readonly planContext: QueryPlanContext;
-    readonly beginIteration: () => void;
-    readonly endIteration: () => void;
 }
 
 type QueryVisitor<TComponents extends readonly AnyComponentType[]> = (
@@ -162,14 +160,12 @@ export function each<const TComponents extends readonly AnyComponentType[]>(
     changeDetection: ChangeDetectionRange,
     visitor: QueryVisitor<TComponents>
 ): void {
-    trackQueryExecution(context, () => {
-        eachResolvedQuery(
-            context,
-            resolveQueryPlan(context.planContext, types, filter),
-            changeDetection,
-            visitor
-        );
-    });
+    eachResolvedQuery(
+        context,
+        resolveQueryPlan(context.planContext, types, filter),
+        changeDetection,
+        visitor
+    );
 }
 
 /** Visits every row of a direct optional query. */
@@ -184,14 +180,12 @@ export function eachOptional<
     changeDetection: ChangeDetectionRange,
     visitor: OptionalQueryVisitor<TRequiredComponents, TOptionalComponents>
 ): void {
-    trackQueryExecution(context, () => {
-        eachResolvedOptionalQuery(
-            context,
-            resolveOptionalQueryPlan(context.planContext, required, optional, filter),
-            changeDetection,
-            visitor
-        );
-    });
+    eachResolvedOptionalQuery(
+        context,
+        resolveOptionalQueryPlan(context.planContext, required, optional, filter),
+        changeDetection,
+        visitor
+    );
 }
 
 /** Visits every row of a cached required-component query. */
@@ -201,14 +195,12 @@ export function eachWithState<const TComponents extends readonly AnyComponentTyp
     changeDetection: ChangeDetectionRange,
     visitor: QueryVisitor<TComponents>
 ): void {
-    trackQueryExecution(context, () => {
-        eachResolvedQuery(
-            context,
-            resolveQueryStateCache(context.planContext, state),
-            changeDetection,
-            visitor
-        );
-    });
+    eachResolvedQuery(
+        context,
+        resolveQueryStateCache(context.planContext, state),
+        changeDetection,
+        visitor
+    );
 }
 
 /** Visits every row of a cached optional query. */
@@ -221,14 +213,12 @@ export function eachOptionalWithState<
     changeDetection: ChangeDetectionRange,
     visitor: OptionalQueryVisitor<TRequiredComponents, TOptionalComponents>
 ): void {
-    trackQueryExecution(context, () => {
-        eachResolvedOptionalQuery(
-            context,
-            resolveOptionalQueryStateCache(context.planContext, state),
-            changeDetection,
-            visitor
-        );
-    });
+    eachResolvedOptionalQuery(
+        context,
+        resolveOptionalQueryStateCache(context.planContext, state),
+        changeDetection,
+        visitor
+    );
 }
 
 function iterateResolvedQuery<const TComponents extends readonly AnyComponentType[]>(
@@ -238,12 +228,7 @@ function iterateResolvedQuery<const TComponents extends readonly AnyComponentTyp
 ): IterableIterator<QueryRow<TComponents>> {
     return plan === undefined
         ? emptyQueryIterator<QueryRow<TComponents>>()
-        : (plan.iterate(
-              plan,
-              changeDetection,
-              context.beginIteration,
-              context.endIteration
-          ) as IterableIterator<QueryRow<TComponents>>);
+        : (plan.iterate(plan, changeDetection) as IterableIterator<QueryRow<TComponents>>);
 }
 
 function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]>(
@@ -270,12 +255,9 @@ function iterateResolvedOptionalQuery<
 ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
     return plan === undefined
         ? emptyQueryIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>>()
-        : (plan.iterate(
-              plan,
-              changeDetection,
-              context.beginIteration,
-              context.endIteration
-          ) as IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>>);
+        : (plan.iterate(plan, changeDetection) as IterableIterator<
+              OptionalQueryRow<TRequiredComponents, TOptionalComponents>
+          >);
 }
 
 /** Visits a resolved optional query using the same compiled plan strategy as the iterator version. */
@@ -293,16 +275,6 @@ function eachResolvedOptionalQuery<
     }
 
     plan.each(plan, changeDetection, visitor as (entity: Entity, ...components: unknown[]) => void);
-}
-
-function trackQueryExecution(context: QueryExecutorContext, run: () => void): void {
-    context.beginIteration();
-
-    try {
-        run();
-    } finally {
-        context.endIteration();
-    }
 }
 
 function* emptyQueryIterator<TRow>(): IterableIterator<TRow> {}
