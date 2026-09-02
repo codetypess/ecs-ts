@@ -145,6 +145,43 @@ test("spawn inserts multiple component entries", () => {
     assert.equal(world.hasAnyComponents(entity, [Player, Health]), false);
 });
 
+test("component additions return the inserted value across write paths", () => {
+    type DirectValue = { value: number };
+    const DirectValue = registry.registerComponent(
+        defineComponent<DirectValue>("ReturnedDirectValue")
+    );
+    type DeferredValue = { value: number };
+    const DeferredValue = registry.registerComponent(
+        defineComponent<DeferredValue>("ReturnedDeferredValue")
+    );
+    type BatchValue = { value: number };
+    const BatchValue = registry.registerComponent(
+        defineComponent<BatchValue>("ReturnedBatchValue")
+    );
+    const world = new World(registry);
+    const entity = world.spawn(0);
+    const direct = { value: 1 };
+
+    assert.equal(world.addComponent(entity, DirectValue, direct), direct);
+
+    const commands = world.commands();
+    const deferred = { value: 2 };
+
+    assert.equal(commands.addComponent(entity, DeferredValue, deferred), deferred);
+    assert.equal(commands.getComponent(entity, DeferredValue), deferred);
+    commands.flush();
+
+    const batchValue = { value: 3 };
+
+    world.batch((batch) => {
+        assert.equal(batch.addComponent(entity, BatchValue, batchValue), batchValue);
+    });
+
+    assert.equal(world.getComponent(entity, DirectValue), direct);
+    assert.equal(world.getComponent(entity, DeferredValue), deferred);
+    assert.equal(world.getComponent(entity, BatchValue), batchValue);
+});
+
 test("entities() iterates only currently live entities in storage-index order", () => {
     const Marker = registry.registerComponent(defineComponent("WorldEntitiesMarker"));
     const world = new World(registry);

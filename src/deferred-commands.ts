@@ -139,15 +139,18 @@ export class DeferredCommands {
      * Queues a component insertion or replacement.
      *
      * The value is immediately visible through this command queue's component-read methods,
-     * but it does not become visible through `World` or queries until a successful flush.
+     * but it does not become visible through `World` or queries until a successful flush. The
+     * same value is returned for immediate initialization.
      */
-    addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this {
-        return this.enqueue({
+    addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): T {
+        this.enqueue({
             kind: "addComponent",
             entity,
             type,
             value,
         });
+
+        return value;
     }
 
     /**

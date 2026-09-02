@@ -32,7 +32,8 @@ interface BatchContext {
 
 export interface WorldBatch {
     spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
-    addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this;
+    /** Stages a component insertion or replacement and returns the staged value. */
+    addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): T;
     removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): this;
     despawn(entity: Entity): this;
 }
@@ -100,7 +101,7 @@ function createBatchWriter(runtime: WorldBatchRuntime, context: BatchContext): W
         addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T) {
             ensureBatchContextOpen(context);
             stageBatchAddComponent(runtime, context, entity, type, value);
-            return batch;
+            return value;
         },
         removeComponent<T extends object>(entity: Entity, type: ComponentType<T>) {
             ensureBatchContextOpen(context);

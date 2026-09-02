@@ -286,11 +286,11 @@ export class World extends WorldQueryMethods {
         }
     }
 
-    /** Inserts or replaces a component value on a live entity. */
-    addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): this {
+    /** Inserts or replaces a component value and returns the stored value. */
+    addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): T {
         this.addComponentWithReason(entity, type, value, "added");
 
-        return this;
+        return value;
     }
 
     /** Marks an existing component as changed without replacing its value. */
