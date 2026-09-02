@@ -185,6 +185,98 @@ test("commands flush queued structural edits in order", () => {
     assert.deepEqual(world.mustGetComponent(entity, Velocity), { x: 3, y: 4 });
 });
 
+test("commands expose pending spawn components before flush", () => {
+    type Position = { x: number; y: number };
+    const Position = registry.registerComponent(defineComponent<Position>("PendingSpawnPosition"));
+    const Missing = registry.registerComponent(defineComponent("PendingSpawnMissing"));
+    const world = new World(registry);
+    const commands = world.commands();
+    const position = { x: 1, y: 2 };
+    const entity = commands.spawn(0, withComponent(Position, position));
+
+    assert.equal(world.isAlive(entity), false);
+    assert.equal(world.getComponent(entity, Position), undefined);
+    assert.equal(commands.getComponent(entity, Position), position);
+    assert.equal(commands.mustGetComponent(entity, Position), position);
+    assert.equal(commands.hasComponent(entity, Position), true);
+    assert.equal(commands.getComponent(entity, Missing), undefined);
+    assert.throws(
+        () => commands.mustGetComponent(entity, Missing),
+        /does not have PendingSpawnMissing in deferred command view/
+    );
+
+    commands.flush();
+
+    assert.equal(world.isAlive(entity), true);
+    assert.equal(commands.getComponent(entity, Position), position);
+    assert.equal(world.getComponent(entity, Position), position);
+});
+
+test("commands component reads follow pending operation order", () => {
+    type Health = { value: number };
+    const Health = registry.registerComponent(defineComponent<Health>("PendingOrderHealth"));
+    const world = new World(registry);
+    const original = { value: 10 };
+    const entity = world.spawn(0, withComponent(Health, original));
+    const commands = world.commands();
+    const replacement = { value: 20 };
+
+    assert.equal(commands.getComponent(entity, Health), original);
+
+    commands.addComponent(entity, Health, replacement);
+    assert.equal(commands.getComponent(entity, Health), replacement);
+    assert.equal(world.getComponent(entity, Health), original);
+
+    commands.removeComponent(entity, Health);
+    assert.equal(commands.getComponent(entity, Health), undefined);
+    assert.equal(commands.hasComponent(entity, Health), false);
+
+    const final = { value: 30 };
+    commands.addComponent(entity, Health, final);
+    assert.equal(commands.getComponent(entity, Health), final);
+
+    commands.flush();
+
+    assert.equal(commands.getComponent(entity, Health), final);
+    assert.equal(world.getComponent(entity, Health), final);
+});
+
+test("commands pending despawn hides every component before flush", () => {
+    const Marker = registry.registerComponent(defineComponent("PendingDespawnMarker"));
+    const world = new World(registry);
+    const entity = world.spawn(0, withMarker(Marker));
+    const commands = world.commands();
+
+    commands.despawn(entity);
+
+    assert.equal(commands.hasComponent(entity, Marker), false);
+    assert.equal(world.hasComponent(entity, Marker), true);
+
+    commands.flush();
+
+    assert.equal(world.isAlive(entity), false);
+    assert.equal(commands.getComponent(entity, Marker), undefined);
+});
+
+test("commands rebuild their pending component view across multiple flushes", () => {
+    const Marker = registry.registerComponent(defineComponent("PendingMultiFlushMarker"));
+    const world = new World(registry);
+    const entity = world.spawn(0);
+    const commands = world.commands();
+
+    commands.addComponent(entity, Marker, {});
+    assert.equal(commands.hasComponent(entity, Marker), true);
+    commands.flush();
+    assert.equal(world.hasComponent(entity, Marker), true);
+    assert.equal(commands.hasComponent(entity, Marker), true);
+
+    commands.removeComponent(entity, Marker);
+    assert.equal(commands.hasComponent(entity, Marker), false);
+    commands.flush();
+    assert.equal(world.hasComponent(entity, Marker), false);
+    assert.equal(commands.hasComponent(entity, Marker), false);
+});
+
 test("commands spawn does not publish an empty entity when the spawn fails", () => {
     const commandRegistry = createRegistry("world-command-failed-spawn-test");
     type Transform = { x: number; y: number };
@@ -229,11 +321,13 @@ test("commands queued during flush wait for the next flush", () => {
     assert.equal(ranOuterCommand, true);
     assert.equal(commands.pending, 1);
     assert.equal(world.hasComponent(entity, Position), false);
+    assert.deepEqual(commands.getComponent(entity, Position), { x: 5, y: 6 });
 
     commands.flush();
 
     assert.equal(commands.pending, 0);
     assert.deepEqual(world.mustGetComponent(entity, Position), { x: 5, y: 6 });
+    assert.deepEqual(commands.mustGetComponent(entity, Position), { x: 5, y: 6 });
 });
 
 test("commands flush keeps only unexecuted commands queued after a failure", () => {
@@ -259,11 +353,15 @@ test("commands flush keeps only unexecuted commands queued after a failure", () 
     assert.equal(world.hasComponent(second, NeedsReady), false);
     assert.equal(world.hasComponent(third, Ready), false);
     assert.equal(commands.pending, 1);
+    assert.equal(commands.hasComponent(first, Ready), true);
+    assert.equal(commands.hasComponent(second, NeedsReady), false);
+    assert.equal(commands.hasComponent(third, Ready), true);
 
     commands.flush();
 
     assert.equal(commands.pending, 0);
     assert.equal(world.hasComponent(third, Ready), true);
+    assert.equal(commands.hasComponent(third, Ready), true);
 });
 
 test("shutdown is terminal and later updates stay inert", () => {

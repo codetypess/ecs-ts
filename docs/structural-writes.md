@@ -39,6 +39,7 @@ const commands = world.commands();
 const entity = commands.spawn(0, withComponent(Position, { x: 1, y: 2 }));
 
 commands.addComponent(entity, Velocity, { x: 3, y: 4 });
+commands.mustGetComponent(entity, Velocity).x = 5;
 commands.setState(GameMode, "running");
 commands.flush();
 ```
@@ -47,6 +48,12 @@ Important details:
 
 - `commands.spawn(etype, ...)` returns a reserved entity handle immediately.
 - That entity is not live until `flush()` commits the queued work.
+- Component reads check the queue's projected pending view before committed `World` state, so
+  reserved spawn components and queued additions are readable before flush.
+- Queued component removal or despawn becomes visible to command reads immediately, while direct
+  `World` reads continue to expose committed state until flush.
+- The pending view is a projection, not validation. Dependency checks and lifecycle hooks can
+  still make flush fail, and arbitrary `commands.run(...)` effects are not projected.
 - DeferredCommands run in insertion order.
 - If `flush()` throws, already executed commands stay applied and unexecuted commands stay queued.
 

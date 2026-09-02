@@ -39,6 +39,7 @@ const commands = world.commands();
 const entity = commands.spawn(0, withComponent(Position, { x: 1, y: 2 }));
 
 commands.addComponent(entity, Velocity, { x: 3, y: 4 });
+commands.mustGetComponent(entity, Velocity).x = 5;
 commands.setState(GameMode, "running");
 commands.flush();
 ```
@@ -47,6 +48,12 @@ commands.flush();
 
 - `commands.spawn(etype, ...)` 会立即返回一个保留的 entity handle。
 - 在 `flush()` 提交之前，这个 entity 还不是 live entity。
+- Component 读取会先查询 command queue 的 pending view，再回退到已提交的 `World` 状态，
+  因此 reserved spawn 的初始 component 和 queued add 在 flush 前即可读取。
+- Queued remove 或 despawn 会立即反映在 command 读取中，但直接 `World` 读取在 flush 前仍看到
+  已提交状态。
+- Pending view 是预期投影而不是验证结果；dependency 检查和 lifecycle hook 仍可能使 flush
+  失败，并且任意 `commands.run(...)` 的影响不会被投影。
 - command 会按入队顺序执行。
 - 如果 `flush()` 抛错，已经执行过的 command 会保留，未执行的 command 会继续留在队列里。
 
