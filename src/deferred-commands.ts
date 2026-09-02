@@ -238,7 +238,7 @@ class WorldDeferredCommands extends DeferredCommands {
             entity,
             type,
             value,
-        });
+        } satisfies AddComponentCommand);
 
         return value;
     }
@@ -254,7 +254,7 @@ class WorldDeferredCommands extends DeferredCommands {
             kind: "removeComponent",
             entity,
             type,
-        });
+        } satisfies RemoveComponentCommand);
     }
 
     /**
@@ -313,7 +313,7 @@ class WorldDeferredCommands extends DeferredCommands {
         return this.enqueue({
             kind: "despawn",
             entity,
-        });
+        } satisfies DespawnCommand);
     }
 
     /** Queues a state transition request. */
@@ -322,7 +322,7 @@ class WorldDeferredCommands extends DeferredCommands {
             kind: "setState",
             type,
             value: next,
-        });
+        } satisfies SetStateCommand);
     }
 
     /** Queues resource insertion or replacement. */
@@ -331,7 +331,7 @@ class WorldDeferredCommands extends DeferredCommands {
             kind: "setResource",
             type,
             value,
-        });
+        } satisfies SetResourceCommand);
     }
 
     /** Queues resource removal. */
@@ -339,7 +339,7 @@ class WorldDeferredCommands extends DeferredCommands {
         return this.enqueue({
             kind: "removeResource",
             type,
-        });
+        } satisfies RemoveResourceCommand);
     }
 
     /** Queues a manual resource change marker. */
@@ -347,7 +347,7 @@ class WorldDeferredCommands extends DeferredCommands {
         return this.enqueue({
             kind: "markResourceChanged",
             type,
-        });
+        } satisfies MarkResourceChangedCommand);
     }
 
     /**
@@ -361,7 +361,7 @@ class WorldDeferredCommands extends DeferredCommands {
             kind: "markComponentChanged",
             entity,
             type,
-        });
+        } satisfies MarkComponentChangedCommand);
     }
 
     /** Queues a message write. */
@@ -370,7 +370,7 @@ class WorldDeferredCommands extends DeferredCommands {
             kind: "writeMessage",
             type,
             value,
-        });
+        } satisfies WriteMessageCommand);
     }
 
     /** Queues event dispatch for the next managed command boundary. */
@@ -383,7 +383,7 @@ class WorldDeferredCommands extends DeferredCommands {
             type,
             value,
             eventPath: [...eventPath],
-        });
+        } satisfies TriggerCommand);
     }
 
     /** Queues an arbitrary world callback whose effects are not projected by component reads. */
@@ -391,7 +391,7 @@ class WorldDeferredCommands extends DeferredCommands {
         return this.enqueue({
             kind: "run",
             callback: command,
-        });
+        } satisfies RunCommand);
     }
 
     private enqueue(command: DeferredCommand): this {
@@ -412,7 +412,7 @@ class WorldDeferredCommands extends DeferredCommands {
             kind: "spawn",
             entity,
             entries: orderedEntries,
-        });
+        } satisfies SpawnCommand);
 
         return entity;
     }
