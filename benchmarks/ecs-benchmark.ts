@@ -560,7 +560,7 @@ pushPreparedBenchmark(results, "direct get(Position)", {
     },
 });
 
-pushPreparedBenchmark(results, "commands markChanged batch flush", {
+pushPreparedBenchmark(results, "commands markChanged managed flush", {
     setup: () => createCommandQueueWorld(),
     run: ({ world, entity }) => {
         const commands = world.commands();
@@ -569,7 +569,7 @@ pushPreparedBenchmark(results, "commands markChanged batch flush", {
             commands.markComponentChanged(entity, Position);
         }
 
-        commands.flush();
+        world.update(0);
         checksum += world.isComponentChanged(entity, Position) ? 1 : 0;
 
         return EVENT_COUNT;

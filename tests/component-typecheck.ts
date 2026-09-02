@@ -113,6 +113,11 @@ world.spawn(withMarker(Marker));
 // @ts-expect-error deferred spawn requires an explicit entity type
 world.commands().spawn(withMarker(Marker));
 
+if (false) {
+    // @ts-expect-error command flushing is managed internally by World
+    world.commands().flush();
+}
+
 world.batch((batch) => {
     // @ts-expect-error batch spawn requires an explicit entity type
     batch.spawn(withMarker(Marker));

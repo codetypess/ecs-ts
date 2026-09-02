@@ -7,10 +7,14 @@ import {
     ComponentRemoveReason,
     ComponentType,
 } from "./component";
-import { DeferredCommands, type DeferredCommandRuntime } from "./deferred-commands";
+import {
+    DeferredCommands,
+    createDeferredCommands,
+    type DeferredCommandControl,
+    type DeferredCommandRuntime,
+} from "./deferred-commands";
 import { Entity, formatEntity, type EntityType } from "./entity";
 import { assertRegisteredEvent, type EventObserver, type EventType } from "./event";
-import { runSystemWithDeferredCommands } from "./internal/command-execution";
 import {
     assertComponentDepsPresent,
     assertComponentHasNoDependents,
@@ -148,6 +152,7 @@ export class World extends WorldQueryMethods {
     readonly registry: Registry;
     protected readonly ecsContext: EcsContext;
     private readonly deferredCommandRuntime: DeferredCommandRuntime;
+    private readonly deferredCommandControl: DeferredCommandControl;
     private readonly stateContext: StateMachineContext;
     private readonly eventContext: EventContext;
     private readonly messageContext: MessageContext;
@@ -209,6 +214,10 @@ export class World extends WorldQueryMethods {
             getChangeDetectionRange: () => this.changeDetectionRange(),
             runComponentHooks,
         });
+        this.stateContext = createStateMachineContext();
+        this.eventContext = createEventContext();
+        this.messageContext = createMessageContext();
+        this.scheduleContext = createScheduleEngineContext();
         this.deferredCommandRuntime = {
             reserveEntity: (etype) => this.ecsContext.entities.reserve(etype),
             releaseReservedEntity: (entity) => this.ecsContext.entities.releaseReserved(entity),
@@ -223,6 +232,7 @@ export class World extends WorldQueryMethods {
             addSpawnedComponent: (entity, type, value) => {
                 this.addComponentWithReason(entity, type, value, "spawned");
             },
+            activeEventPath: () => this.eventContext.dispatchStack,
             assertCanFlush: () => {
                 assertStructuralWriteAllowed(
                     this.ecsContext.queryMutations,
@@ -230,10 +240,7 @@ export class World extends WorldQueryMethods {
                 );
             },
         } satisfies DeferredCommandRuntime;
-        this.stateContext = createStateMachineContext();
-        this.eventContext = createEventContext();
-        this.messageContext = createMessageContext();
-        this.scheduleContext = createScheduleEngineContext();
+        this.deferredCommandControl = createDeferredCommands(this, this.deferredCommandRuntime);
     }
 
     /** Creates a new entity and inserts the provided component entries immediately. */
@@ -490,11 +497,13 @@ export class World extends WorldQueryMethods {
         return this;
     }
 
-    /** Advances the world by one frame, running startup once and then update schedules. */
+    /** Commits pending commands around startup and update schedules, then advances one frame. */
     update(dt: number): void {
         if (this.didShutdown) {
             return;
         }
+
+        this.flushDeferredCommands();
 
         if (!this.didStartup) {
             this.runStartupSchedules();
@@ -502,22 +511,24 @@ export class World extends WorldQueryMethods {
 
         updateStoredMessages(this.messageContext);
         this.runUpdateSchedules(dt);
+        this.flushDeferredCommands();
         this.changeTick++;
     }
 
-    /** Runs shutdown systems once and ignores subsequent calls. */
+    /** Commits pending commands, runs shutdown systems once, and ignores subsequent calls. */
     shutdown(): void {
         if (this.didShutdown) {
             return;
         }
 
+        this.flushDeferredCommands();
         this.didShutdown = true;
         runScheduledStage(this.scheduleContext, "shutdown", 0, this.runSystems);
     }
 
-    /** Creates a deferred command queue bound to this world. */
+    /** Returns this World's shared deferred command buffer. */
     commands(): DeferredCommands {
-        return new DeferredCommands(this, this.deferredCommandRuntime);
+        return this.deferredCommandControl.commands;
     }
 
     /** Registers a message channel so it exists even before the first write. */
@@ -570,7 +581,13 @@ export class World extends WorldQueryMethods {
     trigger<T>(type: EventType<T>, value: T): this {
         assertRegisteredEvent(this.registry, type, "trigger");
 
-        triggerEvent(this.eventContext, type, value, this);
+        try {
+            triggerEvent(this.eventContext, type, value, this);
+        } catch (error) {
+            this.deferredCommandControl.discard();
+            throw error;
+        }
+
         return this;
     }
 
@@ -776,6 +793,18 @@ export class World extends WorldQueryMethods {
         }
     }
 
+    /** Flushes one command snapshot and drops any uncommitted remainder after a failure. */
+    private flushDeferredCommands(): void {
+        try {
+            if (this.deferredCommandControl.commands.pending > 0) {
+                this.deferredCommandControl.flush();
+            }
+        } catch (error) {
+            this.deferredCommandControl.discard();
+            throw error;
+        }
+    }
+
     /** Falls back to a frame-local change window when no system-specific window is active. */
     protected changeDetectionRange(): ChangeDetectionRange {
         return (
@@ -813,10 +842,11 @@ export class World extends WorldQueryMethods {
     };
 
     /**
-     * Runs systems with an isolated change-detection window per system.
+     * Runs systems with isolated change detection and managed command boundaries.
      *
-     * Each successful system run advances the global change tick so later systems can observe
-     * structural edits and explicit `markChanged` calls from earlier systems in the same frame.
+     * Pending commands commit before run-condition checks and after each successful system. Each
+     * successful run advances the global change tick so later systems can observe structural edits
+     * and explicit `markChanged` calls from earlier systems in the same frame.
      */
     private readonly runSystems = (
         systems: readonly SystemRunner[],
@@ -824,6 +854,8 @@ export class World extends WorldQueryMethods {
         dt: number
     ): void => {
         for (const system of systems) {
+            this.flushDeferredCommands();
+
             const previousChangeDetection = this.activeChangeDetection;
             const thisRunTick = this.changeTick;
 
@@ -837,9 +869,13 @@ export class World extends WorldQueryMethods {
                     continue;
                 }
 
-                runSystemWithDeferredCommands(this, system, dt);
+                system.run(this, dt, this.deferredCommandControl.commands);
+                this.flushDeferredCommands();
                 system.lastRunTick = thisRunTick;
                 this.changeTick++;
+            } catch (error) {
+                this.deferredCommandControl.discard();
+                throw error;
             } finally {
                 this.activeChangeDetection = previousChangeDetection;
             }

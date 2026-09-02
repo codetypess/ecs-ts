@@ -34,16 +34,16 @@ commands.setState(Mode, "running");
 commands.writeMessage(Damage, { target: entity, amount: 5 });
 
 console.log(
-    `before flush ${formatEntity(entity)} alive=${world.isAlive(entity)} pending=${commands.pending} position=${JSON.stringify(pendingPosition)}`
+    `before update ${formatEntity(entity)} alive=${world.isAlive(entity)} pending=${commands.pending} position=${JSON.stringify(pendingPosition)}`
 );
 
-commands.flush();
+world.update(0);
 
 const damageReader = world.messageReader(Damage);
 const damageMessages = damageReader.read();
 
 console.log(
-    `after flush ${formatEntity(entity)} alive=${world.isAlive(entity)} state=${world.mustGetState(Mode)}`
+    `after update ${formatEntity(entity)} alive=${world.isAlive(entity)} state=${world.mustGetState(Mode)}`
 );
 console.log(`position=${JSON.stringify(world.mustGetComponent(entity, Position))}`);
 console.log(

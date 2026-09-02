@@ -15,6 +15,7 @@ export interface DeferredCommandRuntime {
     commitReservedEntity(entity: Entity): void;
     releaseReservedEntity(entity: Entity): boolean;
     addSpawnedComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): void;
+    activeEventPath(): readonly AnyEventType[];
     assertCanFlush(): void;
 }
 
@@ -80,6 +81,7 @@ interface TriggerCommand {
     readonly kind: "trigger";
     readonly type: AnyEventType;
     readonly value: unknown;
+    readonly eventPath: readonly AnyEventType[];
 }
 
 interface RunCommand {
@@ -109,40 +111,128 @@ interface PendingEntityState {
     readonly components: Map<AnyComponentType, object | typeof REMOVED_COMPONENT>;
 }
 
-/** Deferred world commands with a projected component view, flushed after a system or observer. */
-export class DeferredCommands {
+/**
+ * World-owned deferred commands with a projected component view.
+ *
+ * Each managed flush executes one queue snapshot; commands produced during execution remain
+ * pending for the next managed boundary.
+ */
+export abstract class DeferredCommands {
+    /** Number of commands waiting for the next World-managed flush boundary. */
+    abstract readonly pending: number;
+
+    /**
+     * Reserves an entity handle and queues its creation.
+     *
+     * The reserved entity is not live until the World flushes its commands, but its initial
+     * components are immediately available through this command buffer's component-read methods.
+     */
+    abstract spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity;
+
+    /**
+     * Queues a component insertion or replacement and returns the queued value.
+     *
+     * The value is immediately visible through this command buffer's component-read methods,
+     * but it does not become visible through `World` or queries until a managed flush.
+     */
+    abstract addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): T;
+
+    /** Queues component removal and immediately hides it from command-buffer reads. */
+    abstract removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): this;
+
+    /** Reads a component from the projected command-buffer view, then committed World state. */
+    abstract getComponent<T extends object>(entity: Entity, type: ComponentType<T>): T | undefined;
+
+    /** Tests the projected command-buffer view overlaid on committed World state. */
+    abstract hasComponent<T extends object>(entity: Entity, type: ComponentType<T>): boolean;
+
+    /** Requires a component from the projected command-buffer view. */
+    abstract mustGetComponent<T extends object>(entity: Entity, type: ComponentType<T>): T;
+
+    /** Queues entity destruction and immediately hides its components from command-buffer reads. */
+    abstract despawn(entity: Entity): this;
+
+    /** Queues a state transition. */
+    abstract setState<T extends StateValue>(type: StateType<T>, next: T): this;
+
+    /** Queues resource insertion or replacement. */
+    abstract setResource<T>(type: ResourceType<T>, value: T): this;
+
+    /** Queues resource removal. */
+    abstract removeResource<T>(type: ResourceType<T>): this;
+
+    /** Queues a manual resource change marker. */
+    abstract markResourceChanged<T>(type: ResourceType<T>): this;
+
+    /** Queues a manual component change marker. */
+    abstract markComponentChanged<T extends object>(entity: Entity, type: ComponentType<T>): this;
+
+    /** Queues a message write. */
+    abstract writeMessage<T>(type: MessageType<T>, value: T): this;
+
+    /** Queues event dispatch for the next managed command boundary. */
+    abstract trigger<T>(type: EventType<T>, value: T): this;
+
+    /** Queues an arbitrary World callback that is not projected by component reads. */
+    abstract run(command: (world: World) => void): this;
+}
+
+export interface DeferredCommandControl {
+    readonly commands: DeferredCommands;
+    flush(): void;
+    discard(): void;
+}
+
+/** Creates the shared command buffer and its World-only execution controls. */
+export function createDeferredCommands(
+    world: World,
+    runtime: DeferredCommandRuntime
+): DeferredCommandControl {
+    const commands = new WorldDeferredCommands(world, runtime);
+
+    return {
+        commands,
+        flush: () => commands.flush(),
+        discard: () => commands.discard(),
+    };
+}
+
+class WorldDeferredCommands extends DeferredCommands {
     private queue: DeferredCommand[] = [];
     private flushing: DeferredCommand[] = [];
     private readonly pendingEntities = new Map<Entity, PendingEntityState>();
+    private activeEventPath: readonly AnyEventType[] = [];
 
     constructor(
         private readonly world: World,
         private readonly runtime: DeferredCommandRuntime
-    ) {}
+    ) {
+        super();
+    }
 
-    /** Number of queued commands waiting to be flushed. */
-    get pending(): number {
+    /** Number of commands waiting for the next World-managed boundary. */
+    override get pending(): number {
         return this.queue.length;
     }
 
     /**
      * Queues an entity spawn using the same component-entry format as `World.spawn`.
      *
-     * The reserved entity is not live until flush, but its initial components are immediately
-     * available through this command queue's component-read methods.
+     * The reserved entity is not live until a managed boundary, but its initial components are
+     * immediately available through this command buffer's component-read methods.
      */
-    spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity {
+    override spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity {
         return this.spawnWithEntries(etype, entries);
     }
 
     /**
      * Queues a component insertion or replacement.
      *
-     * The value is immediately visible through this command queue's component-read methods,
-     * but it does not become visible through `World` or queries until a successful flush. The
-     * same value is returned for immediate initialization.
+     * The value is immediately visible through this command buffer's component-read methods,
+     * but it does not become visible through `World` or queries until a managed boundary. The same
+     * value is returned for immediate initialization.
      */
-    addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): T {
+    override addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): T {
         this.enqueue({
             kind: "addComponent",
             entity,
@@ -156,10 +246,10 @@ export class DeferredCommands {
     /**
      * Queues component removal.
      *
-     * Subsequent reads from this command queue treat the component as absent, while direct
-     * `World` reads continue to see the committed value until flush.
+     * Subsequent reads from this command buffer treat the component as absent, while direct
+     * `World` reads continue to see the committed value until the next managed boundary.
      */
-    removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): this {
+    override removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): this {
         return this.enqueue({
             kind: "removeComponent",
             entity,
@@ -168,14 +258,14 @@ export class DeferredCommands {
     }
 
     /**
-     * Returns the component value projected by this queue's pending commands.
+     * Returns the component value projected by this buffer's pending commands.
      *
      * Pending writes take precedence over committed `World` state. Components on reserved
-     * spawns are readable here before flush, and pending removal or despawn returns `undefined`.
+     * spawns are readable here before commit, and pending removal or despawn returns `undefined`.
      * The projection is not validation: dependency checks and lifecycle hooks may still make
-     * flush fail.
+     * command execution fail.
      */
-    getComponent<T extends object>(entity: Entity, type: ComponentType<T>): T | undefined {
+    override getComponent<T extends object>(entity: Entity, type: ComponentType<T>): T | undefined {
         const pending = this.pendingEntities.get(entity);
 
         if (pending !== undefined) {
@@ -197,12 +287,12 @@ export class DeferredCommands {
     }
 
     /** Returns whether the component exists after pending commands overlay committed World state. */
-    hasComponent<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
+    override hasComponent<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
         return this.getComponent(entity, type) !== undefined;
     }
 
     /** Returns the overlaid component value or throws when it is absent. */
-    mustGetComponent<T extends object>(entity: Entity, type: ComponentType<T>): T {
+    override mustGetComponent<T extends object>(entity: Entity, type: ComponentType<T>): T {
         const value = this.getComponent(entity, type);
 
         if (value === undefined) {
@@ -217,9 +307,9 @@ export class DeferredCommands {
     /**
      * Queues entity despawn.
      *
-     * All component reads for the entity become absent in this queue's pending view immediately.
+     * All component reads for the entity become absent in this buffer's pending view immediately.
      */
-    despawn(entity: Entity): this {
+    override despawn(entity: Entity): this {
         return this.enqueue({
             kind: "despawn",
             entity,
@@ -227,7 +317,7 @@ export class DeferredCommands {
     }
 
     /** Queues a state transition request. */
-    setState<T extends StateValue>(type: StateType<T>, next: T): this {
+    override setState<T extends StateValue>(type: StateType<T>, next: T): this {
         return this.enqueue({
             kind: "setState",
             type,
@@ -236,7 +326,7 @@ export class DeferredCommands {
     }
 
     /** Queues resource insertion or replacement. */
-    setResource<T>(type: ResourceType<T>, value: T): this {
+    override setResource<T>(type: ResourceType<T>, value: T): this {
         return this.enqueue({
             kind: "setResource",
             type,
@@ -245,7 +335,7 @@ export class DeferredCommands {
     }
 
     /** Queues resource removal. */
-    removeResource<T>(type: ResourceType<T>): this {
+    override removeResource<T>(type: ResourceType<T>): this {
         return this.enqueue({
             kind: "removeResource",
             type,
@@ -253,7 +343,7 @@ export class DeferredCommands {
     }
 
     /** Queues a manual resource change marker. */
-    markResourceChanged<T>(type: ResourceType<T>): this {
+    override markResourceChanged<T>(type: ResourceType<T>): this {
         return this.enqueue({
             kind: "markResourceChanged",
             type,
@@ -263,10 +353,10 @@ export class DeferredCommands {
     /**
      * Queues a manual component change marker.
      *
-     * This changes only the component's detection tick during flush and does not alter the
+     * This changes only the component's detection tick during execution and does not alter the
      * component value represented by the pending view.
      */
-    markComponentChanged<T extends object>(entity: Entity, type: ComponentType<T>): this {
+    override markComponentChanged<T extends object>(entity: Entity, type: ComponentType<T>): this {
         return this.enqueue({
             kind: "markComponentChanged",
             entity,
@@ -275,7 +365,7 @@ export class DeferredCommands {
     }
 
     /** Queues a message write. */
-    writeMessage<T>(type: MessageType<T>, value: T): this {
+    override writeMessage<T>(type: MessageType<T>, value: T): this {
         return this.enqueue({
             kind: "writeMessage",
             type,
@@ -283,17 +373,21 @@ export class DeferredCommands {
         });
     }
 
-    /** Queues an immediate event trigger to run after the current command batch flushes. */
-    trigger<T>(type: EventType<T>, value: T): this {
+    /** Queues event dispatch for the next managed command boundary. */
+    override trigger<T>(type: EventType<T>, value: T): this {
+        const eventPath =
+            this.activeEventPath.length > 0 ? this.activeEventPath : this.runtime.activeEventPath();
+
         return this.enqueue({
             kind: "trigger",
             type,
             value,
+            eventPath: [...eventPath],
         });
     }
 
     /** Queues an arbitrary world callback whose effects are not projected by component reads. */
-    run(command: (world: World) => void): this {
+    override run(command: (world: World) => void): this {
         return this.enqueue({
             kind: "run",
             callback: command,
@@ -307,7 +401,7 @@ export class DeferredCommands {
         return this;
     }
 
-    /** Reserves an entity handle immediately, then commits it during flush. */
+    /** Reserves an entity handle immediately, then commits it at a managed boundary. */
     private spawnWithEntries(etype: EntityType, entries: readonly AnyComponentEntry[]): Entity {
         const orderedEntries = entriesHaveDependencyChecks(entries)
             ? sortEntriesByDependencies(entries)
@@ -325,9 +419,15 @@ export class DeferredCommands {
 
     /** Executes queued commands in insertion order and rebuilds the view for commands left over. */
     flush(): void {
-        if (this.queue.length > 0) {
-            this.runtime.assertCanFlush();
+        if (this.queue.length === 0) {
+            return;
         }
+
+        if (this.flushing.length > 0) {
+            throw new Error("Deferred command execution is not reentrant");
+        }
+
+        this.runtime.assertCanFlush();
         [this.flushing, this.queue] = [this.queue, this.flushing];
 
         let index = 0;
@@ -350,6 +450,26 @@ export class DeferredCommands {
 
         this.flushing.length = 0;
         this.rebuildPendingView();
+    }
+
+    /** Drops queued work and releases entity handles reserved by uncommitted spawn commands. */
+    discard(): void {
+        for (const command of this.queue) {
+            if (command.kind === "spawn") {
+                this.runtime.releaseReservedEntity(command.entity);
+            }
+        }
+
+        for (const command of this.flushing) {
+            if (command.kind === "spawn") {
+                this.runtime.releaseReservedEntity(command.entity);
+            }
+        }
+
+        this.queue.length = 0;
+        this.flushing.length = 0;
+        this.pendingEntities.clear();
+        this.activeEventPath = [];
     }
 
     private executeCommand(command: DeferredCommand): void {
@@ -384,9 +504,28 @@ export class DeferredCommands {
             case "writeMessage":
                 this.world.writeMessage(command.type, command.value);
                 return;
-            case "trigger":
-                this.world.trigger(command.type, command.value);
+            case "trigger": {
+                const cycleStart = command.eventPath.indexOf(command.type);
+
+                if (cycleStart !== -1) {
+                    const cycle = [...command.eventPath.slice(cycleStart), command.type]
+                        .map((current) => current.name)
+                        .join(" -> ");
+
+                    throw new Error(`Event dispatch cycle detected: ${cycle}`);
+                }
+
+                const previousEventPath = this.activeEventPath;
+                this.activeEventPath = [...command.eventPath, command.type];
+
+                try {
+                    this.world.trigger(command.type, command.value);
+                } finally {
+                    this.activeEventPath = previousEventPath;
+                }
+
                 return;
+            }
             case "run":
                 command.callback(this.world);
                 return;

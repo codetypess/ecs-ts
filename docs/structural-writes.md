@@ -28,11 +28,18 @@ This is the simplest path for setup code, tests, import tools, and one-off scrip
 
 ## DeferredCommands
 
-`DeferredCommands` is a deferred queue.
+`DeferredCommands` is the World-owned deferred command buffer.
 
-- Systems and event observers automatically get a fresh command queue.
-- The queue flushes after the system or observer returns.
-- Outside the scheduler, you can call `world.commands()` and flush it manually.
+- Each World has one shared command buffer; repeated `world.commands()` calls and scheduled systems
+  receive the same object.
+- The World flushes externally queued commands at the next `update()` or `shutdown()` boundary.
+- Each scheduled system starts after pending commands have flushed, and its commands flush after it
+  returns successfully.
+- `update()` performs one final managed flush after all schedules and before advancing the change
+  tick.
+- Event observers enqueue into the same buffer, so their commands follow the surrounding managed
+  boundary. An observer triggered outside the scheduler leaves its commands pending until the next
+  `update()` or `shutdown()`.
 
 ```ts
 const commands = world.commands();
@@ -41,21 +48,26 @@ const entity = commands.spawn(0, withComponent(Position, { x: 1, y: 2 }));
 commands.addComponent(entity, Velocity, { x: 3, y: 4 });
 commands.mustGetComponent(entity, Velocity).x = 5;
 commands.setState(GameMode, "running");
-commands.flush();
+
+world.update(0); // commits pending commands before scheduled systems run
 ```
 
 Important details:
 
 - `commands.spawn(etype, ...)` returns a reserved entity handle immediately.
-- That entity is not live until `flush()` commits the queued work.
+- That entity is not live until a World-managed boundary commits the queued work.
 - Component reads check the queue's projected pending view before committed `World` state, so
-  reserved spawn components and queued additions are readable before flush.
+  reserved spawn components and queued additions are readable before the managed flush.
 - Queued component removal or despawn becomes visible to command reads immediately, while direct
-  `World` reads continue to expose committed state until flush.
+  `World` reads continue to expose committed state until the managed flush.
 - The pending view is a projection, not validation. Dependency checks and lifecycle hooks can
-  still make flush fail, and arbitrary `commands.run(...)` effects are not projected.
+  still make command execution fail, and arbitrary `commands.run(...)` effects are not projected.
 - DeferredCommands run in insertion order.
-- If `flush()` throws, already executed commands stay applied and unexecuted commands stay queued.
+- Each managed flush executes one queue snapshot. Commands queued during that execution go into the
+  alternate buffer and wait for the next managed boundary.
+- If execution fails, already executed commands stay applied while unexecuted commands are
+  discarded and their reserved entity handles are released.
+- If a system throws, commands it queued are discarded instead of leaking into the next system.
 
 Run the example:
 
@@ -131,5 +143,6 @@ npm run example:deps
 ## Choosing The Write Path
 
 - Use direct world writes for immediate setup and imperative code that wants instant visibility.
-- Use `DeferredCommands` inside systems and observers, or when you want a deferred queue with explicit flush timing.
+- Use `DeferredCommands` inside systems and observers, or to queue work for the next World-managed
+  update boundary.
 - Use `world.batch(...)` when structure changes must publish atomically.

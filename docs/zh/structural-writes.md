@@ -28,11 +28,16 @@ world.addComponent(entity, Velocity, { x: 1, y: 1 });
 
 ## DeferredCommands
 
-`DeferredCommands` 是 deferred queue。
+`DeferredCommands` 是由 World 持有的 deferred command buffer。
 
-- system 和 event observer 会自动拿到一个新的 command queue。
-- callback 返回后，这个 queue 会自动 flush。
-- 在 scheduler 之外，你也可以手动调用 `world.commands()` 并自行 `flush()`。
+- 每个 World 只有一个共享 command buffer；重复调用 `world.commands()` 以及 scheduled system
+  拿到的都是同一个对象。
+- 在 system 外排入的命令会在下一次 `update()` 或 `shutdown()` 边界由 World 自动提交。
+- 每个 scheduled system 都会在 pending command 提交后开始执行；system 成功返回后，其命令
+  会自动提交。
+- 所有 schedule 结束后、change tick 前进之前，`update()` 还会执行一次最终托管 flush。
+- Event observer 也写入同一个 buffer，其命令跟随外围的托管提交边界。在 scheduler 外直接
+  触发的 observer 会让命令保持 pending，直到下一次 `update()` 或 `shutdown()`。
 
 ```ts
 const commands = world.commands();
@@ -41,21 +46,26 @@ const entity = commands.spawn(0, withComponent(Position, { x: 1, y: 2 }));
 commands.addComponent(entity, Velocity, { x: 3, y: 4 });
 commands.mustGetComponent(entity, Velocity).x = 5;
 commands.setState(GameMode, "running");
-commands.flush();
+
+world.update(0); // 在 scheduled system 执行前提交 pending command
 ```
 
 几个关键点：
 
 - `commands.spawn(etype, ...)` 会立即返回一个保留的 entity handle。
-- 在 `flush()` 提交之前，这个 entity 还不是 live entity。
+- 在 World 托管的提交边界之前，这个 entity 还不是 live entity。
 - Component 读取会先查询 command queue 的 pending view，再回退到已提交的 `World` 状态，
-  因此 reserved spawn 的初始 component 和 queued add 在 flush 前即可读取。
-- Queued remove 或 despawn 会立即反映在 command 读取中，但直接 `World` 读取在 flush 前仍看到
-  已提交状态。
-- Pending view 是预期投影而不是验证结果；dependency 检查和 lifecycle hook 仍可能使 flush
+  因此 reserved spawn 的初始 component 和 queued add 在托管提交前即可读取。
+- Queued remove 或 despawn 会立即反映在 command 读取中，但直接 `World` 读取在托管提交前
+  仍看到已提交状态。
+- Pending view 是预期投影而不是验证结果；dependency 检查和 lifecycle hook 仍可能使命令执行
   失败，并且任意 `commands.run(...)` 的影响不会被投影。
 - command 会按入队顺序执行。
-- 如果 `flush()` 抛错，已经执行过的 command 会保留，未执行的 command 会继续留在队列里。
+- 每次托管 flush 只执行当时的 queue snapshot；执行过程中排入的新命令会进入备用 buffer，
+  等待下一个托管边界。
+- 如果执行失败，已经执行过的 command 会保留，尚未执行的 command 会被丢弃，其 reserved
+  entity handle 也会被释放。
+- 如果 system 抛错，它排入的 command 会被丢弃，不会泄漏到下一个 system。
 
 运行示例：
 
@@ -131,5 +141,6 @@ npm run example:deps
 ## 怎么选写路径
 
 - 需要立刻生效的初始化或命令式代码，用直接 world 写入。
-- 在 system / observer 里，或者需要 deferred queue 和明确 flush 时机时，用 `DeferredCommands`。
+- 在 system / observer 里，或者需要把工作推迟到下一个 World 托管的 update 边界时，用
+  `DeferredCommands`。
 - 结构修改必须原子发布时，用 `world.batch(...)`。

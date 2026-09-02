@@ -52,5 +52,6 @@ world.trigger(Damage, { target: enemy, amount: 5 });
 
 world.addSystem(new AttackSystem(enemy));
 world.update(0);
+world.update(0);
 
 console.log(`alive=${world.isAlive(enemy)}`);

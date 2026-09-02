@@ -297,7 +297,7 @@ test("each rejects direct structural writes and releases its guard", () => {
     assert.equal(world.hasComponent(entity, Added), true);
 });
 
-test("each allows deferred structural writes but rejects flushing them early", () => {
+test("each allows deferred structural writes until the next managed flush", () => {
     const Source = registry.registerComponent(defineComponent("EachDeferredGuardSource"));
     const Processed = registry.registerComponent(defineComponent("EachDeferredGuardProcessed"));
     const world = new World(registry);
@@ -311,13 +311,7 @@ test("each allows deferred structural writes but rejects flushing them early", (
     assert.equal(commands.pending, 1);
     assert.equal(world.hasComponent(entity, Processed), false);
 
-    assert.throws(
-        () => world.each([Source], () => commands.flush()),
-        /Cannot flush deferred commands during query iteration/
-    );
-    assert.equal(commands.pending, 1);
-
-    commands.flush();
+    world.update(0);
     assert.equal(world.hasComponent(entity, Processed), true);
 });
 

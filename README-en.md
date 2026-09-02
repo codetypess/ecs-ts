@@ -97,9 +97,10 @@ if (world.hasComponent(entity, Element)) {
 
 ## Structural Timing Semantics
 
-- `DeferredCommands` is a deferred queue. Work runs on `flush()` or after a system/observer completes.
+- Each World owns one shared `DeferredCommands` buffer. External commands commit at the next
+  `update()` / `shutdown()` entry, while system commands commit after that system returns successfully.
 - `world.batch(...)` validates the final entity/component structural state first, then commits the net diff; it is the transactional option.
-- `commands.spawn(etype, ...)` returns a reserved entity handle and does not publish a live entity before flush.
+- `commands.spawn(etype, ...)` returns a reserved entity handle and does not publish a live entity before a World-managed commit.
 - `world.shutdown()` is terminal. Calling `update()` afterward will not run startup or update stages again.
 
 ## A Better Way To Read The Project

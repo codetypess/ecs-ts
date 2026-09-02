@@ -1,5 +1,5 @@
 export * from "./component";
-export * from "./deferred-commands";
+export { DeferredCommands } from "./deferred-commands";
 export { entityGeneration, entityIndex, formatEntity } from "./entity";
 export type { Entity, EntityType } from "./entity";
 export * from "./event";

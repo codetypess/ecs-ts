@@ -575,6 +575,11 @@ test("observers dispatch immediate events and can queue commands", () => {
 
     world.trigger(Damage, { target: enemy, amount: 15 });
 
+    assert.deepEqual(log, ["damage:-5"]);
+    assert.equal(world.isAlive(enemy), true);
+
+    world.update(0);
+
     assert.deepEqual(log, ["damage:-5", "died"]);
     assert.equal(world.isAlive(enemy), false);
 });

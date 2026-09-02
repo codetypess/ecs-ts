@@ -6,6 +6,7 @@ import {
     defineResource,
     World,
     createRegistry,
+    entityIndex,
     withComponent,
     withMarker,
     type Entity,
@@ -26,7 +27,7 @@ test("multiple observers for the same event all receive the value", () => {
     assert.deepEqual(received, [4, 8, 12]);
 });
 
-test("observer commands are flushed after each observer returns", () => {
+test("observer commands flush at the next World-managed boundary", () => {
     type Health = { value: number };
     const Health = registry.registerComponent(defineComponent<Health>("EventHealth"));
     const Damage = registry.registerEvent(
@@ -39,6 +40,7 @@ test("observer commands are flushed after each observer returns", () => {
     const target = world.spawn(0, withComponent(Health, { value: 50 }));
 
     world.observe(Damage, (dmg, currentWorld, commands) => {
+        assert.equal(commands, world.commands());
         const hp = currentWorld.mustGetComponent(dmg.target, Health);
         hp.value -= dmg.amount;
         log.push(`damaged:${hp.value}`);
@@ -53,6 +55,9 @@ test("observer commands are flushed after each observer returns", () => {
     });
 
     world.trigger(Damage, { target, amount: 50 });
+
+    assert.deepEqual(log, ["damaged:0"]);
+    world.update(0);
 
     assert.deepEqual(log, ["damaged:0", "died:alive=true"]);
 });
@@ -75,7 +80,9 @@ test("observer triggered from within another observer executes after outer obser
 
     world.trigger(Outer, undefined);
 
-    // commands.trigger is queued and flushed after the observer callback returns
+    assert.deepEqual(log, ["outer:before", "outer:after"]);
+    world.update(0);
+
     assert.deepEqual(log, ["outer:before", "outer:after", "inner:hello"]);
 });
 
@@ -109,10 +116,14 @@ test("deferred event dispatch rejects indirect recursion", () => {
         commands.trigger(First, undefined);
     });
 
+    world.trigger(First, undefined);
+
     assert.throws(
-        () => world.trigger(First, undefined),
+        () => world.update(0),
         /Event dispatch cycle detected: EventCycleFirst -> EventCycleSecond -> EventCycleFirst/
     );
+    assert.equal(world.commands().pending, 0);
+    assert.doesNotThrow(() => world.update(0));
 });
 
 test("trigger with no observers is a no-op", () => {
@@ -174,7 +185,7 @@ test("observer added during dispatch starts on the next trigger", () => {
     assert.deepEqual(log, ["first", "first", "late"]);
 });
 
-test("observer can spawn entities via commands and they are visible after flush", () => {
+test("observer can spawn entities via commands for the next managed boundary", () => {
     const SpawnCmd = registry.registerEvent(defineEvent<void>("SpawnCmdEvent"));
     const Tag = registry.registerComponent(defineComponent("SpawnCmdTag"));
     const world = new World(registry);
@@ -186,6 +197,9 @@ test("observer can spawn entities via commands and they are visible after flush"
     assert.equal(world.getSingle([Tag]), undefined);
 
     world.trigger(SpawnCmd, undefined);
+
+    assert.equal(world.getSingle([Tag]), undefined);
+    world.update(0);
 
     assert.notEqual(world.getSingle([Tag]), undefined);
 });
@@ -207,4 +221,18 @@ test("observer receives both the event value and a usable world reference", () =
     world.trigger(Bump, undefined);
 
     assert.equal(world.mustGetResource(Resource).counter, 2);
+});
+
+test("a failed observer discards queued commands and releases reserved entities", () => {
+    const Fail = registry.registerEvent(defineEvent<void>("FailedObserver"));
+    const world = new World(registry);
+
+    world.observe(Fail, (_value, _currentWorld, commands) => {
+        commands.spawn(0);
+        throw new Error("observer failed");
+    });
+
+    assert.throws(() => world.trigger(Fail, undefined), /observer failed/);
+    assert.equal(world.commands().pending, 0);
+    assert.equal(entityIndex(world.spawn(0)), 0);
 });

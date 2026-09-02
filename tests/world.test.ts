@@ -169,7 +169,7 @@ test("component additions return the inserted value across write paths", () => {
 
     assert.equal(commands.addComponent(entity, DeferredValue, deferred), deferred);
     assert.equal(commands.getComponent(entity, DeferredValue), deferred);
-    commands.flush();
+    world.update(0);
 
     const batchValue = { value: 3 };
 
@@ -198,13 +198,14 @@ test("entities() iterates only currently live entities in storage-index order", 
     assert.deepEqual(Array.from(world.entities()), [first, reused, third]);
 });
 
-test("commands flush queued structural edits in order", () => {
+test("world owns one command buffer and flushes external commands on update", () => {
     type Position = { x: number; y: number };
     const Position = registry.registerComponent(defineComponent<Position>("CommandPosition"));
     type Velocity = { x: number; y: number };
     const Velocity = registry.registerComponent(defineComponent<Velocity>("CommandVelocity"));
     const world = new World(registry);
     const commands = world.commands();
+    assert.equal(world.commands(), commands);
     const entity = commands.spawn(2, withComponent(Position, { x: 1, y: 2 }));
 
     commands.addComponent(entity, Velocity, { x: 3, y: 4 });
@@ -215,14 +216,14 @@ test("commands flush queued structural edits in order", () => {
     assert.equal(world.entityType(entity), undefined);
     assert.equal(world.hasAnyComponents(entity, [Position, Velocity]), false);
 
-    commands.flush();
+    world.update(0);
 
     assert.equal(commands.pending, 0);
     assert.equal(world.hasComponent(entity, Position), false);
     assert.deepEqual(world.mustGetComponent(entity, Velocity), { x: 3, y: 4 });
 });
 
-test("commands expose pending spawn components before flush", () => {
+test("commands expose pending spawn components before a managed flush", () => {
     type Position = { x: number; y: number };
     const Position = registry.registerComponent(defineComponent<Position>("PendingSpawnPosition"));
     const Missing = registry.registerComponent(defineComponent("PendingSpawnMissing"));
@@ -242,7 +243,7 @@ test("commands expose pending spawn components before flush", () => {
         /does not have PendingSpawnMissing in deferred command view/
     );
 
-    commands.flush();
+    world.update(0);
 
     assert.equal(world.isAlive(entity), true);
     assert.equal(commands.getComponent(entity, Position), position);
@@ -272,13 +273,13 @@ test("commands component reads follow pending operation order", () => {
     commands.addComponent(entity, Health, final);
     assert.equal(commands.getComponent(entity, Health), final);
 
-    commands.flush();
+    world.update(0);
 
     assert.equal(commands.getComponent(entity, Health), final);
     assert.equal(world.getComponent(entity, Health), final);
 });
 
-test("commands pending despawn hides every component before flush", () => {
+test("commands pending despawn hides every component before managed commit", () => {
     const Marker = registry.registerComponent(defineComponent("PendingDespawnMarker"));
     const world = new World(registry);
     const entity = world.spawn(0, withMarker(Marker));
@@ -289,13 +290,13 @@ test("commands pending despawn hides every component before flush", () => {
     assert.equal(commands.hasComponent(entity, Marker), false);
     assert.equal(world.hasComponent(entity, Marker), true);
 
-    commands.flush();
+    world.update(0);
 
     assert.equal(world.isAlive(entity), false);
     assert.equal(commands.getComponent(entity, Marker), undefined);
 });
 
-test("commands rebuild their pending component view across multiple flushes", () => {
+test("commands rebuild their pending component view across managed flushes", () => {
     const Marker = registry.registerComponent(defineComponent("PendingMultiFlushMarker"));
     const world = new World(registry);
     const entity = world.spawn(0);
@@ -303,13 +304,13 @@ test("commands rebuild their pending component view across multiple flushes", ()
 
     commands.addComponent(entity, Marker, {});
     assert.equal(commands.hasComponent(entity, Marker), true);
-    commands.flush();
+    world.update(0);
     assert.equal(world.hasComponent(entity, Marker), true);
     assert.equal(commands.hasComponent(entity, Marker), true);
 
     commands.removeComponent(entity, Marker);
     assert.equal(commands.hasComponent(entity, Marker), false);
-    commands.flush();
+    world.update(0);
     assert.equal(world.hasComponent(entity, Marker), false);
     assert.equal(commands.hasComponent(entity, Marker), false);
 });
@@ -330,7 +331,8 @@ test("commands spawn does not publish an empty entity when the spawn fails", () 
 
     assert.equal(world.isAlive(entity), false);
     assert.equal(world.entityType(entity), undefined);
-    assert.throws(() => commands.flush(), /missing dependency Transform/);
+    assert.throws(() => world.update(0), /missing dependency Transform/);
+    assert.equal(commands.pending, 0);
 
     const next = world.spawn(0);
 
@@ -338,7 +340,7 @@ test("commands spawn does not publish an empty entity when the spawn fails", () 
     assert.equal(entityIndex(next), 0);
 });
 
-test("commands queued during flush wait for the next flush", () => {
+test("commands queued during execution wait for the next managed flush", () => {
     type Position = { x: number; y: number };
     const Position = registry.registerComponent(
         defineComponent<Position>("DeferredCommandPosition")
@@ -347,27 +349,24 @@ test("commands queued during flush wait for the next flush", () => {
     const commands = world.commands();
     const entity = world.spawn(0);
     let ranOuterCommand = false;
+    let visibleDuringOuterCommand = true;
 
-    commands.run(() => {
+    commands.run((currentWorld) => {
         ranOuterCommand = true;
         commands.addComponent(entity, Position, { x: 5, y: 6 });
+        visibleDuringOuterCommand = currentWorld.hasComponent(entity, Position);
     });
 
-    commands.flush();
+    world.update(0);
 
     assert.equal(ranOuterCommand, true);
-    assert.equal(commands.pending, 1);
-    assert.equal(world.hasComponent(entity, Position), false);
-    assert.deepEqual(commands.getComponent(entity, Position), { x: 5, y: 6 });
-
-    commands.flush();
-
+    assert.equal(visibleDuringOuterCommand, false);
     assert.equal(commands.pending, 0);
     assert.deepEqual(world.mustGetComponent(entity, Position), { x: 5, y: 6 });
     assert.deepEqual(commands.mustGetComponent(entity, Position), { x: 5, y: 6 });
 });
 
-test("commands flush keeps only unexecuted commands queued after a failure", () => {
+test("managed command flush discards unexecuted commands after a failure", () => {
     const commandRegistry = createRegistry("world-command-flush-failure-test");
     const Ready = commandRegistry.registerComponent(defineComponent("Ready"));
     const NeedsReady = commandRegistry.registerComponent(
@@ -385,25 +384,62 @@ test("commands flush keeps only unexecuted commands queued after a failure", () 
     commands.addComponent(second, NeedsReady, {});
     commands.addComponent(third, Ready, {});
 
-    assert.throws(() => commands.flush(), /missing dependency Ready/);
+    assert.throws(() => world.update(0), /missing dependency Ready/);
     assert.equal(world.hasComponent(first, Ready), true);
     assert.equal(world.hasComponent(second, NeedsReady), false);
     assert.equal(world.hasComponent(third, Ready), false);
-    assert.equal(commands.pending, 1);
+    assert.equal(commands.pending, 0);
     assert.equal(commands.hasComponent(first, Ready), true);
     assert.equal(commands.hasComponent(second, NeedsReady), false);
-    assert.equal(commands.hasComponent(third, Ready), true);
+    assert.equal(commands.hasComponent(third, Ready), false);
+});
 
-    commands.flush();
+test("systems share the World command buffer and flush between runs", () => {
+    const Source = registry.registerComponent(defineComponent("SharedCommandSource"));
+    const Processed = registry.registerComponent(defineComponent("SharedCommandProcessed"));
+    const world = new World(registry);
+    const commands = world.commands();
+    const entity = commands.spawn(0, withMarker(Source));
+    const trace: string[] = [];
 
+    world.addSystem(
+        "update",
+        (currentWorld, _dt, systemCommands) => {
+            assert.equal(systemCommands, commands);
+            trace.push(`first:${currentWorld.hasComponent(entity, Source)}`);
+            systemCommands.addComponent(entity, Processed, {});
+        },
+        { runIf: (currentWorld) => currentWorld.hasComponent(entity, Source) }
+    );
+    world.addSystem("update", (currentWorld, _dt, systemCommands) => {
+        assert.equal(systemCommands, commands);
+        trace.push(`second:${currentWorld.hasComponent(entity, Processed)}`);
+    });
+
+    world.update(0);
+
+    assert.deepEqual(trace, ["first:true", "second:true"]);
     assert.equal(commands.pending, 0);
-    assert.equal(world.hasComponent(third, Ready), true);
-    assert.equal(commands.hasComponent(third, Ready), true);
+});
+
+test("a failed system discards its queued commands and releases reserved entities", () => {
+    const world = new World(createRegistry("failed-system-command-cleanup-test"));
+    const commands = world.commands();
+
+    world.addSystem("update", (_currentWorld, _dt, systemCommands) => {
+        systemCommands.spawn(0);
+        throw new Error("system failed");
+    });
+
+    assert.throws(() => world.update(0), /system failed/);
+    assert.equal(commands.pending, 0);
+    assert.equal(entityIndex(world.spawn(0)), 0);
 });
 
 test("shutdown is terminal and later updates stay inert", () => {
     const world = new World(createRegistry("world-shutdown-terminal-test"));
     const trace: string[] = [];
+    const pendingEntity = world.commands().spawn(0);
 
     world.addSystem({
         onStartup(): void {
@@ -421,6 +457,7 @@ test("shutdown is terminal and later updates stay inert", () => {
     world.update(0);
     world.shutdown();
 
+    assert.equal(world.isAlive(pendingEntity), true);
     assert.deepEqual(trace, ["shutdown"]);
 });
 
@@ -508,9 +545,9 @@ test("component lifecycle reasons cover command and batch writes", () => {
     const commands = world.commands();
     const commandEntity = commands.spawn(0, withMarker(Marker));
 
-    commands.flush();
+    world.update(0);
     commands.despawn(commandEntity);
-    commands.flush();
+    world.update(0);
 
     const batchEntity = world.batch((batch) => batch.spawn(0, withMarker(Marker)));
 

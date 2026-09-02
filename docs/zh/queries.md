@@ -29,8 +29,9 @@ world.each([Health], (entity, health) => {
 ```
 
 在 `each` visitor 中直接调用 `spawn`、`despawn`、`addComponent`、`removeComponent`、
-`world.batch(...)` 或 flush command queue 会抛错。Lazy `query(...)` iterator 会检测两次
-迭代之间发生的结构修改，并在继续访问已经失效的 dense storage 之前抛错。
+`world.batch(...)` 会抛错。排入的 command 会保持 pending，直到 World 到达下一个托管边界。
+Lazy `query(...)` iterator 会检测两次迭代之间发生的结构修改，并在继续访问已经失效的
+dense storage 之前抛错。
 
 ## 过滤器
 

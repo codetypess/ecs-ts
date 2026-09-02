@@ -28,9 +28,10 @@ world.each([Health], (entity, health) => {
 });
 ```
 
-Direct `spawn`, `despawn`, `addComponent`, `removeComponent`, `world.batch(...)`, or command
-flushing from an `each` visitor throws. Lazy `query(...)` iterators detect structural changes
-between rows and throw before continuing over invalidated dense storage.
+Direct `spawn`, `despawn`, `addComponent`, `removeComponent`, or `world.batch(...)` calls from an
+`each` visitor throw. Queued commands remain pending until the World reaches its next managed
+boundary. Lazy `query(...)` iterators detect structural changes between rows and throw before
+continuing over invalidated dense storage.
 
 ## Filters
 

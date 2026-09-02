@@ -1,6 +1,5 @@
 import type { AnyEventType, EventObserver, EventType } from "../event";
 import type { World } from "../world";
-import { runEventObserverWithDeferredCommands } from "./command-execution";
 
 interface EventObserverList {
     observers: EventObserver<unknown>[];
@@ -76,7 +75,7 @@ export function triggerEvent<T>(
 
     try {
         for (const observer of observers) {
-            runEventObserverWithDeferredCommands(world, observer, value);
+            observer(value, world, world.commands());
         }
     } finally {
         list.dispatchDepth--;
