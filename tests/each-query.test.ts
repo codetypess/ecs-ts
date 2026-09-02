@@ -268,3 +268,87 @@ test("queryState.each produces same results as queryState.iter", () => {
         world.despawn(e);
     }
 });
+
+test("each rejects direct structural writes and releases its guard", () => {
+    type Position = { x: number };
+    const Position = registry.registerComponent(
+        defineComponent<Position>("EachStructuralGuardPosition")
+    );
+    const Added = registry.registerComponent(defineComponent("EachStructuralGuardAdded"));
+    const world = new World(registry);
+    const entity = world.spawn(0, withComponent(Position, { x: 1 }));
+    const expectedError = /during query iteration.*DeferredCommands/;
+    const writes = [
+        () => world.addComponent(entity, Added, {}),
+        () => world.removeComponent(entity, Position),
+        () => world.spawn(0),
+        () => world.despawn(entity),
+        () => world.batch((batch) => batch.addComponent(entity, Added, {})),
+    ];
+
+    for (const write of writes) {
+        assert.throws(() => world.each([Position], write), expectedError);
+        assert.equal(world.isAlive(entity), true);
+        assert.equal(world.hasComponent(entity, Position), true);
+        assert.equal(world.hasComponent(entity, Added), false);
+    }
+
+    world.addComponent(entity, Added, {});
+    assert.equal(world.hasComponent(entity, Added), true);
+});
+
+test("each allows deferred structural writes but rejects flushing them early", () => {
+    const Source = registry.registerComponent(defineComponent("EachDeferredGuardSource"));
+    const Processed = registry.registerComponent(defineComponent("EachDeferredGuardProcessed"));
+    const world = new World(registry);
+    const entity = world.spawn(0, withMarker(Source));
+    const commands = world.commands();
+
+    world.each([Source], (current) => {
+        commands.addComponent(current, Processed, {});
+    });
+
+    assert.equal(commands.pending, 1);
+    assert.equal(world.hasComponent(entity, Processed), false);
+
+    assert.throws(
+        () => world.each([Source], () => commands.flush()),
+        /Cannot flush deferred commands during query iteration/
+    );
+    assert.equal(commands.pending, 1);
+
+    commands.flush();
+    assert.equal(world.hasComponent(entity, Processed), true);
+});
+
+test("optional and cached each queries share the structural-write guard", () => {
+    const Required = registry.registerComponent(defineComponent("EachSharedGuardRequired"));
+    const Optional = registry.registerComponent(defineComponent("EachSharedGuardOptional"));
+    const Added = registry.registerComponent(defineComponent("EachSharedGuardAdded"));
+    const state = queryState([Required]);
+    const optionalState = optionalQueryState([Required], [Optional]);
+    const world = new World(registry);
+    const entity = world.spawn(0, withMarker(Required));
+    const add = () => world.addComponent(entity, Added, {});
+
+    assert.throws(() => world.eachOptional([Required], [Optional], add), /during query iteration/);
+    assert.throws(() => state.each(world, add), /during query iteration/);
+    assert.throws(() => optionalState.each(world, add), /during query iteration/);
+    assert.equal(world.hasComponent(entity, Added), false);
+});
+
+test("nested read-only each queries are allowed", () => {
+    const Marker = registry.registerComponent(defineComponent("EachNestedReadMarker"));
+    const world = new World(registry);
+    world.spawn(0, withMarker(Marker));
+    world.spawn(0, withMarker(Marker));
+    let visits = 0;
+
+    world.each([Marker], () => {
+        world.each([Marker], () => {
+            visits++;
+        });
+    });
+
+    assert.equal(visits, 4);
+});

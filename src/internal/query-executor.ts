@@ -19,10 +19,16 @@ import {
     type ResolvedOptionalQueryPlan,
     type ResolvedQueryPlan,
 } from "./query-plan";
+import {
+    assertStructuralVersion,
+    runWithQueryMutationGuard,
+    type QueryMutationContext,
+} from "./query-mutation-control";
 
 /** Inputs needed to execute resolved query plans. */
 export interface QueryExecutorContext {
     readonly planContext: QueryPlanContext;
+    readonly mutations: QueryMutationContext;
 }
 
 type QueryVisitor<TComponents extends readonly AnyComponentType[]> = (
@@ -226,9 +232,16 @@ function iterateResolvedQuery<const TComponents extends readonly AnyComponentTyp
     plan: ResolvedQueryPlan | undefined,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<QueryRow<TComponents>> {
+    const expectedVersion = context.mutations.structuralVersion;
+
     return plan === undefined
-        ? emptyQueryIterator<QueryRow<TComponents>>()
-        : (plan.iterate(plan, changeDetection) as IterableIterator<QueryRow<TComponents>>);
+        ? emptyQueryIterator<QueryRow<TComponents>>(context.mutations, expectedVersion)
+        : (plan.iterate(
+              plan,
+              changeDetection,
+              context.mutations,
+              expectedVersion
+          ) as IterableIterator<QueryRow<TComponents>>);
 }
 
 function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]>(
@@ -241,7 +254,13 @@ function eachResolvedQuery<const TComponents extends readonly AnyComponentType[]
         return;
     }
 
-    plan.each(plan, changeDetection, visitor as (entity: Entity, ...components: unknown[]) => void);
+    runWithQueryMutationGuard(context.mutations, () => {
+        plan.each(
+            plan,
+            changeDetection,
+            visitor as (entity: Entity, ...components: unknown[]) => void
+        );
+    });
 }
 
 /** Iterates a resolved optional query, filling required values before optional trailing values. */
@@ -253,11 +272,19 @@ function iterateResolvedOptionalQuery<
     plan: ResolvedOptionalQueryPlan | undefined,
     changeDetection: ChangeDetectionRange
 ): IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>> {
+    const expectedVersion = context.mutations.structuralVersion;
+
     return plan === undefined
-        ? emptyQueryIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>>()
-        : (plan.iterate(plan, changeDetection) as IterableIterator<
-              OptionalQueryRow<TRequiredComponents, TOptionalComponents>
-          >);
+        ? emptyQueryIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>>(
+              context.mutations,
+              expectedVersion
+          )
+        : (plan.iterate(
+              plan,
+              changeDetection,
+              context.mutations,
+              expectedVersion
+          ) as IterableIterator<OptionalQueryRow<TRequiredComponents, TOptionalComponents>>);
 }
 
 /** Visits a resolved optional query using the same compiled plan strategy as the iterator version. */
@@ -274,7 +301,18 @@ function eachResolvedOptionalQuery<
         return;
     }
 
-    plan.each(plan, changeDetection, visitor as (entity: Entity, ...components: unknown[]) => void);
+    runWithQueryMutationGuard(context.mutations, () => {
+        plan.each(
+            plan,
+            changeDetection,
+            visitor as (entity: Entity, ...components: unknown[]) => void
+        );
+    });
 }
 
-function* emptyQueryIterator<TRow>(): IterableIterator<TRow> {}
+function* emptyQueryIterator<TRow>(
+    context: QueryMutationContext,
+    expectedVersion: number
+): IterableIterator<TRow> {
+    assertStructuralVersion(context, expectedVersion);
+}

@@ -15,6 +15,7 @@ export interface DeferredCommandRuntime {
     commitReservedEntity(entity: Entity): void;
     releaseReservedEntity(entity: Entity): boolean;
     addSpawnedComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): void;
+    assertCanFlush(): void;
 }
 
 type DeferredCommandRunner = (world: World) => void;
@@ -150,6 +151,9 @@ export class DeferredCommands {
 
     /** Executes the queued commands in insertion order. */
     flush(): void {
+        if (this.queue.length > 0) {
+            this.runtime.assertCanFlush();
+        }
         [this.flushing, this.queue] = [this.queue, this.flushing];
 
         let index = 0;

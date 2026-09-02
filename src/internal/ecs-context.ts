@@ -8,6 +8,7 @@ import {
     type EntityComponentIndexContext,
 } from "./entity-component-index";
 import type { QueryExecutorContext } from "./query-executor";
+import { createQueryMutationContext, type QueryMutationContext } from "./query-mutation-control";
 import { createQueryPlanContext } from "./query-plan";
 import { createResourceContext, type ResourceContext } from "./resources";
 
@@ -18,6 +19,7 @@ export interface EcsContext {
     readonly entityComponents: EntityComponentIndexContext;
     readonly components: ComponentOpsContext;
     readonly queries: QueryExecutorContext;
+    readonly queryMutations: QueryMutationContext;
     readonly resources: ResourceContext;
 }
 
@@ -34,12 +36,14 @@ export function createEcsContext(options: EcsContextOptions): EcsContext {
     const entities = new EntityManager();
     const componentStores = createComponentStoreContext(registry);
     const entityComponents = createEntityComponentIndexContext();
+    const queryMutations = createQueryMutationContext();
     const resources = createResourceContext({ getChangeTick, getChangeDetectionRange });
 
     const components = createComponentOpsContext({
         entities,
         componentStores,
         entityComponents,
+        queryMutations,
         getChangeTick,
         getChangeDetectionRange,
         runComponentHooks,
@@ -50,6 +54,7 @@ export function createEcsContext(options: EcsContextOptions): EcsContext {
             stores: componentStores.stores,
             getStoreVersion: () => componentStores.storeVersion,
         }),
+        mutations: queryMutations,
     };
 
     return {
@@ -58,6 +63,7 @@ export function createEcsContext(options: EcsContextOptions): EcsContext {
         entityComponents,
         components,
         queries,
+        queryMutations,
         resources,
     } satisfies EcsContext;
 }

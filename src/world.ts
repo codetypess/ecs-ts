@@ -75,6 +75,10 @@ import {
     type ScheduleEngineContext,
 } from "./internal/schedule-engine";
 import {
+    assertStructuralWriteAllowed,
+    recordStructuralChange,
+} from "./internal/query-mutation-control";
+import {
     addStateSystem as addStateLifecycleSystem,
     addTransitionSystem as addStateTransitionSystem,
     applyStateTransitions,
@@ -209,10 +213,21 @@ export class World extends WorldQueryMethods {
             reserveEntity: (etype) => this.ecsContext.entities.reserve(etype),
             releaseReservedEntity: (entity) => this.ecsContext.entities.releaseReserved(entity),
             commitReservedEntity: (entity) => {
+                assertStructuralWriteAllowed(
+                    this.ecsContext.queryMutations,
+                    "flush deferred commands"
+                );
                 this.ecsContext.entities.commitReserved(entity);
+                recordStructuralChange(this.ecsContext.queryMutations);
             },
             addSpawnedComponent: (entity, type, value) => {
                 this.addComponentWithReason(entity, type, value, "spawned");
+            },
+            assertCanFlush: () => {
+                assertStructuralWriteAllowed(
+                    this.ecsContext.queryMutations,
+                    "flush deferred commands"
+                );
             },
         } satisfies DeferredCommandRuntime;
         this.stateContext = createStateMachineContext();
@@ -223,12 +238,14 @@ export class World extends WorldQueryMethods {
 
     /** Creates a new entity and inserts the provided component entries immediately. */
     spawn(etype: EntityType, ...entries: AnyComponentEntry[]): Entity {
+        assertStructuralWriteAllowed(this.ecsContext.queryMutations, "spawn entities");
         this.assertEntriesRegistered(entries, "spawn");
         // Validate dependency closure before creating the entity, so failed spawns leave no shell.
         const orderedEntries = entriesHaveDependencyChecks(entries)
             ? (assertSpawnEntriesSatisfied(entries), sortEntriesByDependencies(entries))
             : entries;
         const entity = this.ecsContext.entities.create(etype);
+        recordStructuralChange(this.ecsContext.queryMutations);
 
         for (const entry of orderedEntries) {
             insertComponent(this.ecsContext.components, entity, entry.type, entry.value, "spawned");
@@ -254,6 +271,8 @@ export class World extends WorldQueryMethods {
 
     /** Stages structural edits and commits their final diff after validation succeeds. */
     batch<T>(run: (batch: WorldBatch) => T): T {
+        assertStructuralWriteAllowed(this.ecsContext.queryMutations, "run world.batch");
+
         if (this.activeBatchDepth > 0) {
             throw new Error("Nested world.batch calls are not supported");
         }
@@ -380,6 +399,7 @@ export class World extends WorldQueryMethods {
 
     /** Removes a single component and records lifecycle hooks plus removed data. */
     removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): boolean {
+        assertStructuralWriteAllowed(this.ecsContext.queryMutations, "remove components");
         assertRegisteredComponent(this.registry, type, "remove");
 
         const componentTypes = getEntityComponents(this.ecsContext.entityComponents, entity);
@@ -398,6 +418,7 @@ export class World extends WorldQueryMethods {
 
     /** Removes all components from an entity, runs hooks, and destroys the entity handle. */
     despawn(entity: Entity): boolean {
+        assertStructuralWriteAllowed(this.ecsContext.queryMutations, "despawn entities");
         return despawnEntity(this.ecsContext.components, entity);
     }
 
@@ -732,6 +753,7 @@ export class World extends WorldQueryMethods {
         value: T,
         reason: ComponentAddReason
     ): void {
+        assertStructuralWriteAllowed(this.ecsContext.queryMutations, "add components");
         assertRegisteredComponent(this.registry, type, "add");
 
         if (type.deps.length > 0 && this.ecsContext.entities.isAlive(entity)) {

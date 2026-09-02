@@ -386,3 +386,67 @@ test("query state refreshes the base store when store sizes skew after cache res
         delete (velocityStore as unknown as { entities?: unknown }).entities;
     }
 });
+
+test("lazy queries fail fast after a structural change between rows", () => {
+    const Marker = registry.registerComponent(defineComponent("LazyMutationMarker"));
+    const world = new World(registry);
+    world.spawn(0, withMarker(Marker));
+    world.spawn(0, withMarker(Marker));
+    const iterator = world.query([Marker]);
+    const first = iterator.next();
+
+    assert.equal(first.done, false);
+    world.removeComponent(first.value![0], Marker);
+
+    assert.throws(() => iterator.next(), /World structure changed during query iteration/);
+});
+
+test("lazy queries detect structural changes before their first row", () => {
+    const Required = registry.registerComponent(defineComponent("LazyBeforeFirstRequired"));
+    const Added = registry.registerComponent(defineComponent("LazyBeforeFirstAdded"));
+    const world = new World(registry);
+    const entity = world.spawn(0, withMarker(Required));
+    const iterator = world.query([Required], { without: [Added] });
+
+    world.addComponent(entity, Added, {});
+
+    assert.throws(() => iterator.next(), /World structure changed during query iteration/);
+});
+
+test("cached and optional lazy queries share structural-version detection", () => {
+    const Required = registry.registerComponent(defineComponent("LazySharedRequired"));
+    const Optional = registry.registerComponent(defineComponent("LazySharedOptional"));
+    const requiredState = queryState([Required]);
+    const optionalState = optionalQueryState([Required], [Optional]);
+    const world = new World(registry);
+    const firstEntity = world.spawn(0, withMarker(Required));
+    const secondEntity = world.spawn(0, withMarker(Required));
+    const requiredIterator = requiredState.iter(world);
+
+    assert.equal(requiredIterator.next().done, false);
+    world.addComponent(firstEntity, Optional, {});
+    assert.throws(() => requiredIterator.next(), /World structure changed during query iteration/);
+
+    const optionalIterator = optionalState.iter(world);
+    assert.equal(optionalIterator.next().done, false);
+    world.removeComponent(secondEntity, Required);
+    assert.throws(() => optionalIterator.next(), /World structure changed during query iteration/);
+});
+
+test("lazy queries continue after non-structural component changes", () => {
+    type Position = { x: number };
+    const Position = registry.registerComponent(
+        defineComponent<Position>("LazyNonStructuralPosition")
+    );
+    const world = new World(registry);
+    const firstEntity = world.spawn(0, withComponent(Position, { x: 1 }));
+    world.spawn(0, withComponent(Position, { x: 2 }));
+    const iterator = world.query([Position]);
+
+    assert.equal(iterator.next().done, false);
+    world.mustGetComponent(firstEntity, Position).x = 10;
+    world.markComponentChanged(firstEntity, Position);
+
+    assert.equal(iterator.next().done, false);
+    assert.equal(iterator.next().done, true);
+});

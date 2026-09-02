@@ -11,6 +11,7 @@ import type {
 import type { Registry } from "../registry";
 import { SparseSet } from "../sparse-set";
 import { compileQueryFilterMatcher, type QueryFilterMatcher } from "./query-filter";
+import type { QueryMutationContext } from "./query-mutation-control";
 
 import {
     compileOptionalQueryCount,
@@ -47,7 +48,9 @@ export type QueryEachVisitor = (entity: Entity, ...components: unknown[]) => voi
 
 export type QueryIterateExecutor = (
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ) => IterableIterator<QueryRow<readonly AnyComponentType[]>>;
 
 export type QueryEachExecutor = (
@@ -64,7 +67,9 @@ export type QueryCountExecutor = (
 
 export type OptionalQueryIterateExecutor = (
     plan: ResolvedOptionalQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ) => IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>>;
 
 export type OptionalQueryEachExecutor = (

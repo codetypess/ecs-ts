@@ -28,11 +28,17 @@ import {
     untrackEntityComponent,
     type EntityComponentIndexContext,
 } from "./entity-component-index";
+import {
+    assertStructuralWriteAllowed,
+    recordStructuralChange,
+    type QueryMutationContext,
+} from "./query-mutation-control";
 
 interface ComponentOpsContextOptions {
     readonly entities: EntityManager;
     readonly componentStores: ComponentStoreContext;
     readonly entityComponents: EntityComponentIndexContext;
+    readonly queryMutations: QueryMutationContext;
     readonly getChangeTick: () => number;
     readonly getChangeDetectionRange: () => ChangeDetectionRange;
     readonly runComponentHooks: {
@@ -221,6 +227,7 @@ export function remove<T extends object>(
     entity: Entity,
     type: ComponentType<T>
 ): boolean {
+    assertStructuralWriteAllowed(context.queryMutations, "remove components");
     const store = getComponentStore(context.componentStores, type);
     const component = store?.get(entity);
 
@@ -231,13 +238,16 @@ export function remove<T extends object>(
     context.runComponentHooks(type, "onUnset", entity, component);
     context.runComponentHooks(type, "onRemove", entity, component, "removed");
     untrackEntityComponent(context.entityComponents, entity, type);
-    store.delete(entity);
+    if (store.delete(entity)) {
+        recordStructuralChange(context.queryMutations);
+    }
 
     return true;
 }
 
 /** Removes every component on the entity and destroys the entity handle. */
 export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
+    assertStructuralWriteAllowed(context.queryMutations, "despawn entities");
     if (!context.entities.isAlive(entity)) return false;
 
     const trackedTypes = takeEntityComponents(context.entityComponents, entity);
@@ -254,10 +264,18 @@ export function despawn(context: ComponentOpsContext, entity: Entity): boolean {
             context.runComponentHooks(type, "onRemove", entity, component, "despawned");
         }
 
-        store?.delete(entity);
+        if (store?.delete(entity) === true) {
+            recordStructuralChange(context.queryMutations);
+        }
     }
 
-    return context.entities.destroy(entity);
+    const destroyed = context.entities.destroy(entity);
+
+    if (destroyed) {
+        recordStructuralChange(context.queryMutations);
+    }
+
+    return destroyed;
 }
 
 /** Writes exactly one component store and runs the appropriate lifecycle hooks around it. */
@@ -268,6 +286,7 @@ function insertComponentOnly<T extends object>(
     value: T,
     reason: ComponentAddReason
 ): void {
+    assertStructuralWriteAllowed(context.queryMutations, "add components");
     const store = ensureComponentStore(context.componentStores, type);
     const previous = store.set(entity, value, context.getChangeTick());
 
@@ -275,6 +294,7 @@ function insertComponentOnly<T extends object>(
         context.runComponentHooks(type, "onUnset", entity, previous);
         context.runComponentHooks(type, "onReplace", entity, previous, value);
     } else {
+        recordStructuralChange(context.queryMutations);
         trackEntityComponent(context.entityComponents, entity, type);
         context.runComponentHooks(type, "onAdd", entity, value, reason);
     }

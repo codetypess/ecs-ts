@@ -15,6 +15,23 @@ world.each([Position, Velocity], (_entity, position, velocity) => {
 
 Use `world.query(...)` when you want iterator rows, or `world.each(...)` on hot paths to avoid allocating a row array per match.
 
+## Structural Writes During Iteration
+
+Component payloads may be mutated during a query. Entity/component structural writes must be
+queued with `DeferredCommands`.
+
+```ts
+world.each([Health], (entity, health) => {
+    health.value--;
+    world.markComponentChanged(entity, Health);
+    commands.addComponent(entity, Damaged, {});
+});
+```
+
+Direct `spawn`, `despawn`, `addComponent`, `removeComponent`, `world.batch(...)`, or command
+flushing from an `each` visitor throws. Lazy `query(...)` iterators detect structural changes
+between rows and throw before continuing over invalidated dense storage.
+
 ## Filters
 
 `query(...)` and `each(...)` support these filters:

@@ -3,6 +3,7 @@ import type { ChangeDetectionRange, OptionalQueryRow, QueryRow } from "../query"
 import { chooseSmallestStore } from "../query";
 import { SparseSet } from "../sparse-set";
 import { fillComponents, fillOptionalComponents, hasComponents } from "./query-components";
+import { assertStructuralVersion, type QueryMutationContext } from "./query-mutation-control";
 import type {
     OptionalQueryCountExecutor,
     OptionalQueryEachExecutor,
@@ -97,8 +98,11 @@ export function compileOptionalQueryCount(filterMode: QueryFilterMode): Optional
 
 function* iterateRequired1(
     plan: ResolvedQueryPlan,
-    _changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
+    assertStructuralVersion(mutations, expectedStructuralVersion);
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -115,13 +119,17 @@ function* iterateRequired1(
         }
 
         yield [entity, value0] as unknown as QueryRow<readonly AnyComponentType[]>;
+        assertStructuralVersion(mutations, expectedStructuralVersion);
     }
 }
 
 function* iterateRequired1Filtered(
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
+    assertStructuralVersion(mutations, expectedStructuralVersion);
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -142,13 +150,17 @@ function* iterateRequired1Filtered(
         }
 
         yield [entity, value0] as unknown as QueryRow<readonly AnyComponentType[]>;
+        assertStructuralVersion(mutations, expectedStructuralVersion);
     }
 }
 
 function* iterateRequired2(
     plan: ResolvedQueryPlan,
-    _changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
+    assertStructuralVersion(mutations, expectedStructuralVersion);
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -173,13 +185,17 @@ function* iterateRequired2(
         }
 
         yield [entity, value0, value1] as unknown as QueryRow<readonly AnyComponentType[]>;
+        assertStructuralVersion(mutations, expectedStructuralVersion);
     }
 }
 
 function* iterateRequired2Filtered(
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
+    assertStructuralVersion(mutations, expectedStructuralVersion);
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -208,13 +224,17 @@ function* iterateRequired2Filtered(
         }
 
         yield [entity, value0, value1] as unknown as QueryRow<readonly AnyComponentType[]>;
+        assertStructuralVersion(mutations, expectedStructuralVersion);
     }
 }
 
 function* iterateRequired3(
     plan: ResolvedQueryPlan,
-    _changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
+    assertStructuralVersion(mutations, expectedStructuralVersion);
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -247,13 +267,17 @@ function* iterateRequired3(
         }
 
         yield [entity, value0, value1, value2] as unknown as QueryRow<readonly AnyComponentType[]>;
+        assertStructuralVersion(mutations, expectedStructuralVersion);
     }
 }
 
 function* iterateRequired3Filtered(
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
+    assertStructuralVersion(mutations, expectedStructuralVersion);
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -290,13 +314,17 @@ function* iterateRequired3Filtered(
         }
 
         yield [entity, value0, value1, value2] as unknown as QueryRow<readonly AnyComponentType[]>;
+        assertStructuralVersion(mutations, expectedStructuralVersion);
     }
 }
 
 function* iterateRequiredGeneric(
     plan: ResolvedQueryPlan,
-    _changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
+    assertStructuralVersion(mutations, expectedStructuralVersion);
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -310,13 +338,17 @@ function* iterateRequiredGeneric(
         }
 
         yield [entity, ...components] as unknown as QueryRow<readonly AnyComponentType[]>;
+        assertStructuralVersion(mutations, expectedStructuralVersion);
     }
 }
 
 function* iterateRequiredGenericFiltered(
     plan: ResolvedQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ): IterableIterator<QueryRow<readonly AnyComponentType[]>> {
+    assertStructuralVersion(mutations, expectedStructuralVersion);
     const baseStore = currentRequiredBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -334,6 +366,7 @@ function* iterateRequiredGenericFiltered(
         }
 
         yield [entity, ...components] as unknown as QueryRow<readonly AnyComponentType[]>;
+        assertStructuralVersion(mutations, expectedStructuralVersion);
     }
 }
 
@@ -645,8 +678,11 @@ function countRequiredQueryMatchesFiltered(
 
 function* iterateOptional1x1(
     plan: ResolvedOptionalQueryPlan,
-    _changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ): IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>> {
+    assertStructuralVersion(mutations, expectedStructuralVersion);
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -669,13 +705,17 @@ function* iterateOptional1x1(
             readonly AnyComponentType[],
             readonly AnyComponentType[]
         >;
+        assertStructuralVersion(mutations, expectedStructuralVersion);
     }
 }
 
 function* iterateOptional1x1Filtered(
     plan: ResolvedOptionalQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ): IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>> {
+    assertStructuralVersion(mutations, expectedStructuralVersion);
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -702,13 +742,17 @@ function* iterateOptional1x1Filtered(
             readonly AnyComponentType[],
             readonly AnyComponentType[]
         >;
+        assertStructuralVersion(mutations, expectedStructuralVersion);
     }
 }
 
 function* iterateOptionalGeneric(
     plan: ResolvedOptionalQueryPlan,
-    _changeDetection: ChangeDetectionRange
+    _changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ): IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>> {
+    assertStructuralVersion(mutations, expectedStructuralVersion);
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -731,13 +775,17 @@ function* iterateOptionalGeneric(
             readonly AnyComponentType[],
             readonly AnyComponentType[]
         >;
+        assertStructuralVersion(mutations, expectedStructuralVersion);
     }
 }
 
 function* iterateOptionalGenericFiltered(
     plan: ResolvedOptionalQueryPlan,
-    changeDetection: ChangeDetectionRange
+    changeDetection: ChangeDetectionRange,
+    mutations: QueryMutationContext,
+    expectedStructuralVersion: number
 ): IterableIterator<OptionalQueryRow<readonly AnyComponentType[], readonly AnyComponentType[]>> {
+    assertStructuralVersion(mutations, expectedStructuralVersion);
     const baseStore = currentOptionalBaseStore(plan);
     const baseEntities = baseStore.entities;
     const baseValues = baseStore.values;
@@ -764,6 +812,7 @@ function* iterateOptionalGenericFiltered(
             readonly AnyComponentType[],
             readonly AnyComponentType[]
         >;
+        assertStructuralVersion(mutations, expectedStructuralVersion);
     }
 }
 

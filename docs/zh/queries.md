@@ -15,6 +15,23 @@ world.each([Position, Velocity], (_entity, position, velocity) => {
 
 需要 iterator row 时使用 `world.query(...)`；在热路径上可以使用 `world.each(...)`，避免为每个匹配结果分配 row 数组。
 
+## 迭代期间的结构修改
+
+Query 期间可以修改 component payload；entity/component 结构修改必须通过
+`DeferredCommands` 排队。
+
+```ts
+world.each([Health], (entity, health) => {
+    health.value--;
+    world.markComponentChanged(entity, Health);
+    commands.addComponent(entity, Damaged, {});
+});
+```
+
+在 `each` visitor 中直接调用 `spawn`、`despawn`、`addComponent`、`removeComponent`、
+`world.batch(...)` 或 flush command queue 会抛错。Lazy `query(...)` iterator 会检测两次
+迭代之间发生的结构修改，并在继续访问已经失效的 dense storage 之前抛错。
+
 ## 过滤器
 
 `query(...)` 和 `each(...)` 支持这些过滤器：
