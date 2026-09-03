@@ -35,6 +35,12 @@ export interface WorldBatch {
     /** Stages a component insertion or replacement and returns the staged value. */
     addComponent<T extends object>(entity: Entity, type: ComponentType<T>, value: T): T;
     removeComponent<T extends object>(entity: Entity, type: ComponentType<T>): this;
+    /** Reads a component from the staged batch view, then committed World state. */
+    getComponent<T extends object>(entity: Entity, type: ComponentType<T>): T | undefined;
+    /** Tests the staged batch view overlaid on committed World state. */
+    hasComponent<T extends object>(entity: Entity, type: ComponentType<T>): boolean;
+    /** Requires a component from the staged batch view. */
+    mustGetComponent<T extends object>(entity: Entity, type: ComponentType<T>): T;
     despawn(entity: Entity): this;
 }
 
@@ -49,6 +55,10 @@ export interface WorldBatchRuntime {
     readonly releaseReservedEntity: (entity: Entity) => boolean;
     readonly commitReservedEntity: (entity: Entity) => void;
     readonly entityComponentTypes: (entity: Entity) => readonly AnyComponentType[];
+    readonly getComponent: <T extends object>(
+        entity: Entity,
+        type: ComponentType<T>
+    ) => T | undefined;
     readonly insertComponent: <T extends object>(
         entity: Entity,
         type: ComponentType<T>,
@@ -108,6 +118,25 @@ function createBatchWriter(runtime: WorldBatchRuntime, context: BatchContext): W
             stageBatchRemoveComponent(runtime, context, entity, type);
             return batch;
         },
+        getComponent<T extends object>(entity: Entity, type: ComponentType<T>) {
+            ensureBatchContextOpen(context);
+            runtime.assertComponentRegistered(type, "read");
+            return getBatchComponent(runtime, context, entity, type);
+        },
+        hasComponent<T extends object>(entity: Entity, type: ComponentType<T>) {
+            return batch.getComponent(entity, type) !== undefined;
+        },
+        mustGetComponent<T extends object>(entity: Entity, type: ComponentType<T>) {
+            const value = batch.getComponent(entity, type);
+
+            if (value === undefined) {
+                throw new Error(
+                    `Entity ${formatEntity(entity)} does not have ${type.name} in batch view`
+                );
+            }
+
+            return value;
+        },
         despawn(entity: Entity) {
             ensureBatchContextOpen(context);
             stageBatchDespawn(runtime, context, entity);
@@ -116,6 +145,33 @@ function createBatchWriter(runtime: WorldBatchRuntime, context: BatchContext): W
     };
 
     return batch;
+}
+
+function getBatchComponent<T extends object>(
+    runtime: WorldBatchRuntime,
+    context: BatchContext,
+    entity: Entity,
+    type: ComponentType<T>
+): T | undefined {
+    const entityState = context.entityStates.get(entity);
+
+    if (entityState !== undefined) {
+        if (entityState.despawned) {
+            return undefined;
+        }
+
+        const componentState = entityState.componentStates.get(type);
+
+        if (componentState !== undefined) {
+            return componentState.present ? (componentState.value as T) : undefined;
+        }
+
+        if (entityState.isNew) {
+            return undefined;
+        }
+    }
+
+    return runtime.getComponent(entity, type);
 }
 
 function ensureBatchContextOpen(context: BatchContext): void {

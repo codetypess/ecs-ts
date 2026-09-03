@@ -81,8 +81,11 @@ npm run example:commands
 
 ```ts
 world.batch((batch) => {
+    const position = batch.mustGetComponent(entity, Position);
+
     batch.removeComponent(entity, Selected);
     batch.addComponent(entity, Hovered, {});
+    batch.addComponent(entity, Position, { ...position, x: position.x + 1 });
 });
 ```
 
@@ -96,7 +99,9 @@ world.batch((batch) => {
 
 - 不支持嵌套 `world.batch(...)`。
 - callback 返回后，batch writer 就失效了。
-- batch writer 只支持 `spawn(etype, ...)`、`addComponent(...)`、`removeComponent(...)` 和 `despawn(...)`。
+- batch writer 支持 `spawn(etype, ...)`、`addComponent(...)`、`removeComponent(...)`、`getComponent(...)`、`hasComponent(...)`、`mustGetComponent(...)` 和 `despawn(...)`。
+- Component 读取使用 batch 的投影视图：暂存的新增和替换立即可见，暂存的移除和 despawn 则被隐藏；batch 未修改的 component 从已提交的 World 状态读取。
+- Component 读取返回实际对象引用。原地修改已提交的值会立即改变 World，且 batch 失败时不会回滚。
 - resource、state、message 和 event 的写入仍然通过直接 `World` 调用或 `DeferredCommands` 完成。
 - component hook 看到的是最终提交的净变化，而不是 callback 内部的每个临时步骤。
 

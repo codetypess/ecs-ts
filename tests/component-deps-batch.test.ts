@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import type { Entity } from "../src";
 import { defineComponent, World, createRegistry, entityIndex, withComponent } from "../src";
 
 test("world enforces component dependencies on direct writes", () => {
@@ -242,6 +243,63 @@ test("batch commits only the final diff for component hooks", () => {
     assert.deepEqual(world.mustGetComponent(existing, Value), { value: 2 });
 });
 
+test("batch component reads project staged changes over committed state", () => {
+    const registry = createRegistry("world-batch-component-read-test");
+    type Value = { value: number };
+    const Value = registry.registerComponent(defineComponent<Value>("Value"));
+    const original = { value: 1 };
+    const replacement = { value: 2 };
+    const world = new World(registry);
+    const existing = world.spawn(0, withComponent(Value, original));
+    const removed = world.spawn(0, withComponent(Value, { value: 3 }));
+
+    const discardedSpawn = world.batch((batch) => {
+        assert.equal(batch.getComponent(existing, Value), original);
+        assert.equal(batch.hasComponent(existing, Value), true);
+
+        batch.addComponent(existing, Value, replacement);
+        assert.equal(batch.mustGetComponent(existing, Value), replacement);
+
+        batch.removeComponent(removed, Value);
+        assert.equal(batch.getComponent(removed, Value), undefined);
+        assert.equal(batch.hasComponent(removed, Value), false);
+        assert.throws(
+            () => batch.mustGetComponent(removed, Value),
+            /does not have Value in batch view/
+        );
+
+        const spawned = batch.spawn(0, withComponent(Value, { value: 4 }));
+        assert.deepEqual(batch.getComponent(spawned, Value), { value: 4 });
+
+        batch.despawn(spawned);
+        assert.equal(batch.getComponent(spawned, Value), undefined);
+
+        return spawned;
+    });
+
+    assert.equal(world.getComponent(existing, Value), replacement);
+    assert.equal(world.getComponent(removed, Value), undefined);
+    assert.equal(world.isAlive(discardedSpawn), false);
+});
+
+test("batch component reads return actual committed object references", () => {
+    const registry = createRegistry("world-batch-component-reference-test");
+    type Value = { value: number };
+    const Value = registry.registerComponent(defineComponent<Value>("Value"));
+    const world = new World(registry);
+    const entity = world.spawn(0, withComponent(Value, { value: 1 }));
+
+    assert.throws(
+        () =>
+            world.batch((batch) => {
+                batch.mustGetComponent(entity, Value).value = 2;
+                throw new Error("abort batch");
+            }),
+        /abort batch/
+    );
+    assert.equal(world.mustGetComponent(entity, Value).value, 2);
+});
+
 test("batch does not commit when the callback throws or validation fails", () => {
     const registry = createRegistry("world-batch-failure-test");
     type Transform = { x: number; y: number };
@@ -297,6 +355,10 @@ test("batch writer cannot be reused after the callback returns", () => {
 
     assert.throws(
         () => batch.spawn(0),
+        /Cannot use world\.batch after the callback has already returned/
+    );
+    assert.throws(
+        () => batch.getComponent(0 as Entity, defineComponent("ClosedBatchRead")),
         /Cannot use world\.batch after the callback has already returned/
     );
 });

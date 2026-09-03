@@ -755,6 +755,7 @@ export class World extends WorldQueryMethods {
             commitReservedEntity: this.deferredCommandRuntime.commitReservedEntity,
             entityComponentTypes: (entity) =>
                 getEntityComponents(this.ecsContext.entityComponents, entity),
+            getComponent: (entity, type) => this.getComponent(entity, type),
             insertComponent: (entity, type, value, reason) => {
                 insertValidatedComponent(this.ecsContext.components, entity, type, value, reason);
             },

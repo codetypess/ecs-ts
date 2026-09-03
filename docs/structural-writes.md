@@ -83,8 +83,11 @@ It stages structural edits, validates the final component topology, then commits
 
 ```ts
 world.batch((batch) => {
+    const position = batch.mustGetComponent(entity, Position);
+
     batch.removeComponent(entity, Selected);
     batch.addComponent(entity, Hovered, {});
+    batch.addComponent(entity, Position, { ...position, x: position.x + 1 });
 });
 ```
 
@@ -98,7 +101,9 @@ Important details:
 
 - Nested `world.batch(...)` calls are rejected.
 - The batch writer becomes invalid once the callback returns.
-- Batch writers only support `spawn(etype, ...)`, `addComponent(...)`, `removeComponent(...)`, and `despawn(...)`.
+- Batch writers support `spawn(etype, ...)`, `addComponent(...)`, `removeComponent(...)`, `getComponent(...)`, `hasComponent(...)`, `mustGetComponent(...)`, and `despawn(...)`.
+- Component reads use the projected batch view: staged additions and replacements are visible, while staged removals and despawns are hidden. Components untouched by the batch are read from committed World state.
+- Component reads return the actual object reference. Mutating a committed value in place changes the World immediately and is not rolled back if the batch fails.
 - Resource, state, message, and event writes still go through direct `World` calls or `DeferredCommands`.
 - Component hooks observe the committed final diff, not every temporary step inside the callback.
 
